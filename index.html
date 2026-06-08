@@ -1,411 +1,259 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>🎲 Ludo Word Bot</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<style>
-* { margin:0; padding:0; box-sizing:border-box; }
-
-:root {
-  --bg:      #0d0d1a;
-  --surface: #13132a;
-  --card:    #1a1a3e;
-  --red:     #ff4757;
-  --yellow:  #ffa502;
-  --green:   #2ed573;
-  --blue:    #1e90ff;
-  --text:    #f1f2f6;
-  --muted:   #747d8c;
-  --border:  rgba(255,255,255,0.07);
-}
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
-  min-height: 100vh;
-  padding: 14px;
-  max-width: 430px;
-  margin: 0 auto;
-}
-
-/* ── Header ── */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.header h1 { font-size: 17px; font-weight: 800; }
-
-.pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface);
-  border-radius: 99px;
-  padding: 4px 11px;
-  font-size: 11px;
-  color: var(--muted);
-}
-.dot { width:7px; height:7px; border-radius:50%; background:var(--muted); }
-.dot.live  { background:var(--green); box-shadow:0 0 7px var(--green); animation:blink 2s infinite; }
-.dot.error { background:var(--red); }
-
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
-
-/* ── Turn Banner ── */
-.turn-banner {
-  border-radius: 20px;
-  padding: 16px;
-  margin-bottom: 14px;
-  text-align: center;
-  border: 1.5px solid var(--border);
-  transition: background .4s, border-color .4s;
-}
-.turn-banner .who  { font-size:11px; text-transform:uppercase; letter-spacing:1.5px; opacity:.6; margin-bottom:3px; }
-.turn-banner .name { font-size:24px; font-weight:800; }
-
-/* ── Dice ── */
-.dice-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  margin-bottom: 14px;
-}
-
-.dice {
-  width: 86px; height: 86px;
-  background: white;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 50px;
-  box-shadow: 0 8px 40px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.3);
-  transition: transform .2s;
-  user-select: none;
-}
-
-.dice.rolling { animation: roll .65s cubic-bezier(.36,.07,.19,.97); }
-
-@keyframes roll {
-  0%   { transform: rotate(0)     scale(1);   }
-  20%  { transform: rotate(72deg) scale(.7);  }
-  40%  { transform: rotate(144deg)scale(1.2); }
-  60%  { transform: rotate(216deg)scale(.8);  }
-  80%  { transform: rotate(288deg)scale(1.1); }
-  100% { transform: rotate(360deg)scale(1);   }
-}
-
-.dice-info .roll-num   { font-size:42px; font-weight:900; line-height:1; }
-.dice-info .roll-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
-
-/* ── Word Result ── */
-.word-card {
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 16px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-}
-.word-text { font-size:20px; font-weight:700; text-align:center; margin-bottom:10px; }
-.bar-track { height:8px; background:rgba(255,255,255,.09); border-radius:99px; overflow:hidden; margin-bottom:7px; }
-.bar-fill  { height:100%; border-radius:99px; width:0%; transition: width 1.3s cubic-bezier(.16,1,.3,1); }
-.qual-row  { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
-
-/* ── Players Grid ── */
-.sec-title { font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:9px; }
-
-.players-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-
-.player-card {
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
-  transition: all .35s ease;
-}
-.player-card.active {
-  background: var(--card);
-  border-color: var(--accent, #667eea);
-  transform: scale(1.04);
-  box-shadow: 0 0 22px -4px var(--accent, #667eea);
-}
-
-.p-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
-.p-name { font-size:14px; font-weight:600; max-width:88px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.p-pts  { font-size:11px; color:var(--muted); }
-
-.pieces-row { display:flex; gap:5px; flex-wrap:wrap; }
-
-.piece {
-  width:27px; height:27px;
-  border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  font-size:9px; font-weight:700;
-  color:white;
-  border: 2px solid rgba(255,255,255,.25);
-  transition: all .5s cubic-bezier(.34,1.56,.64,1);
-}
-.piece.yard { opacity:.32; }
-.piece.home { border-color:gold; box-shadow:0 0 10px gold; }
-
-.piece.bounce { animation: pcbounce .55s cubic-bezier(.34,1.56,.64,1); }
-@keyframes pcbounce {
-  0%  { transform: scale(1)   translateY(0); }
-  30% { transform: scale(1.5) translateY(-16px); }
-  65% { transform: scale(.9)  translateY(-5px); }
-  85% { transform: scale(1.1) translateY(-2px); }
-  100%{ transform: scale(1)   translateY(0); }
-}
-
-.piece.shake { animation: shake .45s ease; }
-@keyframes shake {
-  0%,100%{ transform:translateX(0); }
-  20%{ transform:translateX(-7px) rotate(-3deg); }
-  40%{ transform:translateX(7px) rotate(3deg); }
-  60%{ transform:translateX(-5px); }
-  80%{ transform:translateX(5px); }
-}
-
-/* ── No-game screen ── */
-.center {
-  text-align:center;
-  padding: 60px 20px;
-}
-.center .icon { font-size:56px; margin-bottom:14px; animation:float 3s ease-in-out infinite; }
-@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-.center h2 { font-size:18px; margin-bottom:8px; }
-.center p  { color:var(--muted); font-size:13px; }
-
-/* ── Winner Banner ── */
-.winner-card {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border-radius: 20px;
-  padding: 24px;
-  text-align: center;
-  margin-bottom: 14px;
-  animation: winPop .6s cubic-bezier(.34,1.56,.64,1);
-}
-@keyframes winPop { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
-.winner-card .trophy { font-size:52px; margin-bottom:8px; }
-.winner-card h2 { font-size:22px; font-weight:800; }
-.winner-card p  { font-size:13px; opacity:.8; margin-top:4px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo – Connected to Telegram Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        canvas { border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    </style>
 </head>
-<body>
-
-<div class="header">
-  <h1>🎲 Ludo Word Bot</h1>
-  <div class="pill">
-    <span class="dot" id="dot"></span>
-    <span id="statusTxt">Connecting</span>
-  </div>
-</div>
-
-<div id="root">
-  <div class="center">
-    <div class="icon">🎮</div>
-    <h2>Loading…</h2>
-    <p>Please wait</p>
-  </div>
-</div>
-
-<script>
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  ⚙️  FILL THESE IN
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const SUPABASE_URL      = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
-
-const CHAT_ID = parseInt(new URLSearchParams(location.search).get("chat_id") || "0");
-
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-const DICE  = ["","⚀","⚁","⚂","⚃","⚄","⚅"];
-const CEMOJI= {RED:"🔴", YELLOW:"🟡", GREEN:"🟢", BLUE:"🔵"};
-const CHEX  = {RED:"#ff4757", YELLOW:"#ffa502", GREEN:"#2ed573", BLUE:"#1e90ff"};
-const HOME=57, YARD=0;
-
-let prevEvTs = null;
-
-// ─────────────────────────────────────
-function setStatus(s) {
-  const dot = document.getElementById("dot");
-  const txt = document.getElementById("statusTxt");
-  if (s==="live")  { dot.className="dot live";  txt.textContent="Live"; }
-  else if(s==="error"){ dot.className="dot error"; txt.textContent="Disconnected"; }
-  else              { dot.className="dot";       txt.textContent="Connecting"; }
-}
-
-// ─────────────────────────────────────
-function render(state, ev) {
-  const root = document.getElementById("root");
-  if (!state) return;
-
-  // ── No game ──
-  if (!state.game_active && !ev?.winner) {
-    root.innerHTML = `<div class="center"><div class="icon">🎮</div><h2>No active game</h2><p>Use /2player or /4player in the group</p></div>`;
-    return;
-  }
-
-  // ── Winner screen ──
-  if (ev?.winner) {
-    const wCol  = state.player_colour?.[String(ev.winner_uid)] || "BLUE";
-    const wHex  = CHEX[wCol];
-    root.innerHTML = `
-      <div class="winner-card">
-        <div class="trophy">🏆</div>
-        <h2>${CEMOJI[wCol]} ${ev.winner} WON!</h2>
-        <p>Congratulations!</p>
-      </div>
-      <div class="center"><p style="color:var(--muted)">Use /2player or /4player to play again</p></div>`;
-    return;
-  }
-
-  const curUid  = String(state.current_turn_uid);
-  const curName = state.player_names?.[curUid] || "?";
-  const curCol  = state.player_colour?.[curUid] || "BLUE";
-  const curHex  = CHEX[curCol];
-
-  const newEv  = ev && ev.ts && ev.ts !== prevEvTs;
-  const roll   = newEv ? ev.roll : null;
-
-  // ── Turn Banner ──
-  const bannerHTML = `
-    <div class="turn-banner" style="background:${curHex}1a; border-color:${curHex}55">
-      <div class="who">Current Turn</div>
-      <div class="name">${CEMOJI[curCol]} ${curName}</div>
-    </div>`;
-
-  // ── Dice ──
-  const diceFace  = roll ? DICE[roll] : "🎲";
-  const rollClass = roll ? "rolling" : "";
-  const diceHTML  = `
-    <div class="dice-wrap">
-      <div class="dice ${rollClass}" id="dice">${diceFace}</div>
-      ${roll ? `
-      <div class="dice-info">
-        <div class="roll-num" style="color:${curHex}">${roll}</div>
-        <div class="roll-label">Dice Roll</div>
-      </div>` : `<div class="dice-info"><div class="roll-label" style="margin-top:8px">Type a word<br>in group chat 💬</div></div>`}
-    </div>`;
-
-  // ── Word Card ──
-  let wordHTML = "";
-  if (newEv && ev.word) {
-    const pct   = Math.round((roll / 6) * 100);
-    const barcol= roll>=5?"#ffd700":roll>=4?"#ff6b6b":roll>=3?"#51cf66":roll>=2?"#74c0fc":"#868e96";
-    const qual  = roll>=5?"💎 Exceptional":roll>=4?"🔥 Impressive":roll>=3?"👍 Good":roll>=2?"😐 Common":"😴 Very common";
-    wordHTML = `
-      <div class="word-card">
-        <div class="word-text">"${ev.word}"</div>
-        <div class="bar-track"><div class="bar-fill" id="bar" style="background:${barcol}"></div></div>
-        <div class="qual-row"><span>${qual}</span><span style="color:${barcol}">${ev.actor || ""}</span></div>
-      </div>`;
-  }
-
-  // ── Players ──
-  let pgHTML = `<div class="sec-title">Players</div><div class="players-grid">`;
-  for (const uid of (state.players || [])) {
-    const su   = String(uid);
-    const name = state.player_names?.[su] || "?";
-    const col  = state.player_colour?.[su] || "BLUE";
-    const hex  = CHEX[col];
-    const pts  = state.player_scores?.[su] || 0;
-    const pcs  = state.pieces?.[su] || [0,0,0,0];
-    const act  = su === curUid;
-
-    let pcsHTML = '<div class="pieces-row">';
-    for (let i=0;i<pcs.length;i++) {
-      const p   = pcs[i];
-      const cls = p===YARD?"yard":p===HOME?"home":"";
-      const lbl = p===YARD?"Y":p===HOME?"★":p;
-      pcsHTML  += `<div class="piece ${cls}" id="pc-${su}-${i}" style="background:${hex}">${lbl}</div>`;
-    }
-    pcsHTML += '</div>';
-
-    pgHTML += `
-      <div class="player-card ${act?"active":""}" style="--accent:${hex}">
-        <div class="p-top">
-          <div class="p-name">${CEMOJI[col]} ${name}</div>
-          <div class="p-pts">${pts}pt</div>
+<body class="bg-gray-900 flex justify-center items-center min-h-screen p-4">
+    <div class="bg-gray-800 rounded-2xl p-4 shadow-2xl">
+        <canvas id="boardCanvas" width="900" height="900" class="rounded-2xl"></canvas>
+        <div class="mt-4 text-white text-center">
+            <p id="statusMsg" class="text-lg font-mono">Loading game...</p>
+            <p class="text-sm text-gray-400 mt-2">
+                🎲 <strong>Dice roll:</strong> Type a valid English word in <span class="text-yellow-400">Telegram group</span><br>
+                🖱️ <strong>Move token:</strong> Click your token button below (after dice)
+            </p>
         </div>
-        ${pcsHTML}
-      </div>`;
-  }
-  pgHTML += '</div>';
+        <div id="tokenButtons" class="flex flex-wrap gap-3 justify-center mt-4"></div>
+        <div class="text-xs text-gray-500 text-center mt-2">
+            ⚡ Any dice (1-6) can open token from home. No extra turn on 6.
+        </div>
+    </div>
 
-  root.innerHTML = bannerHTML + diceHTML + wordHTML + pgHTML;
+    <script>
+        // ---------- CHANGE THESE TO YOUR BOT'S IP AND PORTS ----------
+        const BOT_API_URL = "http://YOUR_VPS_IP:5000";   // Bot jahan chal raha hai
+        const CHAT_ID = parseInt(prompt("Enter Telegram Chat ID (group ID):"));
+        const USER_ID = parseInt(prompt("Enter your Telegram User ID:"));
 
-  // Animate bar
-  if (newEv && ev.word) {
-    const bar = document.getElementById("bar");
-    const pct = Math.round((roll / 6) * 100);
-    if (bar) requestAnimationFrame(() => requestAnimationFrame(() => bar.style.width = pct + "%"));
-  }
+        // ---------- BOARD DRAWING (same as bot) ----------
+        const BOARD_SIZE = 900;
+        const CENTER = BOARD_SIZE/2;
+        function getPositionCoords(pos, playerColor = null) {
+            if (pos === 0) return [-100, -100];
+            if (pos === 59) return [CENTER, CENTER];
+            if (pos >= 53 && pos <= 58) {
+                const stretchMap = {
+                    '🔴 Red': [[750,750],[700,750],[650,750],[600,750],[550,750],[500,750]],
+                    '🟢 Green': [[750,150],[750,200],[750,250],[750,300],[750,350],[750,400]],
+                    '🟡 Yellow': [[150,150],[200,150],[250,150],[300,150],[350,150],[400,150]],
+                    '🔵 Blue': [[150,750],[150,700],[150,650],[150,600],[150,550],[150,500]]
+                };
+                const idx = pos - 53;
+                return stretchMap[playerColor]?.[idx] || [CENTER, CENTER];
+            }
+            if (pos >= 1 && pos <= 13) { let x = 750 - (pos-1)*50; return [x, 750]; }
+            else if (pos >= 14 && pos <= 26) { let y = 750 - (pos-14)*50; return [150, y]; }
+            else if (pos >= 27 && pos <= 39) { let x = 150 + (pos-27)*50; return [x, 150]; }
+            else if (pos >= 40 && pos <= 52) { let y = 150 + (pos-40)*50; return [750, y]; }
+            return [CENTER, CENTER];
+        }
+        const HOME_YARDS = {
+            "🔴 Red": { x: 780, y: 780 },
+            "🟢 Green": { x: 780, y: 120 },
+            "🟡 Yellow": { x: 120, y: 120 },
+            "🔵 Blue": { x: 120, y: 780 }
+        };
 
-  // Piece bounce
-  if (newEv && ev.moved_uid != null) {
-    const el = document.getElementById(`pc-${ev.moved_uid}-${ev.piece_idx}`);
-    if (el) { el.classList.add("bounce"); setTimeout(()=>el.classList.remove("bounce"), 650); }
-  }
+        let gameState = null;
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
 
-  // Capture shake
-  if (newEv && ev.captured_uid != null) {
-    for (let i=0;i<4;i++) {
-      const el = document.getElementById(`pc-${ev.captured_uid}-${i}`);
-      if (el) { el.classList.add("shake"); setTimeout(()=>el.classList.remove("shake"), 550); }
-    }
-  }
+        function drawBoard() {
+            if (!gameState) return;
+            const players = gameState.players;
+            const turnIdx = gameState.turn_index;
+            const diceValue = gameState.dice_value;
+            const rolled = gameState.rolled;
 
-  if (newEv) prevEvTs = ev.ts;
-}
+            ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
+            ctx.fillStyle = '#f5e6d3';
+            ctx.fillRect(0,0,BOARD_SIZE,BOARD_SIZE);
+            ctx.strokeStyle = '#2c1a0c';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(150,150,600,600);
+            ctx.fillStyle = '#e0c8a0';
+            ctx.fillRect(300,300,300,300);
+            ctx.strokeRect(300,300,300,300);
+            
+            const homes = [
+                { pts: [[750,750],[900,750],[750,900]], color: '220,60,60' },
+                { pts: [[750,0],[900,0],[750,150]], color: '60,220,60' },
+                { pts: [[0,0],[150,0],[0,150]], color: '220,220,60' },
+                { pts: [[0,750],[150,900],[0,900]], color: '60,60,220' }
+            ];
+            homes.forEach(h => {
+                ctx.beginPath();
+                ctx.moveTo(h.pts[0][0], h.pts[0][1]);
+                ctx.lineTo(h.pts[1][0], h.pts[1][1]);
+                ctx.lineTo(h.pts[2][0], h.pts[2][1]);
+                ctx.fillStyle = `rgb(${h.color})`;
+                ctx.fill();
+                ctx.stroke();
+            });
+            
+            for (let pos=1; pos<=52; pos++) {
+                let [x,y] = getPositionCoords(pos);
+                ctx.beginPath();
+                ctx.arc(x,y,16,0,2*Math.PI);
+                ctx.fillStyle = '#fff5e8';
+                ctx.fill();
+                ctx.strokeStyle = '#a57c4c';
+                ctx.stroke();
+                const safe = [1,9,14,22,27,35,40,48];
+                if (safe.includes(pos)) {
+                    ctx.fillStyle = '#ffd966';
+                    ctx.beginPath();
+                    ctx.arc(x,y,12,0,2*Math.PI);
+                    ctx.fill();
+                }
+            }
+            for (let pos=53; pos<=58; pos++) {
+                for (let col of players.map(p=>p.color)) {
+                    let [x,y] = getPositionCoords(pos, col);
+                    if (x && y) {
+                        ctx.beginPath();
+                        ctx.arc(x,y,14,0,2*Math.PI);
+                        ctx.fillStyle = '#edd5b0';
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.fillStyle = '#c9a87b';
+            ctx.beginPath();
+            ctx.arc(CENTER,CENTER,20,0,2*Math.PI);
+            ctx.fill();
+            
+            players.forEach((player, pIdx) => {
+                player.tokens.forEach((pos, tIdx) => {
+                    let x, y;
+                    if (pos === 0) {
+                        const homePos = HOME_YARDS[player.color];
+                        const offsetX = (tIdx % 2) * 30 - 15;
+                        const offsetY = Math.floor(tIdx / 2) * 30 - 15;
+                        x = homePos.x + offsetX;
+                        y = homePos.y + offsetY;
+                    } else if (pos === 59) {
+                        x = CENTER + (tIdx%2)*15 - 7;
+                        y = CENTER + Math.floor(tIdx/2)*15 - 7;
+                    } else {
+                        [x,y] = getPositionCoords(pos, player.color);
+                    }
+                    ctx.beginPath();
+                    ctx.arc(x, y, 18, 0, 2*Math.PI);
+                    const rgb = player.color === '🔴 Red' ? '220,60,60' : player.color === '🟢 Green' ? '60,220,60' : player.color === '🟡 Yellow' ? '220,220,60' : '60,60,220';
+                    ctx.fillStyle = `rgb(${rgb})`;
+                    ctx.fill();
+                    ctx.strokeStyle = '#111';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 18px "Segoe UI"';
+                    ctx.fillText((tIdx+1).toString(), x-7, y+8);
+                });
+            });
+            
+            if (turnIdx < players.length) {
+                const turnColor = players[turnIdx].color;
+                const turnMap = {
+                    "🔴 Red": [[750,750],[900,750],[750,900]],
+                    "🟢 Green": [[750,0],[900,0],[750,150]],
+                    "🟡 Yellow": [[0,0],[150,0],[0,150]],
+                    "🔵 Blue": [[0,750],[150,900],[0,900]]
+                };
+                const pts = turnMap[turnColor];
+                if (pts) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[0][0], pts[0][1]);
+                    ctx.lineTo(pts[1][0], pts[1][1]);
+                    ctx.lineTo(pts[2][0], pts[2][1]);
+                    ctx.strokeStyle = '#FFD966';
+                    ctx.lineWidth = 8;
+                    ctx.stroke();
+                }
+            }
+            if (diceValue && rolled) {
+                ctx.font = 'bold 36px monospace';
+                ctx.fillStyle = '#2c3e2f';
+                ctx.fillText(`🎲 ${diceValue}`, 30, 70);
+            }
+        }
 
-// ─────────────────────────────────────
-async function init() {
-  if (!CHAT_ID) {
-    document.getElementById("root").innerHTML =
-      `<div class="center"><div class="icon">⚠️</div><h2>Missing chat_id</h2><p>Open this link from the bot in your group</p></div>`;
-    return;
-  }
+        async function fetchGameState() {
+            try {
+                const res = await fetch(`${BOT_API_URL}/game_state/${CHAT_ID}`);
+                if (res.ok) {
+                    gameState = await res.json();
+                    drawBoard();
+                    updateUI();
+                } else if (res.status === 404) {
+                    document.getElementById('statusMsg').innerText = "No active game. Start with /start2 or /start4 in Telegram.";
+                }
+            } catch(err) {
+                document.getElementById('statusMsg').innerText = "Cannot connect to bot API. Make sure bot is running.";
+            }
+        }
 
-  // Initial fetch
-  const { data } = await sb
-    .from("ludo_game_states")
-    .select("*")
-    .eq("chat_id", CHAT_ID)
-    .maybeSingle();
+        async function moveToken(tokenIdx) {
+            if (!gameState) return;
+            if (gameState.winner !== -1) { alert("Game already finished!"); return; }
+            const myIdx = gameState.players.findIndex(p => p.id === USER_ID);
+            if (myIdx === -1) { alert("You are not a player!"); return; }
+            if (gameState.turn_index !== myIdx) { alert("Not your turn!"); return; }
+            if (!gameState.rolled) { alert("Dice not rolled! Type a word in Telegram group first."); return; }
+            const res = await fetch(`${BOT_API_URL}/move/${CHAT_ID}/${USER_ID}/${tokenIdx}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                if (data.status === 'won') alert(`🏆 ${gameState.players[data.winner].username} won!`);
+                fetchGameState();
+            } else {
+                alert(data.error);
+            }
+        }
 
-  if (data) render(data.state, data.last_event);
-  else document.getElementById("root").innerHTML =
-    `<div class="center"><div class="icon">🎲</div><h2>No game yet</h2><p>Start with /2player or /4player</p></div>`;
+        function updateUI() {
+            const statusDiv = document.getElementById('statusMsg');
+            if (!gameState) return;
+            if (gameState.winner !== -1) {
+                statusDiv.innerHTML = `🏆 Winner: ${gameState.players[gameState.winner].username} 🏆`;
+                document.getElementById('tokenButtons').innerHTML = '';
+                return;
+            }
+            const myIdx = gameState.players.findIndex(p => p.id === USER_ID);
+            if (myIdx === -1) {
+                statusDiv.innerHTML = "You are not a player. Use /join in Telegram.";
+                document.getElementById('tokenButtons').innerHTML = '';
+                return;
+            }
+            const myTurn = (gameState.turn_index === myIdx);
+            if (myTurn && gameState.rolled) {
+                statusDiv.innerHTML = `🎲 Dice = ${gameState.dice_value} — Click your token to move!`;
+            } else if (myTurn && !gameState.rolled) {
+                statusDiv.innerHTML = `🔤 Your turn! Type a valid English word in Telegram group.`;
+            } else {
+                statusDiv.innerHTML = `⏳ Waiting for ${gameState.players[gameState.turn_index].username}'s turn.`;
+            }
+            const container = document.getElementById('tokenButtons');
+            if (myTurn && gameState.rolled && gameState.winner === -1) {
+                const myTokens = gameState.players[myIdx].tokens;
+                container.innerHTML = myTokens.map((pos, i) => `
+                    <button onclick="moveToken(${i})" class="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-xl font-bold text-white">
+                        Token ${i+1} ${pos === 0 ? '🏠' : (pos === 59 ? '🏆' : pos)}
+                    </button>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-gray-400">Wait for your turn and dice roll...</p>';
+            }
+        }
 
-  // Realtime subscription
-  sb.channel(`game_${CHAT_ID}`)
-    .on("postgres_changes", {
-      event: "*",
-      schema: "public",
-      table: "ludo_game_states",
-      filter: `chat_id=eq.${CHAT_ID}`
-    }, ({ new: row }) => render(row.state, row.last_event))
-    .subscribe(status => {
-      if (status === "SUBSCRIBED") setStatus("live");
-      else if (["CHANNEL_ERROR","TIMED_OUT"].includes(status)) setStatus("error");
-    });
-}
-
-init();
-</script>
+        setInterval(fetchGameState, 2000);
+        fetchGameState();
+    </script>
 </body>
 </html>
