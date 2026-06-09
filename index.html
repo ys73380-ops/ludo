@@ -2,383 +2,276 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🎲 Ludo Word Game</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo – Move Token</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            --bg:    var(--tg-theme-bg-color,            #111827);
-            --bg2:   var(--tg-theme-secondary-bg-color,  #1f2937);
-            --text:  var(--tg-theme-text-color,          #f3f4f6);
-            --hint:  var(--tg-theme-hint-color,          #9ca3af);
-            --btn:   var(--tg-theme-button-color,        #4f46e5);
-            --btnT:  var(--tg-theme-button-text-color,   #ffffff);
-            --sep:   rgba(255,255,255,0.07);
-        }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            min-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 8px 8px 24px;
-        }
-
-        /* ── Header ── */
-        #hdr {
-            width: 100%; max-width: 480px;
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 6px 2px 10px;
-        }
-        #hdr h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
-        #diceBadge {
-            background: #fbbf24; color: #000;
-            border-radius: 20px; padding: 4px 12px;
-            font-size: 13px; font-weight: 800;
-            display: none;
-        }
-
-        /* ── Canvas ── */
-        #cwrap { width: 100%; max-width: 480px; aspect-ratio: 1; position: relative; }
-        canvas { width: 100%; height: 100%; display: block; border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.55); }
-
-        /* ── Status card ── */
-        #card {
-            width: 100%; max-width: 480px;
-            background: var(--bg2); border: 1px solid var(--sep); border-radius: 14px;
-            padding: 13px 15px; margin-top: 10px;
-        }
-        #sMsg { font-size: 14px; font-weight: 700; line-height: 1.4; }
-        #sSub { font-size: 12px; color: var(--hint); margin-top: 4px; line-height: 1.45; }
-        #pRow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-        .chip {
-            padding: 3px 10px; border-radius: 20px;
-            font-size: 11px; font-weight: 700; opacity: .75;
-            border: 1px solid transparent;
-        }
-        .chip.on { opacity: 1; border-color: currentColor; box-shadow: 0 0 0 2px currentColor; }
-
-        /* ── Token buttons ── */
-        #tBtns {
-            width: 100%; max-width: 480px;
-            display: grid; grid-template-columns: 1fr 1fr;
-            gap: 8px; margin-top: 10px;
-        }
-        .tb {
-            padding: 13px 8px; border: none; border-radius: 12px;
-            font-size: 13px; font-weight: 800; cursor: pointer;
-            color: var(--btnT); background: var(--btn);
-            display: flex; flex-direction: column; align-items: center; gap: 3px;
-            transition: transform .1s, opacity .15s;
-        }
-        .tb:active { transform: scale(.95); opacity: .8; }
-        .tb:disabled { opacity: .32; cursor: not-allowed; transform: none !important; }
-        .tb .sub { font-size: 10px; font-weight: 500; opacity: .8; }
-
-        /* ── Error / loader ── */
-        #err { width:100%; max-width:480px; text-align:center; font-size:12px; color:#f87171; margin-top:8px; display:none; }
-        #loader {
-            position: fixed; inset: 0; background: var(--bg);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-            z-index: 99; transition: opacity .3s;
-        }
-        #loader.gone { opacity: 0; pointer-events: none; }
-        .spin {
-            width: 40px; height: 40px;
-            border: 3px solid rgba(255,255,255,.12);
-            border-top-color: var(--btn);
-            border-radius: 50%; animation: rot .7s linear infinite;
-        }
-        @keyframes rot { to { transform: rotate(360deg); } }
-        #loader p { font-size: 13px; color: var(--hint); }
+        canvas { border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
     </style>
 </head>
-<body>
-
-<div id="loader"><div class="spin"></div><p>Loading game…</p></div>
-
-<div id="hdr">
-    <h1>🎲 Ludo Word Game</h1>
-    <span id="diceBadge"></span>
-</div>
-
-<div id="cwrap"><canvas id="board" width="900" height="900"></canvas></div>
-
-<div id="card">
-    <div id="sMsg">Connecting…</div>
-    <div id="sSub"></div>
-    <div id="pRow"></div>
-</div>
-
-<div id="tBtns"></div>
-<div id="err"></div>
-
-<script>
-// ══════════════════════════════════════════════════════════
-//  TELEGRAM MINI APP
-// ══════════════════════════════════════════════════════════
-const tg = window.Telegram?.WebApp;
-if (tg) { tg.expand(); tg.ready(); }
-
-// ══════════════════════════════════════════════════════════
-//  CONFIG FROM URL PARAMS  (set by bot)
-//  Example URL: https://ludo-virid-alpha.vercel.app?chat_id=-1234&api=https://xxx.railway.app
-// ══════════════════════════════════════════════════════════
-const P          = new URLSearchParams(window.location.search);
-const CHAT_ID    = P.get('chat_id');
-const BOT_API    = P.get('api') || '';           // Railway / Render URL
-const USER_ID    = tg?.initDataUnsafe?.user?.id || null;
-
-if (!CHAT_ID || !BOT_API) {
-    $('sMsg').textContent = '❌ Invalid link — open from Telegram group.';
-    $('sSub').textContent = 'Use /webapp command inside the Telegram group.';
-    $('loader').classList.add('gone');
-}
-
-// ══════════════════════════════════════════════════════════
-//  BOARD CONSTANTS  (must match bot exactly)
-// ══════════════════════════════════════════════════════════
-const BS = 900, CX = 450;
-const CRGB  = { "🔴 Red":[220,60,60],  "🟢 Green":[60,220,60],  "🟡 Yellow":[220,220,60], "🔵 Blue":[60,60,220] };
-const PRGB  = { "🔴 Red":[255,180,180],"🟢 Green":[180,255,180],"🟡 Yellow":[255,255,180],"🔵 Blue":[180,180,255] };
-const HCTR  = { "🔴 Red":[810,810],    "🟢 Green":[810,90],     "🟡 Yellow":[90,90],      "🔵 Blue":[90,810] };
-const STR   = {
-    "🔴 Red":   [[750,750],[700,750],[650,750],[600,750],[550,750],[500,750]],
-    "🟢 Green": [[750,150],[750,200],[750,250],[750,300],[750,350],[750,400]],
-    "🟡 Yellow":[[150,150],[200,150],[250,150],[300,150],[350,150],[400,150]],
-    "🔵 Blue":  [[150,750],[150,700],[150,650],[150,600],[150,550],[150,500]]
-};
-const HTRI  = {
-    "🔴 Red":   [[750,750],[900,750],[750,900]],
-    "🟢 Green": [[750,0],[900,0],[750,150]],
-    "🟡 Yellow":[[0,0],[150,0],[0,150]],
-    "🔵 Blue":  [[0,750],[150,900],[0,900]]
-};
-const SAFE  = new Set([1,9,14,22,27,35,40,48]);
-const CCSS  = { "🔴 Red":"#dc3c3c","🟢 Green":"#22c55e","🟡 Yellow":"#eab308","🔵 Blue":"#3b82f6" };
-
-function coords(pos, col=null) {
-    if (pos === 0)  return [-300,-300];
-    if (pos >= 59)  return [CX, CX];
-    if (pos>=53&&pos<=58) return col ? STR[col][pos-53] : [CX,CX];
-    if (pos>=1 &&pos<=13) return [750-(pos-1)*50, 750];
-    if (pos>=14&&pos<=26) return [150, 750-(pos-14)*50];
-    if (pos>=27&&pos<=39) return [150+(pos-27)*50, 150];
-    return [750, 150+(pos-40)*50];
-}
-
-// ══════════════════════════════════════════════════════════
-//  CANVAS DRAW
-// ══════════════════════════════════════════════════════════
-const canvas = document.getElementById('board');
-const ctx    = canvas.getContext('2d');
-
-// roundRect polyfill for older WebViews
-function rrect(x,y,w,h,r) {
-    ctx.beginPath();
-    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
-    ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
-    ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
-    ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
-}
-
-function rgba(arr,a=1){ return `rgba(${arr[0]},${arr[1]},${arr[2]},${a})`; }
-
-function drawBoard(st) {
-    const {players:pl, turn_index:ti, dice_value:dv, rolled, winner} = st;
-    ctx.clearRect(0,0,BS,BS);
-
-    // BG
-    ctx.fillStyle='#f5e6d3'; ctx.fillRect(0,0,BS,BS);
-    // Center block
-    ctx.fillStyle='#e0c8a0'; ctx.fillRect(300,300,300,300);
-    ctx.strokeStyle='#2c1a0c'; ctx.lineWidth=3;
-    ctx.strokeRect(300,300,300,300); ctx.strokeRect(150,150,600,600);
-
-    // Home corners
-    Object.keys(CRGB).forEach(col => {
-        const pts=HTRI[col];
-        ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); ctx.lineTo(pts[1][0],pts[1][1]); ctx.lineTo(pts[2][0],pts[2][1]);
-        ctx.fillStyle=rgba(CRGB[col]); ctx.fill();
-        ctx.strokeStyle='#2c1a0c'; ctx.lineWidth=2; ctx.stroke();
-    });
-
-    // Stretch lane dots
-    Object.keys(STR).forEach(col => {
-        STR[col].forEach(([x,y]) => {
-            ctx.beginPath(); ctx.arc(x,y,14,0,2*Math.PI);
-            ctx.fillStyle=rgba(PRGB[col]); ctx.fill();
-            ctx.strokeStyle='#aaa'; ctx.lineWidth=1; ctx.stroke();
-        });
-    });
-
-    // Board cells
-    for(let p=1;p<=52;p++){
-        const [x,y]=coords(p);
-        ctx.beginPath(); ctx.arc(x,y,16,0,2*Math.PI);
-        ctx.fillStyle=SAFE.has(p)?'#FFD966':'#fff5e8'; ctx.fill();
-        ctx.strokeStyle='#a57c4c'; ctx.lineWidth=2; ctx.stroke();
-    }
-
-    // Center hub
-    ctx.beginPath(); ctx.arc(CX,CX,22,0,2*Math.PI);
-    ctx.fillStyle='#c9a87b'; ctx.fill();
-    ctx.strokeStyle='#2c1a0c'; ctx.lineWidth=3; ctx.stroke();
-
-    // Turn highlight
-    if(ti<pl.length && winner===-1){
-        const pts=HTRI[pl[ti].color];
-        ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); ctx.lineTo(pts[1][0],pts[1][1]); ctx.lineTo(pts[2][0],pts[2][1]);
-        ctx.strokeStyle='#FFD700'; ctx.lineWidth=9; ctx.stroke();
-    }
-
-    // Tokens
-    pl.forEach(player => {
-        const crgb=CRGB[player.color];
-        player.tokens.forEach((pos,i) => {
-            let x,y;
-            if(pos===0){ const[cx,cy]=HCTR[player.color]; x=cx+(i%2)*28-14; y=cy+(i>>1)*28-14; }
-            else if(pos>=59){ x=CX+(i%2)*18-9; y=CX+(i>>1)*18-9; }
-            else{ [x,y]=coords(pos,player.color); }
-            ctx.beginPath(); ctx.arc(x,y,18,0,2*Math.PI);
-            ctx.fillStyle=rgba(crgb); ctx.fill();
-            ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.stroke();
-            ctx.fillStyle='#fff'; ctx.font='bold 16px sans-serif';
-            ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillText((i+1).toString(),x,y);
-        });
-    });
-
-    // Dice overlay
-    if(rolled && dv){
-        ctx.fillStyle='rgba(20,14,8,.82)';
-        rrect(12,12,148,46,10); ctx.fill();
-        ctx.font='bold 25px sans-serif'; ctx.fillStyle='#FFD700';
-        ctx.textAlign='left'; ctx.textBaseline='middle';
-        ctx.fillText(`🎲  ${dv}`, 22, 35);
-    }
-
-    // Winner overlay
-    if(winner!==-1){
-        ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(0,0,BS,BS);
-        ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.font='bold 88px sans-serif'; ctx.fillText('🏆',CX,CX-65);
-        ctx.font='bold 38px sans-serif'; ctx.fillStyle='#FFD700';
-        ctx.fillText((pl[winner]?.username||'?')+' wins!',CX,CX+35);
-    }
-}
-
-// ══════════════════════════════════════════════════════════
-//  UI UPDATE
-// ══════════════════════════════════════════════════════════
-function updateUI(st) {
-    const {players:pl, turn_index:ti, dice_value:dv, rolled, winner} = st;
-
-    // Player chips
-    $('pRow').innerHTML = pl.map((p,i)=>{
-        const c=CCSS[p.color], on=(i===ti&&winner===-1);
-        return `<span class="chip${on?' on':''}" style="background:${c}22;color:${c}">${p.color.split(' ')[0]} ${p.username}</span>`;
-    }).join('');
-
-    const db=$('diceBadge');
-
-    if(winner!==-1){
-        $('sMsg').textContent=`🏆 ${pl[winner].username} wins!`;
-        $('sSub').textContent='Start a new game with /start2 or /start4 in Telegram';
-        $('tBtns').innerHTML=''; db.style.display='none'; return;
-    }
-
-    const myIdx = USER_ID ? pl.findIndex(p=>p.id===USER_ID) : -1;
-    const myTurn = myIdx!==-1 && ti===myIdx;
-    const cur = pl[ti];
-
-    if(rolled&&dv){ db.textContent=`🎲 ${dv}`; db.style.display='block'; }
-    else{ db.style.display='none'; }
-
-    if(!USER_ID){
-        $('sMsg').textContent=`⏳ ${cur.username}'s turn`;
-        $('sSub').textContent='Open inside Telegram to play';
-        $('tBtns').innerHTML='';
-    } else if(myIdx===-1){
-        $('sMsg').textContent=`⏳ ${cur.username}'s turn`;
-        $('sSub').textContent='You are not in this game — use /join';
-        $('tBtns').innerHTML='';
-    } else if(myTurn && rolled){
-        $('sMsg').textContent=`🎲 Dice = ${dv} — Pick a token!`;
-        $('sSub').textContent='Tap a button below to move';
-        $('tBtns').innerHTML = pl[myIdx].tokens.map((pos,i)=>{
-            const done=pos>=59, home=pos===0;
-            const sub=done?'✅ Done':home?'🏠 Home':`Pos ${pos}`;
-            return `<button class="tb" onclick="move(${i})" ${done?'disabled':''}><span>Token ${i+1}</span><span class="sub">${sub}</span></button>`;
-        }).join('');
-    } else if(myTurn && !rolled){
-        $('sMsg').textContent=`🔤 Your turn, ${pl[myIdx].username}!`;
-        $('sSub').textContent='Type a valid English word in the Telegram group to roll dice';
-        $('tBtns').innerHTML='';
-    } else {
-        $('sMsg').textContent=`⏳ ${cur.username}'s turn`;
-        $('sSub').textContent=rolled?`Dice = ${dv} — waiting for move`:'Waiting for a word to roll…';
-        $('tBtns').innerHTML='';
-    }
-}
-
-// ══════════════════════════════════════════════════════════
-//  API
-// ══════════════════════════════════════════════════════════
-let state=null, errShown=false, loaded=false;
-
-async function fetchState(){
-    if(!CHAT_ID||!BOT_API) return;
-    try{
-        const res=await fetch(`${BOT_API}/game_state/${CHAT_ID}`);
-        if(res.ok){
-            state=await res.json();
-            drawBoard(state); updateUI(state);
-            errShown=false; $('err').style.display='none';
-            if(!loaded){ loaded=true; $('loader').classList.add('gone'); }
-        } else {
-            const d=await res.json().catch(()=>({}));
-            $('sMsg').textContent=d.error||'No active game';
-            $('sSub').textContent='Start a game with /start2 or /start4 in Telegram';
-            if(!loaded){ loaded=true; $('loader').classList.add('gone'); }
+<body class="bg-gray-900 flex justify-center items-center min-h-screen p-4">
+    <div class="bg-gray-800 rounded-2xl p-4 shadow-2xl">
+        <canvas id="boardCanvas" width="900" height="900" class="rounded-2xl"></canvas>
+        <div class="mt-4 text-white text-center">
+            <p id="statusMsg" class="text-lg font-mono">Loading game...</p>
+            <div id="tokenButtons" class="flex flex-wrap gap-3 justify-center mt-4"></div>
+            <p class="text-xs text-gray-500 mt-2">⚡ Any dice (1-6) can open token. No extra turn on 6.</p>
+        </div>
+    </div>
+    <script>
+        // ---------- Get parameters from URL ----------
+        const urlParams = new URLSearchParams(window.location.search);
+        const CHAT_ID = parseInt(urlParams.get('chat_id'));
+        let API_BASE = urlParams.get('api');  // Bot server URL (Render)
+        if (!API_BASE) {
+            // Fallback: use same origin (for local testing) or a default
+            API_BASE = window.location.origin;
         }
-    } catch(e){
-        if(!errShown){
-            $('err').textContent='⚠️ Cannot reach bot server — retrying…';
-            $('err').style.display='block'; errShown=true;
-            if(!loaded){ loaded=true; $('loader').classList.add('gone'); }
+        // Remove trailing slash if any
+        API_BASE = API_BASE.replace(/\/$/, '');
+        
+        if (!CHAT_ID) {
+            document.getElementById('statusMsg').innerText = 'Missing chat_id. Please open from Telegram bot.';
+            throw new Error('Missing chat_id');
         }
-    }
-}
-
-async function move(idx){
-    if(!state||!USER_ID) return;
-    const myIdx=state.players.findIndex(p=>p.id===USER_ID);
-    if(myIdx===-1||state.turn_index!==myIdx||!state.rolled) return;
-
-    document.querySelectorAll('.tb').forEach(b=>b.disabled=true);
-    try{
-        const res=await fetch(`${BOT_API}/move/${CHAT_ID}/${USER_ID}/${idx}`,{method:'POST'});
-        const d=await res.json().catch(()=>({}));
-        if(res.ok){
-            if(d.status==='won') tg?.showPopup({title:'Game Over',message:`🏆 ${state.players[d.winner].username} wins!`},{});
-            await fetchState();
-        } else {
-            tg?.showAlert(d.error||'Move failed, try again');
-            document.querySelectorAll('.tb').forEach(b=>b.disabled=false);
+        
+        // We need USER_ID – it's not in URL? Actually bot sends only chat_id in webapp URL.
+        // But the bot needs user_id to identify player. Let's prompt once or store in localStorage.
+        let USER_ID = localStorage.getItem('ludo_user_id');
+        if (!USER_ID) {
+            USER_ID = prompt("Enter your Telegram User ID (you can get it from @userinfobot):");
+            if (USER_ID) localStorage.setItem('ludo_user_id', USER_ID);
+            else throw new Error('User ID required');
         }
-    } catch(e){
-        tg?.showAlert('Network error. Try again.');
-        document.querySelectorAll('.tb').forEach(b=>b.disabled=false);
-    }
-}
-
-function $(id){ return document.getElementById(id); }
-fetchState();
-setInterval(fetchState, 2500);
-</script>
+        USER_ID = parseInt(USER_ID);
+        
+        // ---------- Board drawing (same as before) ----------
+        const BOARD_SIZE = 900;
+        const CENTER = BOARD_SIZE/2;
+        const SAFE_POS = new Set([1,9,14,22,27,35,40,48]);
+        
+        function getPositionCoords(pos, playerColor = null) {
+            if (pos === 0) return [-100, -100];
+            if (pos === 59) return [CENTER, CENTER];
+            if (pos >= 53 && pos <= 58) {
+                const stretchMap = {
+                    '🔴 Red': [[750,750],[700,750],[650,750],[600,750],[550,750],[500,750]],
+                    '🟢 Green': [[750,150],[750,200],[750,250],[750,300],[750,350],[750,400]],
+                    '🟡 Yellow': [[150,150],[200,150],[250,150],[300,150],[350,150],[400,150]],
+                    '🔵 Blue': [[150,750],[150,700],[150,650],[150,600],[150,550],[150,500]]
+                };
+                const idx = pos - 53;
+                return stretchMap[playerColor]?.[idx] || [CENTER, CENTER];
+            }
+            if (pos >= 1 && pos <= 13) { let x = 750 - (pos-1)*50; return [x, 750]; }
+            else if (pos >= 14 && pos <= 26) { let y = 750 - (pos-14)*50; return [150, y]; }
+            else if (pos >= 27 && pos <= 39) { let x = 150 + (pos-27)*50; return [x, 150]; }
+            else if (pos >= 40 && pos <= 52) { let y = 150 + (pos-40)*50; return [750, y]; }
+            return [CENTER, CENTER];
+        }
+        
+        const HOME_YARDS = {
+            "🔴 Red": { x: 780, y: 780 },
+            "🟢 Green": { x: 780, y: 120 },
+            "🟡 Yellow": { x: 120, y: 120 },
+            "🔵 Blue": { x: 120, y: 780 }
+        };
+        
+        let gameState = null;
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function drawBoard() {
+            if (!gameState) return;
+            const players = gameState.players;
+            const turnIdx = gameState.turn_index;
+            const diceValue = gameState.dice_value;
+            const rolled = gameState.rolled;
+            
+            ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
+            ctx.fillStyle = '#f5e6d3';
+            ctx.fillRect(0,0,BOARD_SIZE,BOARD_SIZE);
+            ctx.strokeStyle = '#2c1a0c';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(150,150,600,600);
+            ctx.fillStyle = '#e0c8a0';
+            ctx.fillRect(300,300,300,300);
+            ctx.strokeRect(300,300,300,300);
+            
+            const homes = [
+                { pts: [[750,750],[900,750],[750,900]], color: '220,60,60' },
+                { pts: [[750,0],[900,0],[750,150]], color: '60,220,60' },
+                { pts: [[0,0],[150,0],[0,150]], color: '220,220,60' },
+                { pts: [[0,750],[150,900],[0,900]], color: '60,60,220' }
+            ];
+            homes.forEach(h => {
+                ctx.beginPath();
+                ctx.moveTo(h.pts[0][0], h.pts[0][1]);
+                ctx.lineTo(h.pts[1][0], h.pts[1][1]);
+                ctx.lineTo(h.pts[2][0], h.pts[2][1]);
+                ctx.fillStyle = `rgb(${h.color})`;
+                ctx.fill();
+                ctx.stroke();
+            });
+            
+            for (let pos=1; pos<=52; pos++) {
+                let [x,y] = getPositionCoords(pos);
+                ctx.beginPath();
+                ctx.arc(x,y,16,0,2*Math.PI);
+                ctx.fillStyle = '#fff5e8';
+                ctx.fill();
+                ctx.strokeStyle = '#a57c4c';
+                ctx.stroke();
+                if (SAFE_POS.has(pos)) {
+                    ctx.fillStyle = '#ffd966';
+                    ctx.beginPath();
+                    ctx.arc(x,y,12,0,2*Math.PI);
+                    ctx.fill();
+                }
+            }
+            for (let pos=53; pos<=58; pos++) {
+                for (let col of players.map(p=>p.color)) {
+                    let [x,y] = getPositionCoords(pos, col);
+                    if (x && y) {
+                        ctx.beginPath();
+                        ctx.arc(x,y,14,0,2*Math.PI);
+                        ctx.fillStyle = '#edd5b0';
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.fillStyle = '#c9a87b';
+            ctx.beginPath();
+            ctx.arc(CENTER,CENTER,20,0,2*Math.PI);
+            ctx.fill();
+            
+            players.forEach((player, pIdx) => {
+                player.tokens.forEach((pos, tIdx) => {
+                    let x, y;
+                    if (pos === 0) {
+                        const homePos = HOME_YARDS[player.color];
+                        const offsetX = (tIdx % 2) * 30 - 15;
+                        const offsetY = Math.floor(tIdx / 2) * 30 - 15;
+                        x = homePos.x + offsetX;
+                        y = homePos.y + offsetY;
+                    } else if (pos === 59) {
+                        x = CENTER + (tIdx%2)*15 - 7;
+                        y = CENTER + Math.floor(tIdx/2)*15 - 7;
+                    } else {
+                        [x,y] = getPositionCoords(pos, player.color);
+                    }
+                    ctx.beginPath();
+                    ctx.arc(x, y, 18, 0, 2*Math.PI);
+                    const rgb = player.color === '🔴 Red' ? '220,60,60' : player.color === '🟢 Green' ? '60,220,60' : player.color === '🟡 Yellow' ? '220,220,60' : '60,60,220';
+                    ctx.fillStyle = `rgb(${rgb})`;
+                    ctx.fill();
+                    ctx.strokeStyle = '#111';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 18px "Segoe UI"';
+                    ctx.fillText((tIdx+1).toString(), x-7, y+8);
+                });
+            });
+            
+            if (turnIdx < players.length) {
+                const turnColor = players[turnIdx].color;
+                const turnMap = {
+                    "🔴 Red": [[750,750],[900,750],[750,900]],
+                    "🟢 Green": [[750,0],[900,0],[750,150]],
+                    "🟡 Yellow": [[0,0],[150,0],[0,150]],
+                    "🔵 Blue": [[0,750],[150,900],[0,900]]
+                };
+                const pts = turnMap[turnColor];
+                if (pts) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[0][0], pts[0][1]);
+                    ctx.lineTo(pts[1][0], pts[1][1]);
+                    ctx.lineTo(pts[2][0], pts[2][1]);
+                    ctx.strokeStyle = '#FFD966';
+                    ctx.lineWidth = 8;
+                    ctx.stroke();
+                }
+            }
+            if (diceValue && rolled) {
+                ctx.font = 'bold 36px monospace';
+                ctx.fillStyle = '#2c3e2f';
+                ctx.fillText(`🎲 ${diceValue}`, 30, 70);
+            }
+        }
+        
+        async function fetchGameState() {
+            try {
+                const res = await fetch(`${API_BASE}/game_state/${CHAT_ID}`);
+                if (res.ok) {
+                    gameState = await res.json();
+                    drawBoard();
+                    updateUI();
+                } else if (res.status === 404) {
+                    document.getElementById('statusMsg').innerText = "No active game. Start with /start2 or /start4 in Telegram.";
+                }
+            } catch(err) {
+                console.error(err);
+                document.getElementById('statusMsg').innerText = "Cannot connect to bot API. Make sure bot is running.";
+            }
+        }
+        
+        async function moveToken(tokenIdx) {
+            if (!gameState) return;
+            if (gameState.winner !== -1) { alert("Game already finished!"); return; }
+            const myIdx = gameState.players.findIndex(p => p.id === USER_ID);
+            if (myIdx === -1) { alert("You are not a player! Check your User ID."); return; }
+            if (gameState.turn_index !== myIdx) { alert("Not your turn!"); return; }
+            if (!gameState.rolled) { alert("Dice not rolled! Type a word in Telegram group first."); return; }
+            const res = await fetch(`${API_BASE}/move/${CHAT_ID}/${USER_ID}/${tokenIdx}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                if (data.status === 'won') alert(`🏆 ${gameState.players[data.winner].username} won!`);
+                fetchGameState();
+            } else {
+                alert(data.error);
+            }
+        }
+        
+        function updateUI() {
+            const statusDiv = document.getElementById('statusMsg');
+            if (!gameState) return;
+            if (gameState.winner !== -1) {
+                statusDiv.innerHTML = `🏆 Winner: ${gameState.players[gameState.winner].username} 🏆`;
+                document.getElementById('tokenButtons').innerHTML = '';
+                return;
+            }
+            const myIdx = gameState.players.findIndex(p => p.id === USER_ID);
+            if (myIdx === -1) {
+                statusDiv.innerHTML = "You are not a player. Use /join in Telegram. (Your ID: "+USER_ID+")";
+                document.getElementById('tokenButtons').innerHTML = '';
+                return;
+            }
+            const myTurn = (gameState.turn_index === myIdx);
+            if (myTurn && gameState.rolled) {
+                statusDiv.innerHTML = `🎲 Dice = ${gameState.dice_value} — Click your token to move!`;
+            } else if (myTurn && !gameState.rolled) {
+                statusDiv.innerHTML = `🔤 Your turn! Type a valid English word in Telegram group.`;
+            } else {
+                statusDiv.innerHTML = `⏳ Waiting for ${gameState.players[gameState.turn_index].username}'s turn.`;
+            }
+            const container = document.getElementById('tokenButtons');
+            if (myTurn && gameState.rolled && gameState.winner === -1) {
+                const myTokens = gameState.players[myIdx].tokens;
+                container.innerHTML = myTokens.map((pos, i) => `
+                    <button onclick="moveToken(${i})" class="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-xl font-bold text-white">
+                        Token ${i+1} ${pos === 0 ? '🏠' : (pos === 59 ? '🏆' : pos)}
+                    </button>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-gray-400">Wait for your turn and dice roll...</p>';
+            }
+        }
+        
+        // Refresh every 2 seconds
+        setInterval(fetchGameState, 2000);
+        fetchGameState();
+    </script>
 </body>
 </html>
