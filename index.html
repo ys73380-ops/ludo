@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ludo – Connected to Telegram Bot</title>
+    <title>Ludo – Move Token</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         canvas { border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
@@ -14,26 +14,23 @@
         <canvas id="boardCanvas" width="900" height="900" class="rounded-2xl"></canvas>
         <div class="mt-4 text-white text-center">
             <p id="statusMsg" class="text-lg font-mono">Loading game...</p>
-            <p class="text-sm text-gray-400 mt-2">
-                🎲 <strong>Dice roll:</strong> Type a valid English word in <span class="text-yellow-400">Telegram group</span><br>
-                🖱️ <strong>Move token:</strong> Click your token button below (after dice)
-            </p>
-        </div>
-        <div id="tokenButtons" class="flex flex-wrap gap-3 justify-center mt-4"></div>
-        <div class="text-xs text-gray-500 text-center mt-2">
-            ⚡ Any dice (1-6) can open token from home. No extra turn on 6.
+            <div id="tokenButtons" class="flex flex-wrap gap-3 justify-center mt-4"></div>
+            <p class="text-xs text-gray-500 mt-2">⚡ Any dice (1-6) can open token. No extra turn on 6.</p>
         </div>
     </div>
-
     <script>
-        // ---------- CHANGE THESE TO YOUR BOT'S IP AND PORTS ----------
-        const BOT_API_URL = "http://YOUR_VPS_IP:5000";   // Bot jahan chal raha hai
-        const CHAT_ID = parseInt(prompt("Enter Telegram Chat ID (group ID):"));
-        const USER_ID = parseInt(prompt("Enter your Telegram User ID:"));
+        const urlParams = new URLSearchParams(window.location.search);
+        const CHAT_ID = parseInt(urlParams.get('chat_id'));
+        const USER_ID = parseInt(urlParams.get('user_id'));
+        if (!CHAT_ID || !USER_ID) {
+            document.getElementById('statusMsg').innerText = 'Missing chat_id or user_id. Please use the button in Telegram.';
+            throw new Error('Missing params');
+        }
+        const BOT_API_URL = window.location.origin;  // same server
 
-        // ---------- BOARD DRAWING (same as bot) ----------
         const BOARD_SIZE = 900;
         const CENTER = BOARD_SIZE/2;
+        const SAFE_POS = new Set([1,9,14,22,27,35,40,48]);
         function getPositionCoords(pos, playerColor = null) {
             if (pos === 0) return [-100, -100];
             if (pos === 59) return [CENTER, CENTER];
@@ -105,8 +102,7 @@
                 ctx.fill();
                 ctx.strokeStyle = '#a57c4c';
                 ctx.stroke();
-                const safe = [1,9,14,22,27,35,40,48];
-                if (safe.includes(pos)) {
+                if (SAFE_POS.has(pos)) {
                     ctx.fillStyle = '#ffd966';
                     ctx.beginPath();
                     ctx.arc(x,y,12,0,2*Math.PI);
@@ -196,7 +192,7 @@
                     document.getElementById('statusMsg').innerText = "No active game. Start with /start2 or /start4 in Telegram.";
                 }
             } catch(err) {
-                document.getElementById('statusMsg').innerText = "Cannot connect to bot API. Make sure bot is running.";
+                document.getElementById('statusMsg').innerText = "Cannot connect to bot API.";
             }
         }
 
@@ -252,7 +248,7 @@
             }
         }
 
-        setInterval(fetchGameState, 2000);
+        setInterval(fetchGameState, 1500);
         fetchGameState();
     </script>
 </body>
