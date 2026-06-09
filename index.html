@@ -25,7 +25,7 @@
         tg?.ready();
         tg?.expand();
 
-        // ---------- Get parameters from URL ----------
+        // ---------- Get ALL parameters from URL (bot sends chat_id, user_id, api) ----------
         const urlParams = new URLSearchParams(window.location.search);
         const CHAT_ID = parseInt(urlParams.get('chat_id'));
         let API_BASE = urlParams.get('api');
@@ -39,15 +39,12 @@
             throw new Error('Missing chat_id');
         }
 
-        // ---------- USER_ID from Telegram WebApp (with fallback for browser testing) ----------
-        let USER_ID = tg?.initDataUnsafe?.user?.id;
+        // ---------- USER_ID: URL param first (bot sends it), then Telegram WebApp ----------
+        // FIX: urlParams.get('user_id') pehle check karo — bot ne URL mein bheja hai
+        let USER_ID = parseInt(urlParams.get('user_id')) || tg?.initDataUnsafe?.user?.id;
         if (!USER_ID) {
-            USER_ID = localStorage.getItem('ludo_user_id');
-            if (!USER_ID) {
-                USER_ID = prompt("Enter your Telegram User ID (testing only):");
-                if (USER_ID) localStorage.setItem('ludo_user_id', USER_ID);
-                else throw new Error('User ID required');
-            }
+            document.getElementById('statusMsg').innerText = 'Missing user_id. Please open from Telegram bot message.';
+            throw new Error('User ID required');
         }
         USER_ID = parseInt(USER_ID);
 
