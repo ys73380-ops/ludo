@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludo – Move Token</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         canvas { border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
@@ -19,37 +20,42 @@
         </div>
     </div>
     <script>
+        // ---------- Telegram WebApp Init ----------
+        const tg = window.Telegram?.WebApp;
+        tg?.ready();
+        tg?.expand();
+
         // ---------- Get parameters from URL ----------
         const urlParams = new URLSearchParams(window.location.search);
         const CHAT_ID = parseInt(urlParams.get('chat_id'));
-        let API_BASE = urlParams.get('api');  // Bot server URL (Render)
+        let API_BASE = urlParams.get('api');
         if (!API_BASE) {
-            // Fallback: use same origin (for local testing) or a default
             API_BASE = window.location.origin;
         }
-        // Remove trailing slash if any
         API_BASE = API_BASE.replace(/\/$/, '');
-        
+
         if (!CHAT_ID) {
             document.getElementById('statusMsg').innerText = 'Missing chat_id. Please open from Telegram bot.';
             throw new Error('Missing chat_id');
         }
-        
-        // We need USER_ID – it's not in URL? Actually bot sends only chat_id in webapp URL.
-        // But the bot needs user_id to identify player. Let's prompt once or store in localStorage.
-        let USER_ID = localStorage.getItem('ludo_user_id');
+
+        // ---------- USER_ID from Telegram WebApp (with fallback for browser testing) ----------
+        let USER_ID = tg?.initDataUnsafe?.user?.id;
         if (!USER_ID) {
-            USER_ID = prompt("Enter your Telegram User ID (you can get it from @userinfobot):");
-            if (USER_ID) localStorage.setItem('ludo_user_id', USER_ID);
-            else throw new Error('User ID required');
+            USER_ID = localStorage.getItem('ludo_user_id');
+            if (!USER_ID) {
+                USER_ID = prompt("Enter your Telegram User ID (testing only):");
+                if (USER_ID) localStorage.setItem('ludo_user_id', USER_ID);
+                else throw new Error('User ID required');
+            }
         }
         USER_ID = parseInt(USER_ID);
-        
-        // ---------- Board drawing (same as before) ----------
+
+        // ---------- Board drawing ----------
         const BOARD_SIZE = 900;
         const CENTER = BOARD_SIZE/2;
         const SAFE_POS = new Set([1,9,14,22,27,35,40,48]);
-        
+
         function getPositionCoords(pos, playerColor = null) {
             if (pos === 0) return [-100, -100];
             if (pos === 59) return [CENTER, CENTER];
@@ -69,25 +75,25 @@
             else if (pos >= 40 && pos <= 52) { let y = 150 + (pos-40)*50; return [750, y]; }
             return [CENTER, CENTER];
         }
-        
+
         const HOME_YARDS = {
             "🔴 Red": { x: 780, y: 780 },
             "🟢 Green": { x: 780, y: 120 },
             "🟡 Yellow": { x: 120, y: 120 },
             "🔵 Blue": { x: 120, y: 780 }
         };
-        
+
         let gameState = null;
         const canvas = document.getElementById('boardCanvas');
         const ctx = canvas.getContext('2d');
-        
+
         function drawBoard() {
             if (!gameState) return;
             const players = gameState.players;
             const turnIdx = gameState.turn_index;
             const diceValue = gameState.dice_value;
             const rolled = gameState.rolled;
-            
+
             ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
             ctx.fillStyle = '#f5e6d3';
             ctx.fillRect(0,0,BOARD_SIZE,BOARD_SIZE);
@@ -97,7 +103,7 @@
             ctx.fillStyle = '#e0c8a0';
             ctx.fillRect(300,300,300,300);
             ctx.strokeRect(300,300,300,300);
-            
+
             const homes = [
                 { pts: [[750,750],[900,750],[750,900]], color: '220,60,60' },
                 { pts: [[750,0],[900,0],[750,150]], color: '60,220,60' },
@@ -113,7 +119,7 @@
                 ctx.fill();
                 ctx.stroke();
             });
-            
+
             for (let pos=1; pos<=52; pos++) {
                 let [x,y] = getPositionCoords(pos);
                 ctx.beginPath();
@@ -145,7 +151,7 @@
             ctx.beginPath();
             ctx.arc(CENTER,CENTER,20,0,2*Math.PI);
             ctx.fill();
-            
+
             players.forEach((player, pIdx) => {
                 player.tokens.forEach((pos, tIdx) => {
                     let x, y;
@@ -174,7 +180,7 @@
                     ctx.fillText((tIdx+1).toString(), x-7, y+8);
                 });
             });
-            
+
             if (turnIdx < players.length) {
                 const turnColor = players[turnIdx].color;
                 const turnMap = {
@@ -200,7 +206,7 @@
                 ctx.fillText(`🎲 ${diceValue}`, 30, 70);
             }
         }
-        
+
         async function fetchGameState() {
             try {
                 const res = await fetch(`${API_BASE}/game_state/${CHAT_ID}`);
@@ -216,7 +222,7 @@
                 document.getElementById('statusMsg').innerText = "Cannot connect to bot API. Make sure bot is running.";
             }
         }
-        
+
         async function moveToken(tokenIdx) {
             if (!gameState) return;
             if (gameState.winner !== -1) { alert("Game already finished!"); return; }
@@ -233,7 +239,7 @@
                 alert(data.error);
             }
         }
-        
+
         function updateUI() {
             const statusDiv = document.getElementById('statusMsg');
             if (!gameState) return;
@@ -268,7 +274,7 @@
                 container.innerHTML = '<p class="text-gray-400">Wait for your turn and dice roll...</p>';
             }
         }
-        
+
         // Refresh every 2 seconds
         setInterval(fetchGameState, 2000);
         fetchGameState();
