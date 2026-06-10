@@ -21,7 +21,6 @@
     <canvas id="board" width="750" height="750"></canvas>
     <div id="status"></div>
   </div>
-
 <script>
 // ─── Telegram Init ──────────────────────────────────────
 const tg = window.Telegram?.WebApp;
@@ -38,16 +37,15 @@ function getParam(name){
   }
   return url.get(name);
 }
-
 const CHAT_ID = getParam("chat_id") || null;
 const USER_ID = getParam("user_id") || null;
 const BOT_API = getParam("api") || "";
 
-// ─── Game state from bot ──────────────────────────────
+// ─── Game state ──────────────────────────────────────
 let myColor = null;
 let myPlayerIndex = -1;
 let currentDice = 0;
-let canRoll = false;   // true if it's my turn & dice not yet rolled
+let canRoll = false;
 let tokens = {
   red:     [{type:'home'},{type:'home'},{type:'home'},{type:'home'}],
   green:   [{type:'home'},{type:'home'},{type:'home'},{type:'home'}],
@@ -55,7 +53,7 @@ let tokens = {
   yellow:  [{type:'home'},{type:'home'},{type:'home'},{type:'home'}]
 };
 
-// ─── Board geometry (15×15 grid, cell=50px) ───────────
+// ─── Board geometry (15×15 grid) ───────────
 const TRACK = [
   [6,13],[6,12],[6,11],[6,10],[6,9],          // 0-4   red start
   [5,8],[4,8],[3,8],[2,8],[1,8],[0,8],        // 5-10
@@ -70,8 +68,6 @@ const TRACK = [
   [8,9],[8,10],[8,11],[8,12],[8,13],[8,14],    // 44-49
   [7,14],[6,14]                                // 50-51
 ];
-
-// Home columns – 6 cells each (bot positions 53→58)
 const HOME_COLS = {
   red:     [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]],
   green:   [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
@@ -79,20 +75,31 @@ const HOME_COLS = {
   yellow:  [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]]
 };
 
-const SAFE_CELLS = new Set([0,13,26,39]); // start cells on main track
+// Starting track index for each color
+const START_INDEX = { red:0, green:13, blue:26, yellow:39 };
 
-// ─── Convert bot number → internal state ──────────────
+// Home base token positions (canvas coords) for parked tokens
+const HOME_SPOTS = {
+  red:    [[90,90],[210,90],[90,210],[210,210]],
+  green:  [[540,90],[660,90],[540,210],[660,210]],
+  blue:   [[90,540],[210,540],[90,660],[210,660]],
+  yellow: [[540,540],[660,540],[540,660],[660,660]]
+};
+
+const SAFE_CELLS = new Set([0,13,26,39]);
+const COLOR_HEX = { red:"#ef4444", green:"#22c55e", blue:"#3b82f6", yellow:"#eab308" };
+
 function posToState(pos){
   if(pos === 0) return {type:'home'};
   if(pos >= 1 && pos <= 52) return {type:'track', step: pos-1};
-  if(pos >= 53 && pos <= 58) return {type:'homecol', step: pos-53}; // 0-5
+  if(pos >= 53 && pos <= 58) return {type:'homecol', step: pos-53};
   if(pos === 59) return {type:'finish'};
   return {type:'home'};
 }
 
 function loadPlayers(players){
   players.forEach(p => {
-    const colorKey = p.color.replace(/[🔴🟢🟡🔵\s]/g,'').toLowerCase(); // "red","green"...
+    const colorKey = p.color.replace(/[🔴🟢🟡🔵\s]/g,'').toLowerCase();
     if(!tokens[colorKey]) return;
     for(let i=0; i<4; i++){
       tokens[colorKey][i] = posToState(p.tokens[i]);
@@ -100,7 +107,6 @@ function loadPlayers(players){
   });
 }
 
-// ─── Fetch game state ─────────────────────────────────
 async function fetchGameState(){
   if(!BOT_API || !CHAT_ID) return;
   try {
@@ -109,7 +115,6 @@ async function fetchGameState(){
     const data = await res.json();
     if(data.players){
       loadPlayers(data.players);
-      // identify current user
       if(USER_ID){
         const me = data.players.find(p => p.id == USER_ID);
         if(me){
@@ -117,7 +122,6 @@ async function fetchGameState(){
           myPlayerIndex = data.players.findIndex(p => p.id == USER_ID);
         }
       }
-      // set dice & turn info
       if(data.rolled && data.dice_value){
         currentDice = data.dice_value;
         canRoll = false;
@@ -129,12 +133,9 @@ async function fetchGameState(){
         canRoll = false;
       }
     }
-  } catch(e){
-    console.warn("Offline / state fetch error", e);
-  }
+  } catch(e){ console.warn(e); }
 }
 
-// ─── Show UI ───────────────────────────────────────────
 function showGame(){
   document.getElementById("loading").style.display = "none";
   document.getElementById("game-wrap").style.display = "flex";
@@ -142,19 +143,13 @@ function showGame(){
   drawBoard();
 }
 
-// ─── Status message ────────────────────────────────────
 function updateStatus(msg=null){
   const el = document.getElementById("status");
   if(msg){ el.innerHTML = msg; return; }
   let html = '';
-  if(myColor){
-    html += `<span class="token-btn" style="background:${myColor};color:white;">आप: ${myColor}</span> `;
-  }
+  if(myColor) html += `<span class="token-btn" style="background:${COLOR_HEX[myColor]};color:white;">आप: ${myColor}</span> `;
   if(currentDice > 0){
-    html += `<span class="dice-big">🎲 ${currentDice}</span>`;
-    if(myColor){
-      html += ` — अपनी ${myColor} गोटी चुनें`;
-    }
+    html += `<span class="dice-big">🎲 ${currentDice}</span> अपनी ${myColor} गोटी चुनें`;
   } else if(canRoll){
     html += `⏳ GC में कोई valid शब्द भेजकर पासा रोल करें`;
   } else {
@@ -169,6 +164,10 @@ const ctx = canvas.getContext("2d");
 
 function drawBoard(){
   ctx.clearRect(0,0,750,750);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.font = "26px Arial";
+  ctx.textAlign = "left";
   drawHomeBases();
   drawTrackCells();
   drawHomeColumns();
@@ -177,251 +176,246 @@ function drawBoard(){
 }
 
 function drawHomeBases(){
-  const bases = [
-    {x:0,y:0,color:"#ef4444"}, {x:450,y:0,color:"#22c55e"},
-    {x:0,y:450,color:"#3b82f6"}, {x:450,y:450,color:"#eab308"}
-  ];
-  bases.forEach(b => {
-    ctx.fillStyle = b.color;
-    ctx.fillRect(b.x,b.y,300,300);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(b.x+40,b.y+40,220,220);
-    [[b.x+90,b.y+90],[b.x+210,b.y+90],[b.x+90,b.y+210],[b.x+210,b.y+210]].forEach(([sx,sy])=>{
-      ctx.beginPath();
-      ctx.arc(sx,sy,18,0,Math.PI*2);
-      ctx.fillStyle = b.color;
-      ctx.fill();
-      ctx.strokeStyle = "#333";
-      ctx.lineWidth = 1;
-      ctx.stroke();
+  const bases = [[0,0,"#ef4444"],[450,0,"#22c55e"],[0,450,"#3b82f6"],[450,450,"#eab308"]];
+  bases.forEach(([x,y,c])=>{
+    ctx.fillStyle=c; ctx.fillRect(x,y,300,300);
+    ctx.fillStyle="#ffffff"; ctx.fillRect(x+40,y+40,220,220);
+    [[x+90,y+90],[x+210,y+90],[x+90,y+210],[x+210,y+210]].forEach(([sx,sy])=>{
+      ctx.beginPath(); ctx.arc(sx,sy,18,0,Math.PI*2);
+      ctx.fillStyle=c; ctx.fill();
+      ctx.strokeStyle="#1e293b"; ctx.stroke();
     });
   });
 }
 
 function drawTrackCells(){
-  TRACK.forEach(([col,row],i) => {
-    const x=col*50, y=row*50;
-    ctx.fillStyle="#f8fafc";
-    ctx.fillRect(x,y,50,50);
-    ctx.strokeStyle="#cbd5e1";
-    ctx.strokeRect(x,y,50,50);
+  ctx.strokeStyle = "#94a3b8";
+  TRACK.forEach(([col,row],i)=>{
+    const x=col*50,y=row*50;
+    ctx.fillStyle="#f8fafc"; ctx.fillRect(x,y,50,50); ctx.strokeRect(x,y,50,50);
     if(SAFE_CELLS.has(i)){
-      ctx.fillStyle="#fcd34d88";
-      ctx.fillRect(x,y,50,50);
-      ctx.fillStyle="#b45309";
-      ctx.font="bold 14px Arial";
-      ctx.fillText("⭐",x+14,y+32);
+      ctx.fillStyle="#fcd34d88"; ctx.fillRect(x,y,50,50);
+      ctx.fillStyle="#b45309"; ctx.fillText("⭐",x+12,y+34);
     }
+  });
+  // Color the start cells
+  Object.entries(START_INDEX).forEach(([color,idx])=>{
+    const [col,row] = TRACK[idx];
+    ctx.fillStyle = COLOR_HEX[color] + "55";
+    ctx.fillRect(col*50,row*50,50,50);
+    ctx.strokeStyle="#94a3b8";
+    ctx.strokeRect(col*50,row*50,50,50);
   });
 }
 
 function drawHomeColumns(){
+  ctx.strokeStyle = "#94a3b8";
+  const lightHex = {red:"#fecaca",green:"#bbf7d0",blue:"#bfdbfe",yellow:"#fef08a"};
   Object.entries(HOME_COLS).forEach(([color,cells])=>{
     cells.forEach(([col,row])=>{
-      const x=col*50, y=row*50;
-      ctx.fillStyle = getShade(color);
+      const x=col*50,y=row*50;
+      ctx.fillStyle = lightHex[color];
       ctx.fillRect(x,y,50,50);
-      ctx.strokeStyle="#475569";
       ctx.strokeRect(x,y,50,50);
     });
   });
 }
 
 function drawCenterTriangles(){
-  [
-    {color:"#ef4444",pts:[[375,375],[300,300],[450,300]]},
-    {color:"#22c55e",pts:[[375,375],[450,300],[450,450]]},
-    {color:"#eab308",pts:[[375,375],[450,450],[300,450]]},
-    {color:"#3b82f6",pts:[[375,375],[300,450],[300,300]]}
-  ].forEach(({color,pts})=>{
+  // Center 3×3 block spans grid 6..9 → pixels 300..450
+  const cx = 375, cy = 375;
+  const tris = [
+    {pts:[[300,300],[450,300],[cx,cy]], color:"#22c55e"}, // top - green
+    {pts:[[450,300],[450,450],[cx,cy]], color:"#eab308"}, // right - yellow
+    {pts:[[450,450],[300,450],[cx,cy]], color:"#3b82f6"}, // bottom - blue
+    {pts:[[300,450],[300,300],[cx,cy]], color:"#ef4444"}, // left - red
+  ];
+  tris.forEach(t=>{
     ctx.beginPath();
-    ctx.fillStyle=color;
-    ctx.moveTo(...pts[0]); ctx.lineTo(...pts[1]); ctx.lineTo(...pts[2]);
-    ctx.fill();
+    ctx.moveTo(t.pts[0][0],t.pts[0][1]);
+    ctx.lineTo(t.pts[1][0],t.pts[1][1]);
+    ctx.lineTo(t.pts[2][0],t.pts[2][1]);
+    ctx.closePath();
+    ctx.fillStyle = t.color; ctx.fill();
+    ctx.strokeStyle = "#1e293b"; ctx.stroke();
   });
 }
+
+// Get canvas pixel center for a token's state
+function tokenPixel(color, idx, state){
+  if(state.type === 'home'){
+    const [x,y] = HOME_SPOTS[color][idx];
+    return [x,y];
+  }
+  if(state.type === 'track'){
+    const trackIdx = (START_INDEX[color] + state.step) % 52;
+    const [col,row] = TRACK[trackIdx];
+    return [col*50+25, row*50+25];
+  }
+  if(state.type === 'homecol'){
+    const [col,row] = HOME_COLS[color][state.step];
+    return [col*50+25, row*50+25];
+  }
+  if(state.type === 'finish'){
+    // last home column cell (center area)
+    const [col,row] = HOME_COLS[color][5];
+    return [col*50+25, row*50+25];
+  }
+  return [375,375];
+}
+
+// Store clickable token hitboxes
+let tokenHitboxes = [];
 
 function drawTokens(){
-  const allColors = ["red","green","blue","yellow"];
-  allColors.forEach(color => {
-    tokens[color].forEach((tok,i) => {
-      const pos = getPixel(color, i);
-      if(!pos) return;
+  tokenHitboxes = [];
+  Object.entries(tokens).forEach(([color,arr])=>{
+    arr.forEach((state,idx)=>{
+      const [x,y] = tokenPixel(color, idx, state);
+      // small offset so overlapping tokens on same cell are visible
+      const offX = (idx % 2) * 8 - 4;
+      const offY = (Math.floor(idx/2)) * 8 - 4;
+      const px = x + (state.type !== 'home' ? offX : 0);
+      const py = y + (state.type !== 'home' ? offY : 0);
+
       ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 20, 0, 2*Math.PI);
-      ctx.fillStyle = color;
+      ctx.arc(px, py, 15, 0, Math.PI*2);
+      ctx.fillStyle = COLOR_HEX[color];
       ctx.fill();
-      ctx.strokeStyle = "#1e293b";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#ffffff";
       ctx.stroke();
-      // highlight if clickable
-      if(myColor === color && currentDice > 0 && canMoveToken(color, i, currentDice)){
+      ctx.lineWidth = 1;
+
+      // Highlight movable tokens (mine + dice rolled)
+      const movable = isMyMovableToken(color, idx, state);
+      if(movable){
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 22, 0, 2*Math.PI);
-        ctx.strokeStyle = "#fbbf24";
-        ctx.lineWidth = 4;
+        ctx.arc(px, py, 19, 0, Math.PI*2);
+        ctx.strokeStyle = "#fde047";
+        ctx.lineWidth = 3;
         ctx.stroke();
+        ctx.lineWidth = 1;
+        tokenHitboxes.push({color, idx, px, py, r:22});
       }
     });
   });
 }
 
-function getPixel(color, idx){
-  const tok = tokens[color][idx];
-  const homeSlots = {
-    red: [[90,90],[210,90],[90,210],[210,210]],
-    green: [[540,90],[660,90],[540,210],[660,210]],
-    blue: [[90,540],[210,540],[90,660],[210,660]],
-    yellow: [[540,540],[660,540],[540,660],[660,660]]
-  };
-  if(tok.type === 'home') return {x:homeSlots[color][idx][0], y:homeSlots[color][idx][1]};
-  if(tok.type === 'track'){
-    const [col,row] = TRACK[tok.step];
-    return {x:col*50+25, y:row*50+25};
+function isMyMovableToken(color, idx, state){
+  if(color !== myColor) return false;
+  if(currentDice <= 0) return false;
+  // Out of home only on a 6
+  if(state.type === 'home') return currentDice === 6;
+  if(state.type === 'finish') return false;
+  if(state.type === 'track'){
+    // can't overshoot beyond finish (52 track steps + 6 homecol = step 57)
+    return state.step + currentDice <= 57;
   }
-  if(tok.type === 'homecol'){
-    const [col,row] = HOME_COLS[color][tok.step];
-    return {x:col*50+25, y:row*50+25};
-  }
-  if(tok.type === 'finish'){
-    const off = {red:[345,330], green:[405,330], blue:[345,420], yellow:[405,420]};
-    return {x:off[color][0], y:off[color][1]};
-  }
-  return null;
-}
-
-function getShade(c){
-  return {red:"#fecaca", green:"#bbf7d0", blue:"#bfdbfe", yellow:"#fef08a"}[c]||"#fff";
-}
-
-// ─── Movement Rules (match bot) ──────────────────────
-function canMoveToken(color, idx, dice){
-  if(!myColor || color !== myColor) return false;
-  if(dice <= 0) return false;
-  const tok = tokens[color][idx];
-  if(tok.type === 'finish') return false;
-  if(tok.type === 'home') return dice === 6;
-  if(tok.type === 'track'){
-    const newStep = tok.step + dice;
-    if(newStep <= 51) return true;
-    const homeSteps = newStep - 52;
-    return homeSteps <= 6; // can enter home col, even overshoot to finish
-  }
-  if(tok.type === 'homecol'){
-    return true; // any dice moves forward, possibly to finish
+  if(state.type === 'homecol'){
+    // homecol steps 0..5, need exact to reach finish
+    return state.step + currentDice <= 6;
   }
   return false;
 }
 
-function moveToken(color, idx, dice){
-  const tok = tokens[color][idx];
-  if(tok.type === 'home' && dice === 6){
-    tok.type = 'track';
-    tok.step = {red:0, green:13, blue:26, yellow:39}[color];
-    captureCheck(color, tok.step);
-    return true;
-  }
-  if(tok.type === 'track'){
-    let newStep = tok.step + dice;
-    if(newStep <= 51){
-      tok.step = newStep;
-      captureCheck(color, newStep);
-    } else {
-      const homeSteps = newStep - 52;
-      if(homeSteps <= 6){
-        if(homeSteps === 6){
-          tok.type = 'finish';
-          delete tok.step;
-        } else {
-          tok.type = 'homecol';
-          tok.step = homeSteps - 1;
-        }
-      } else return false;
-    }
-    return true;
-  }
-  if(tok.type === 'homecol'){
-    const newHome = tok.step + dice;
-    if(newHome >= 5){  // step index 5 is last cell (pos 58), 6+ → finish
-      tok.type = 'finish';
-      delete tok.step;
-    } else {
-      tok.step = newHome;
-    }
-    return true;
-  }
-  return false;
+// ─── Click / Tap handling ─────────────────────────────
+function getCanvasCoords(evt){
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const cx = (evt.clientX ?? evt.touches?.[0]?.clientX) - rect.left;
+  const cy = (evt.clientY ?? evt.touches?.[0]?.clientY) - rect.top;
+  return [cx * scaleX, cy * scaleY];
 }
 
-function captureCheck(movedColor, step){
-  if(SAFE_CELLS.has(step)) return;
-  ["red","green","blue","yellow"].forEach(c => {
-    if(c === movedColor) return;
-    tokens[c].forEach(tok => {
-      if(tok.type === 'track' && tok.step === step){
-        tok.type = 'home';
-        delete tok.step;
-      }
-    });
-  });
-}
+canvas.addEventListener("click", handleTap);
+canvas.addEventListener("touchstart", (e)=>{ e.preventDefault(); handleTap(e); }, {passive:false});
 
-function checkWinner(){
-  for(const c of ["red","green","blue","yellow"]){
-    if(tokens[c].every(t => t.type === 'finish')){
-      updateStatus(`🏆 ${c.toUpperCase()} जीत गया!`);
-      return true;
+async function handleTap(evt){
+  if(currentDice <= 0) return;
+  const [x,y] = getCanvasCoords(evt);
+  for(const hb of tokenHitboxes){
+    const dx = x - hb.px, dy = y - hb.py;
+    if(dx*dx + dy*dy <= hb.r*hb.r){
+      await moveToken(hb.color, hb.idx);
+      break;
     }
   }
-  return false;
 }
 
-// ─── Click Handling ──────────────────────────────────
-canvas.addEventListener("click", (e) => {
-  if(!myColor || currentDice <= 0){
-    updateStatus("⏳ पासा नहीं है या आपकी बारी नहीं");
+async function moveToken(color, idx){
+  if(!BOT_API || !CHAT_ID){
+    // offline fallback: move locally
+    localMove(color, idx);
     return;
   }
-  const rect = canvas.getBoundingClientRect();
-  const scale = 750 / rect.width;
-  const mx = (e.clientX - rect.left) * scale;
-  const my = (e.clientY - rect.top) * scale;
-
-  for(let i=0; i<4; i++){
-    const pos = getPixel(myColor, i);
-    if(pos && Math.hypot(mx-pos.x, my-pos.y) < 25){
-      if(canMoveToken(myColor, i, currentDice)){
-        moveToken(myColor, i, currentDice);
-        sendMoveToBot(i);   // token_idx
-        currentDice = 0;
-        drawBoard();
-        updateStatus("✅ गोटी चली! अगली बारी का इंतज़ार करें।");
-        checkWinner();
-      } else {
-        updateStatus("❌ यह गोटी इस पासे से नहीं चल सकती");
-      }
-      return;
-    }
-  }
-});
-
-// ─── Send move to bot ────────────────────────────────
-function sendMoveToBot(tokenIdx){
-  if(!BOT_API || !CHAT_ID || !USER_ID) return;
-  const url = `${BOT_API}/move?chat_id=${CHAT_ID}&user_id=${USER_ID}&token_idx=${tokenIdx}`;
-  fetch(url).catch(()=>{});
-  if(tg && tg.sendData){
-    tg.sendData(JSON.stringify({chat_id:CHAT_ID, user_id:USER_ID, token_idx:tokenIdx}));
+  updateStatus("⏳ चाल भेजी जा रही है...");
+  try {
+    const res = await fetch(`${BOT_API}/move_token`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        user_id: USER_ID,
+        token_index: idx,
+        dice: currentDice
+      })
+    });
+    if(!res.ok) throw new Error("move failed");
+    // refresh state after move
+    currentDice = 0;
+    await fetchGameState();
+    updateStatus();
+    drawBoard();
+  } catch(e){
+    console.warn(e);
+    updateStatus("❌ चाल नहीं भेजी जा सकी, फिर कोशिश करें");
   }
 }
 
-// ─── Startup ─────────────────────────────────────────
-(async ()=>{
-  if(CHAT_ID && USER_ID && BOT_API){
-    await fetchGameState();
+// Local offline move (for testing without backend)
+function localMove(color, idx){
+  const s = tokens[color][idx];
+  if(s.type === 'home' && currentDice === 6){
+    tokens[color][idx] = {type:'track', step:0};
+  } else if(s.type === 'track'){
+    const ns = s.step + currentDice;
+    if(ns <= 51) tokens[color][idx] = {type:'track', step:ns};
+    else if(ns <= 57) tokens[color][idx] = {type:'homecol', step:ns-52};
+  } else if(s.type === 'homecol'){
+    const ns = s.step + currentDice;
+    if(ns < 6) tokens[color][idx] = {type:'homecol', step:ns};
+    else if(ns === 6) tokens[color][idx] = {type:'finish'};
   }
-  showGame();
-})();
+  currentDice = 0;
+  canRoll = false;
+  updateStatus();
+  drawBoard();
+}
+
+// ─── Boot ──────────────────────────────────────────────
+async function init(){
+  if(BOT_API && CHAT_ID){
+    await fetchGameState();
+    showGame();
+    // poll for updates every 3s
+    setInterval(async ()=>{
+      await fetchGameState();
+      updateStatus();
+      drawBoard();
+    }, 3000);
+  } else {
+    // Offline demo mode
+    myColor = "red";
+    myPlayerIndex = 0;
+    currentDice = 6;     // demo dice so tokens are clickable
+    canRoll = false;
+    showGame();
+  }
+}
+
+init();
 </script>
 </body>
 </html>
