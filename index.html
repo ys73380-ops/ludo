@@ -37,17 +37,13 @@ canvas{background:white;border-radius:20px;box-shadow:0 0 25px rgba(0,0,0,.4);ma
 </div>
 
 <script>
-// ── 1. Telegram WebApp init ──────────────────────────────
 const tg = window.Telegram?.WebApp;
 if(tg) tg.ready();
 
-// ── 2. Get chat_id from URL params (bot sends it) ────────
 function getParam(name){
   const url = new URLSearchParams(window.location.search);
-  // Also check Telegram's start_param
   const startParam = tg?.initDataUnsafe?.start_param || "";
   if(name === "chat_id" && !url.get("chat_id") && startParam){
-    // start_param format: "chatid_XXXXX" or just the id
     const match = startParam.match(/chatid_(-?\d+)/);
     if(match) return match[1];
     if(/^-?\d+$/.test(startParam)) return startParam;
@@ -56,7 +52,7 @@ function getParam(name){
 }
 
 const CHAT_ID = getParam("chat_id");
-const BOT_API = getParam("api") || "";  // Optional: bot backend URL
+const BOT_API = getParam("api") || "";
 
 function showError(msg){
   document.getElementById("loading").style.display = "none";
@@ -71,11 +67,9 @@ function startGame(){
   drawBoard();
 }
 
-// ── 3. Validate we have chat_id ──────────────────────────
 if(!CHAT_ID){
   showError("Group ID not found. Please start the game from the group chat using the bot.");
 } else {
-  // If bot API URL provided, try to fetch game state
   if(BOT_API){
     fetch(`${BOT_API}/game_state?chat_id=${CHAT_ID}`)
       .then(r => r.json())
@@ -84,17 +78,14 @@ if(!CHAT_ID){
         startGame();
       })
       .catch(() => {
-        // Bot API down — still show board in offline mode
         startGame();
         document.getElementById("status").innerHTML = "⚠️ Offline mode — bot not reachable";
       });
   } else {
-    // No API URL — just show board
     startGame();
   }
 }
 
-// ── 4. Board drawing ─────────────────────────────────────
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 
