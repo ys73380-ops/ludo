@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Board – GC Dice (Fixed)</title>
+    <title>Ludo Board – GC Dice</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -12,98 +12,105 @@
             box-sizing: border-box;
         }
         body {
-            background: #0f172a;
+            background: #1a1a2e;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 16px;
+            padding: 12px;
             font-family: 'Segoe UI', system-ui, sans-serif;
         }
         .game-container {
-            background: #1e293b;
-            border-radius: 2rem;
-            padding: 1rem;
-            box-shadow: 0 20px 35px rgba(0,0,0,0.5);
+            background: #16213e;
+            border-radius: 1.5rem;
+            padding: 0.8rem;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.7);
+            border: 1px solid #0f3460;
         }
         canvas {
             display: block;
             margin: 0 auto;
-            border-radius: 1.5rem;
-            box-shadow: 0 0 0 2px #facc15, 0 10px 25px black;
+            border-radius: 1rem;
+            box-shadow: 0 0 0 3px #facc15, 0 12px 30px rgba(0,0,0,0.6);
             cursor: pointer;
-            background: #fef3c7;
             width: 100%;
             height: auto;
+            max-width: 520px;
         }
         .info-panel {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 1rem;
-            gap: 0.8rem;
+            margin-top: 0.8rem;
+            gap: 0.6rem;
             flex-wrap: wrap;
         }
         .turn-box {
-            background: #334155;
-            padding: 0.4rem 1.2rem;
+            background: #0f3460;
+            padding: 0.4rem 1.1rem;
             border-radius: 2rem;
             font-weight: bold;
-            font-size: 1.1rem;
+            font-size: 1rem;
             color: white;
-            box-shadow: inset 0 1px 2px #00000030, 0 2px 5px #00000040;
+            border: 1px solid #1a5276;
         }
         .dice-badge {
-            background: #1e293b;
-            padding: 0.3rem 1rem;
+            background: #0f3460;
+            padding: 0.3rem 0.9rem;
             border-radius: 2rem;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
             font-weight: bold;
             color: #facc15;
+            border: 1px solid #1a5276;
         }
         .dice-value {
             background: white;
-            padding: 0.2rem 0.8rem;
-            border-radius: 1rem;
-            font-size: 1.5rem;
+            padding: 0.15rem 0.7rem;
+            border-radius: 0.8rem;
+            font-size: 1.4rem;
             font-weight: bold;
-            color: black;
-            min-width: 55px;
+            color: #1a1a2e;
+            min-width: 50px;
             text-align: center;
         }
         .restart-btn {
-            background: #f97316;
+            background: linear-gradient(135deg, #f97316, #ea580c);
             border: none;
-            padding: 0.4rem 1.2rem;
+            padding: 0.4rem 1.1rem;
             border-radius: 2rem;
             font-weight: bold;
             color: white;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             cursor: pointer;
-            transition: 0.1s linear;
+            transition: 0.15s;
+            box-shadow: 0 3px 8px rgba(249,115,22,0.4);
         }
-        .restart-btn:active { transform: scale(0.96); }
+        .restart-btn:active { transform: scale(0.95); }
         .status-msg {
-            background: #00000080;
-            backdrop-filter: blur(4px);
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
             padding: 0.3rem 1rem;
             border-radius: 2rem;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: #facc15;
+            border: 1px solid rgba(250,204,21,0.2);
+            width: 100%;
+            text-align: center;
+            margin-top: 0.4rem;
         }
         @media (max-width: 550px) {
-            .turn-box { font-size: 0.8rem; padding: 0.2rem 1rem; }
-            .dice-value { font-size: 1.2rem; min-width: 45px; }
+            .turn-box { font-size: 0.75rem; padding: 0.2rem 0.9rem; }
+            .dice-value { font-size: 1.1rem; min-width: 40px; }
         }
     </style>
 </head>
 <body>
 <div>
     <div class="game-container">
-        <canvas id="ludoCanvas" width="800" height="800"></canvas>
+        <canvas id="ludoCanvas" width="750" height="750"></canvas>
         <div class="info-panel">
             <div class="turn-box" id="turnText">🔄 Loading...</div>
             <div class="dice-badge">🎲 पासा &nbsp;<span class="dice-value" id="diceValue">—</span></div>
@@ -146,9 +153,12 @@
     let myPlayerIndex = -1;
     let refreshInterval = null;
 
-    // ---------- बोर्ड ड्राइंग कॉन्स्टेंट ----------
-    const CELL_SIZE = 50;
-    const OFFSET = 25;
+    // ---------- बोर्ड कॉन्स्टेंट ----------
+    const CANVAS_SIZE = 750;
+    const BOARD_CELLS = 15;
+    const CELL = CANVAS_SIZE / BOARD_CELLS;   // 50px per cell
+    const OFF = 0;
+
     const TRACK_CELLS = [
         [1,6],[2,6],[3,6],[4,6],[5,6],[6,5],[6,4],[6,3],[6,2],[6,1],[6,0],[7,0],[8,0],[8,1],
         [8,2],[8,3],[8,4],[8,5],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],[14,7],[14,8],[13,8],
@@ -167,25 +177,34 @@
         "🟡 Yellow":[[1,10],[4,10],[1,13],[4,13]],
         "🔵 Blue":  [[10,10],[13,10],[10,13],[13,13]]
     };
-    const SAFE_SET = new Set([
-        [6,2],[8,1],[12,6],[13,8],[8,12],[6,13],[2,8],[1,6].map(p=>`${p[0]},${p[1]}`)
-    ].flat());
-    function isSafeGrid(x,y) { return SAFE_SET.has(`${x},${y}`); }
 
     const COLOR_NAME_MAP = {
         "🔴 Red": "red", "🟢 Green": "green", "🟡 Yellow": "yellow", "🔵 Blue": "blue"
     };
-    const COLOR_HEX = { red:"#e11d48", green:"#16a34a", yellow:"#eab308", blue:"#2563eb" };
-    const BASE_LIGHT = { red:"#fecdd3", green:"#bbf7d0", yellow:"#fef9c3", blue:"#bfdbfe" };
+
+    // Rich palette matching image
+    const COLOR_HEX    = { red:"#e8192c", green:"#1cb145", yellow:"#f5c518", blue:"#1565c0" };
+    const COLOR_LIGHT  = { red:"#ffd6da", green:"#c8f5d8", yellow:"#fff9c4", blue:"#bbdefb" };
+    const COLOR_DARK   = { red:"#b71c1c", green:"#1b5e20", yellow:"#f57f17", blue:"#0d47a1" };
+    const COLOR_HOMEBASE = {
+        red:"#e8192c", green:"#1cb145", yellow:"#f5c518", blue:"#1565c0"
+    };
+    const COLOR_STRETCH = {
+        "🔴 Red":"#ffb3b8","🟢 Green":"#b3f5c8","🟡 Yellow":"#fff3b3","🔵 Blue":"#b3d4f5"
+    };
 
     function colorShort(fullColor) {
         return COLOR_NAME_MAP[fullColor] || fullColor.replace(/[^a-z]/gi,'').toLowerCase();
     }
 
-    // टोकन की कच्ची पोजीशन (ग्रिड निर्देशांक)
+    // Cell center
+    function cc(gridX, gridY) {
+        return { x: OFF + gridX*CELL + CELL/2, y: OFF + gridY*CELL + CELL/2 };
+    }
+
+    // ---------- TOKEN GRID POSITION ----------
     function getTokenRawGridPos(colorFull, tokenPos) {
         if(tokenPos === 0) {
-            // होम: जिस इंडेक्स पर यह टोकन है उसके हिसाब से base position
             const player = gameState.players.find(p => p.color === colorFull);
             if(!player) return null;
             const idx = player.tokens.indexOf(tokenPos);
@@ -193,29 +212,110 @@
             return HOME_BASE_POS[colorFull][idx % 4];
         }
         if(tokenPos >= 1 && tokenPos <= 52) {
-            const trackIdx = tokenPos - 1;
-            return TRACK_CELLS[trackIdx];
+            return TRACK_CELLS[tokenPos - 1];
         }
         if(tokenPos >= 53 && tokenPos <= 58) {
-            const stretchIdx = tokenPos - 53;
             const stretchCells = HOME_STRETCH[colorFull];
-            if(stretchCells && stretchIdx < stretchCells.length) return stretchCells[stretchIdx];
+            if(stretchCells && (tokenPos-53) < stretchCells.length) return stretchCells[tokenPos-53];
         }
         return null;
     }
 
-    // ---------- टोकन ड्राइंग (सभी टोकन इकट्ठा करके समायोजित) ----------
+    // ---------- DRAW PAWN (image-style) ----------
+    function drawPawn(x, y, colorKey, label, size, glowing) {
+        const c = ctx;
+        const r = size * 0.45;
+        const headR = r * 0.7;
+        const neckW = r * 0.32;
+        const baseH = r * 0.55;
+        const baseW = r * 0.95;
+        const fill = COLOR_HEX[colorKey];
+        const dark = COLOR_DARK[colorKey];
+
+        c.save();
+        if(glowing) {
+            c.shadowColor = "#facc15";
+            c.shadowBlur = 14;
+        } else {
+            c.shadowColor = "rgba(0,0,0,0.45)";
+            c.shadowBlur = 5;
+            c.shadowOffsetY = 2;
+        }
+
+        // Base ellipse
+        c.beginPath();
+        c.ellipse(x, y + headR + baseH*0.1, baseW, baseH*0.45, 0, 0, Math.PI*2);
+        // Gradient fill for base
+        let gBase = c.createRadialGradient(x-2, y+headR, 1, x, y+headR+baseH*0.1, baseW);
+        gBase.addColorStop(0, fill);
+        gBase.addColorStop(1, dark);
+        c.fillStyle = gBase;
+        c.fill();
+        c.strokeStyle = "rgba(0,0,0,0.35)";
+        c.lineWidth = 1.2;
+        c.stroke();
+
+        // Body/neck connecting head to base
+        c.beginPath();
+        c.moveTo(x - neckW, y);
+        c.lineTo(x - baseW*0.65, y + headR + baseH*0.1);
+        c.lineTo(x + baseW*0.65, y + headR + baseH*0.1);
+        c.lineTo(x + neckW, y);
+        c.closePath();
+        c.fillStyle = fill;
+        c.fill();
+
+        // Head circle
+        c.shadowColor = glowing ? "#facc15" : "rgba(0,0,0,0.3)";
+        c.shadowBlur = glowing ? 14 : 4;
+        c.beginPath();
+        c.arc(x, y - headR*0.3, headR, 0, Math.PI*2);
+        let gHead = c.createRadialGradient(x - headR*0.3, y - headR*0.7, headR*0.1, x, y - headR*0.3, headR);
+        gHead.addColorStop(0, lightenHex(fill, 0.4));
+        gHead.addColorStop(0.5, fill);
+        gHead.addColorStop(1, dark);
+        c.fillStyle = gHead;
+        c.fill();
+        c.strokeStyle = "rgba(0,0,0,0.4)";
+        c.lineWidth = 1.5;
+        c.stroke();
+
+        // Shine
+        c.beginPath();
+        c.arc(x - headR*0.25, y - headR*0.6, headR*0.22, 0, Math.PI*2);
+        c.fillStyle = "rgba(255,255,255,0.55)";
+        c.fill();
+
+        c.restore();
+
+        // Label number
+        c.save();
+        c.fillStyle = "rgba(0,0,0,0.75)";
+        c.font = `bold ${Math.round(size*0.26)}px Arial`;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText(label, x, y - headR*0.25);
+        c.restore();
+    }
+
+    function lightenHex(hex, amount) {
+        const num = parseInt(hex.replace('#',''), 16);
+        const r = Math.min(255, (num >> 16) + Math.round(255*amount));
+        const g = Math.min(255, ((num>>8)&0xff) + Math.round(255*amount));
+        const b = Math.min(255, (num&0xff) + Math.round(255*amount));
+        return `rgb(${r},${g},${b})`;
+    }
+
+    // ---------- DRAW ALL TOKENS ----------
     function drawAllTokens() {
         if(!gameState.players) return;
-        // प्रत्येक सेल के लिए टोकन इकट्ठा करें
-        const cellMap = new Map(); // key "x,y" → array of {color, short, idx, posNum}
+        const cellMap = new Map();
         for(let player of gameState.players) {
             const colorFull = player.color;
             const short = colorShort(colorFull);
-            const tokensArr = player.tokens;
-            for(let idx=0; idx<tokensArr.length; idx++) {
-                const posNum = tokensArr[idx];
-                if(posNum === 59) continue; // जीत गया
+            for(let idx=0; idx<player.tokens.length; idx++) {
+                const posNum = player.tokens[idx];
+                if(posNum === 59) continue;
                 const gridPos = getTokenRawGridPos(colorFull, posNum);
                 if(!gridPos) continue;
                 const key = `${gridPos[0]},${gridPos[1]}`;
@@ -223,59 +323,37 @@
                 cellMap.get(key).push({ colorFull, short, idx, posNum });
             }
         }
-        // अब प्रत्येक सेल में टोकन को 2x2 ग्रिड में बिठाएँ
+        const offsets = [
+            { dx: -11, dy: -11 }, { dx: 11, dy: -11 },
+            { dx: -11, dy: 11 },  { dx: 11, dy: 11 }
+        ];
         for(let [key, tokensList] of cellMap.entries()) {
             const [gx, gy] = key.split(',').map(Number);
-            const centerX = OFFSET + gx*CELL_SIZE + CELL_SIZE/2;
-            const centerY = OFFSET + gy*CELL_SIZE + CELL_SIZE/2;
-            const count = tokensList.length;
-            // ऑफ़सेट पैटर्न: 2x2 ग्रिड (ऊपर-बाएँ, ऊपर-दाएँ, नीचे-बाएँ, नीचे-दाएँ)
-            const offsets = [
-                { dx: -10, dy: -10 },  // टोकन 0
-                { dx: 10,  dy: -10 },  // टोकन 1
-                { dx: -10, dy: 10 },   // टोकन 2
-                { dx: 10,  dy: 10 }    // टोकन 3
-            ];
+            const center = cc(gx, gy);
             for(let i=0; i<tokensList.length; i++) {
                 const tok = tokensList[i];
                 const off = offsets[i % offsets.length];
-                const cx = centerX + off.dx;
-                const cy = centerY + off.dy;
-                ctx.beginPath();
-                ctx.arc(cx, cy, 15, 0, 2*Math.PI);
-                ctx.fillStyle = COLOR_HEX[tok.short];
-                ctx.fill();
-                ctx.strokeStyle = "white";
-                ctx.lineWidth = 2.5;
-                ctx.stroke();
-                ctx.fillStyle = "white";
-                ctx.font = "bold 16px Arial";
-                ctx.fillText((tok.idx+1).toString(), cx-6, cy+7);
-                // हाइलाइट अगर चल सकता है
-                if(isMovableToken(tok.colorFull, tok.posNum)) {
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 20, 0, 2*Math.PI);
-                    ctx.strokeStyle = "#facc15";
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                }
+                const cx = center.x + off.dx;
+                const cy = center.y + off.dy;
+                const size = tokensList.length > 1 ? CELL * 0.72 : CELL * 0.88;
+                const glow = isMovableToken(tok.colorFull, tok.posNum);
+                drawPawn(cx, cy, tok.short, (tok.idx+1).toString(), size, glow);
             }
         }
     }
 
-    // ---------- मूवेबल चेक (फिक्स: घर से किसी भी पासे पर बाहर) ----------
+    // ---------- MOVABLE CHECK ----------
     function isMovableToken(colorFull, tokenPos) {
         if(gameState.winner !== -1) return false;
         if(colorFull !== gameState.players[gameState.turn_index]?.color) return false;
         if(!gameState.rolled || gameState.dice_value === null) return false;
         if(tokenPos >= 59) return false;
-        // ✅ FIX: कोई भी पासा (1-6) घर से बाहर निकाल सकता है
         if(tokenPos === 0) return true;
-        if(tokenPos >= 1) return true;   // बॉट की can_move पर भरोसा
+        if(tokenPos >= 1) return true;
         return false;
     }
 
-    // ---------- API कॉल ----------
+    // ---------- API CALLS ----------
     async function fetchGameState() {
         if(!BOT_API || !CHAT_ID) return false;
         try {
@@ -318,80 +396,242 @@
         }
     }
 
-    // ---------- ड्राइंग ----------
+    // ---------- CANVAS ----------
     const canvas = document.getElementById("ludoCanvas");
     const ctx = canvas.getContext("2d");
 
+    // ==================== DRAW BOARD ====================
     function drawBoard() {
-        if(!gameState.players) return;
-        ctx.clearRect(0,0,800,800);
-        ctx.fillStyle = "#fdf8e7";
-        ctx.fillRect(0,0,800,800);
-        // ग्रिड लाइन
-        ctx.strokeStyle = "#a1a1aa";
-        ctx.lineWidth = 1;
-        for(let i=0;i<=15;i++) {
-            ctx.beginPath();
-            ctx.moveTo(OFFSET + i*CELL_SIZE, OFFSET);
-            ctx.lineTo(OFFSET + i*CELL_SIZE, OFFSET+15*CELL_SIZE);
-            ctx.stroke();
-            ctx.moveTo(OFFSET, OFFSET + i*CELL_SIZE);
-            ctx.lineTo(OFFSET+15*CELL_SIZE, OFFSET + i*CELL_SIZE);
-            ctx.stroke();
-        }
-        // रंगीन बेस
-        const bases = [
-            {col:"🔴 Red", x:0,y:0},{col:"🟢 Green", x:9,y:0},
-            {col:"🟡 Yellow", x:0,y:9},{col:"🔵 Blue", x:9,y:9}
-        ];
-        for(let b of bases) {
-            ctx.fillStyle = BASE_LIGHT[colorShort(b.col)];
-            ctx.fillRect(OFFSET + b.x*CELL_SIZE, OFFSET + b.y*CELL_SIZE, 6*CELL_SIZE, 6*CELL_SIZE);
-            ctx.strokeStyle = "#475569";
-            ctx.strokeRect(OFFSET + b.x*CELL_SIZE, OFFSET + b.y*CELL_SIZE, 6*CELL_SIZE, 6*CELL_SIZE);
-        }
-        // केंद्र वर्ग
-        ctx.fillStyle = "#e2e8f0";
-        ctx.fillRect(OFFSET+6*CELL_SIZE, OFFSET+6*CELL_SIZE, 3*CELL_SIZE, 3*CELL_SIZE);
-        // ट्रैक सेल
-        for(let i=0;i<TRACK_CELLS.length;i++) {
-            let [x,y] = TRACK_CELLS[i];
-            let cx = OFFSET + x*CELL_SIZE, cy = OFFSET + y*CELL_SIZE;
-            ctx.fillStyle = "#fef9e3";
-            ctx.fillRect(cx,cy,CELL_SIZE,CELL_SIZE);
-            ctx.strokeStyle = "#94a3b8";
-            ctx.strokeRect(cx,cy,CELL_SIZE,CELL_SIZE);
-            if(isSafeGrid(x,y)) {
-                ctx.fillStyle = "#facc15";
-                ctx.font = "26px Arial";
-                ctx.fillText("⭐", cx+12, cy+36);
-            }
-        }
-        // होम स्ट्रेच सेल
-        for(let colorFull of Object.keys(HOME_STRETCH)) {
-            let cells = HOME_STRETCH[colorFull];
-            for(let [sx,sy] of cells) {
-                ctx.fillStyle = "#fee2e2";
-                ctx.fillRect(OFFSET+sx*CELL_SIZE, OFFSET+sy*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-                ctx.strokeRect(OFFSET+sx*CELL_SIZE, OFFSET+sy*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            }
-        }
-        // टोकन ड्रा (नई विधि से)
-        drawAllTokens();
+        ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-        // डाइस दिखाएँ
-        if(gameState.dice_value !== null && gameState.rolled) {
-            ctx.fillStyle = "white";
-            ctx.fillRect(730, 30, 55, 55);
-            ctx.strokeStyle = "black";
-            ctx.strokeRect(730, 30, 55, 55);
-            ctx.fillStyle = "#1e293b";
-            ctx.font = "bold 38px Arial";
-            ctx.fillText(gameState.dice_value, 749, 78);
+        // Board background
+        ctx.fillStyle = "#f0f0f0";
+        roundRect(ctx, 0, 0, CANVAS_SIZE, CANVAS_SIZE, 12);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+
+        drawHomeAreas();
+        drawTrackCells();
+        drawHomeStretches();
+        drawCenter();
+        drawArrowHints();
+        drawAllTokens();
+        if(gameState.dice_value !== null && gameState.rolled) drawDiceOverlay();
+    }
+
+    function roundRect(c, x, y, w, h, r) {
+        c.beginPath();
+        c.moveTo(x+r, y);
+        c.lineTo(x+w-r, y); c.quadraticCurveTo(x+w, y, x+w, y+r);
+        c.lineTo(x+w, y+h-r); c.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+        c.lineTo(x+r, y+h); c.quadraticCurveTo(x, y+h, x, y+h-r);
+        c.lineTo(x, y+r); c.quadraticCurveTo(x, y, x+r, y);
+        c.closePath();
+    }
+
+    // ---------- HOME AREAS (large corner squares) ----------
+    function drawHomeAreas() {
+        const homes = [
+            { color:"red",    gx:0,  gy:0  },
+            { color:"green",  gx:9,  gy:0  },
+            { color:"yellow", gx:0,  gy:9  },
+            { color:"blue",   gx:9,  gy:9  }
+        ];
+        for(let h of homes) {
+            const x = OFF + h.gx * CELL;
+            const y = OFF + h.gy * CELL;
+            const size = 6 * CELL;
+
+            // Outer bg
+            ctx.fillStyle = COLOR_HEX[h.color];
+            roundRect(ctx, x+1, y+1, size-2, size-2, 10);
+            ctx.fill();
+
+            // Inner white square
+            const pad = CELL * 0.55;
+            const inner = size - pad*2;
+            ctx.fillStyle = "rgba(255,255,255,0.92)";
+            roundRect(ctx, x+pad, y+pad, inner, inner, 8);
+            ctx.fill();
+
+            // Inner border
+            ctx.strokeStyle = COLOR_HEX[h.color];
+            ctx.lineWidth = 2.5;
+            roundRect(ctx, x+pad, y+pad, inner, inner, 8);
+            ctx.stroke();
+
+            // 4 token placeholder circles inside the inner box
+            const slotPositions = [
+                { dx: inner*0.25, dy: inner*0.25 },
+                { dx: inner*0.75, dy: inner*0.25 },
+                { dx: inner*0.25, dy: inner*0.75 },
+                { dx: inner*0.75, dy: inner*0.75 }
+            ];
+            const slotR = CELL * 0.38;
+            for(let s of slotPositions) {
+                const sx = x + pad + s.dx;
+                const sy = y + pad + s.dy;
+                // Slot shadow bg
+                ctx.beginPath();
+                ctx.arc(sx, sy, slotR, 0, Math.PI*2);
+                ctx.fillStyle = COLOR_LIGHT[h.color];
+                ctx.fill();
+                ctx.strokeStyle = COLOR_HEX[h.color];
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
         }
     }
 
-    // ---------- UI टेक्स्ट ----------
+    // ---------- TRACK CELLS ----------
+    function drawTrackCells() {
+        const safeSet = new Set([
+            "1,6","6,2","8,1","12,6","13,8","8,12","6,13","2,8","1,6"
+        ]);
+        const coloredStart = {
+            "6,1":"green","1,6":"red","8,13":"yellow","13,8":"blue"
+        };
+        // Start cell colors
+        const startColorMap = {
+            "6,1": "green", "1,6": "red", "8,13": "yellow", "13,8": "blue"
+        };
+
+        for(let i=0; i<TRACK_CELLS.length; i++) {
+            const [gx, gy] = TRACK_CELLS[i];
+            const x = OFF + gx*CELL, y = OFF + gy*CELL;
+            const key = `${gx},${gy}`;
+
+            if(startColorMap[key]) {
+                ctx.fillStyle = COLOR_HEX[startColorMap[key]];
+            } else if(safeSet.has(key)) {
+                ctx.fillStyle = "#e8f5e9";
+            } else {
+                ctx.fillStyle = "#ffffff";
+            }
+            ctx.fillRect(x, y, CELL, CELL);
+            ctx.strokeStyle = "#bdbdbd";
+            ctx.lineWidth = 0.8;
+            ctx.strokeRect(x, y, CELL, CELL);
+
+            // Safe star
+            if(safeSet.has(key) && !startColorMap[key]) {
+                ctx.font = `${Math.round(CELL*0.52)}px Arial`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("⭐", x + CELL/2, y + CELL/2);
+            }
+        }
+    }
+
+    // ---------- HOME STRETCHES ----------
+    function drawHomeStretches() {
+        for(let [colorFull, cells] of Object.entries(HOME_STRETCH)) {
+            const short = colorShort(colorFull);
+            for(let j=0; j<cells.length; j++) {
+                const [gx, gy] = cells[j];
+                const x = OFF + gx*CELL, y = OFF + gy*CELL;
+                // Gradient lane
+                if(j === cells.length-1) {
+                    ctx.fillStyle = COLOR_HEX[short];
+                } else {
+                    ctx.fillStyle = COLOR_LIGHT[short];
+                }
+                ctx.fillRect(x, y, CELL, CELL);
+                ctx.strokeStyle = COLOR_HEX[short];
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y, CELL, CELL);
+            }
+        }
+    }
+
+    // ---------- CENTER TRIANGLE DESIGN ----------
+    function drawCenter() {
+        const cx = OFF + 7.5*CELL;
+        const cy = OFF + 7.5*CELL;
+        const half = 1.5*CELL;
+
+        // White bg
+        ctx.fillStyle = "#f5f5f5";
+        ctx.fillRect(OFF + 6*CELL, OFF + 6*CELL, 3*CELL, 3*CELL);
+
+        // 4 triangles pointing to center
+        const triangles = [
+            { color:"red",    points:[ [cx-half,cy-half], [cx+half,cy-half], [cx,cy] ] },  // top → red
+            { color:"green",  points:[ [cx+half,cy-half], [cx+half,cy+half], [cx,cy] ] }, // right → green
+            { color:"blue",   points:[ [cx-half,cy+half], [cx+half,cy+half], [cx,cy] ] }, // bottom → blue
+            { color:"yellow", points:[ [cx-half,cy-half], [cx-half,cy+half], [cx,cy] ] }  // left → yellow
+        ];
+        for(let t of triangles) {
+            ctx.beginPath();
+            ctx.moveTo(t.points[0][0], t.points[0][1]);
+            ctx.lineTo(t.points[1][0], t.points[1][1]);
+            ctx.lineTo(t.points[2][0], t.points[2][1]);
+            ctx.closePath();
+            ctx.fillStyle = COLOR_HEX[t.color];
+            ctx.fill();
+        }
+
+        // Center star
+        ctx.font = `${Math.round(CELL*0.9)}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⭐", cx, cy);
+    }
+
+    // ---------- ARROW HINTS on start cells ----------
+    function drawArrowHints() {
+        // Small arrows showing direction on first track cells
+        const arrowData = [
+            { gx:1, gy:6, angle:0 },        // Red start → right
+            { gx:6, gy:1, angle:Math.PI/2 }, // Green start → down
+            { gx:13, gy:8, angle:Math.PI },  // Blue start → left
+            { gx:8, gy:13, angle:-Math.PI/2} // Yellow start → up
+        ];
+        ctx.save();
+        for(let a of arrowData) {
+            const center = cc(a.gx, a.gy);
+            ctx.save();
+            ctx.translate(center.x, center.y);
+            ctx.rotate(a.angle);
+            ctx.fillStyle = "rgba(80,80,80,0.55)";
+            ctx.font = `${Math.round(CELL*0.4)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("▶", 0, 0);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    // ---------- DICE OVERLAY ----------
+    function drawDiceOverlay() {
+        const dv = gameState.dice_value;
+        const bx = CANVAS_SIZE - CELL*1.8, by = CELL*0.2;
+        const bw = CELL*1.5, bh = CELL*1.5;
+
+        // Shadow
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 4;
+        roundRect(ctx, bx, by, bw, bh, 10);
+        ctx.fillStyle = "white";
+        ctx.fill();
+        ctx.restore();
+
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
+        roundRect(ctx, bx, by, bw, bh, 10);
+        ctx.stroke();
+
+        ctx.fillStyle = "#1a1a2e";
+        ctx.font = `bold ${Math.round(CELL*0.85)}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(dv, bx + bw/2, by + bh/2 + 2);
+    }
+
+    // ---------- UI TEXT ----------
     function updateUI(manualMsg = null) {
         const turnSpan = document.getElementById("turnText");
         const diceSpan = document.getElementById("diceValue");
@@ -430,7 +670,7 @@
         if(manualMsg) statusSpan.innerText = manualMsg;
     }
 
-    // ---------- क्लिक हैंडलर (टोकन चुनना) ----------
+    // ---------- CANVAS CLICK ----------
     function handleCanvasClick(e) {
         if(gameState.winner !== -1) return;
         if(!gameState.rolled || gameState.dice_value === null) {
@@ -447,14 +687,12 @@
         const scaleY = canvas.height / rect.height;
         let clickX = (e.clientX - rect.left) * scaleX;
         let clickY = (e.clientY - rect.top) * scaleY;
-        // पहले से सभी टोकन की पोजीशन (सेंटर + ऑफ़सेट) फिर से निकालना होगा
-        // प्रत्येक सेल में टोकन इकट्ठा करें
+
         const cellMap = new Map();
         for(let player of gameState.players) {
             const colorFull = player.color;
-            const tokensArr = player.tokens;
-            for(let idx=0; idx<tokensArr.length; idx++) {
-                const posNum = tokensArr[idx];
+            for(let idx=0; idx<player.tokens.length; idx++) {
+                const posNum = player.tokens[idx];
                 if(posNum === 59) continue;
                 const gridPos = getTokenRawGridPos(colorFull, posNum);
                 if(!gridPos) continue;
@@ -463,22 +701,20 @@
                 cellMap.get(key).push({ colorFull, idx, posNum });
             }
         }
-        // सभी सेल के टोकन को ऑफ़सेट के साथ हिट टेस्ट करें
+        const offsets = [
+            { dx:-11, dy:-11 }, { dx:11, dy:-11 },
+            { dx:-11, dy:11  }, { dx:11, dy:11  }
+        ];
         for(let [key, tokensList] of cellMap.entries()) {
             const [gx, gy] = key.split(',').map(Number);
-            const centerX = OFFSET + gx*CELL_SIZE + CELL_SIZE/2;
-            const centerY = OFFSET + gy*CELL_SIZE + CELL_SIZE/2;
-            const offsets = [
-                { dx: -10, dy: -10 }, { dx: 10, dy: -10 },
-                { dx: -10, dy: 10 },  { dx: 10, dy: 10 }
-            ];
+            const center = cc(gx, gy);
             for(let i=0; i<tokensList.length; i++) {
                 const tok = tokensList[i];
                 const off = offsets[i % offsets.length];
-                const cx = centerX + off.dx;
-                const cy = centerY + off.dy;
-                const dx = clickX - cx, dy = clickY - cy;
-                if(Math.hypot(dx,dy) < 20) {
+                const cx = center.x + off.dx;
+                const cy = center.y + off.dy;
+                const hitR = tokensList.length > 1 ? 18 : 22;
+                if(Math.hypot(clickX-cx, clickY-cy) < hitR) {
                     if(isMovableToken(tok.colorFull, tok.posNum)) {
                         sendMove(tok.idx);
                     } else {
@@ -490,7 +726,7 @@
         }
     }
 
-    // ---------- ऑटो रिफ्रेश ----------
+    // ---------- AUTO REFRESH ----------
     function startAutoRefresh() {
         if(refreshInterval) clearInterval(refreshInterval);
         refreshInterval = setInterval(async () => {
@@ -502,9 +738,11 @@
         }, 2500);
     }
 
-    // ---------- इनिशियलाइज़ ----------
+    // ---------- INIT ----------
     async function init() {
         if(!BOT_API || !CHAT_ID || !USER_ID) {
+            // Demo mode: draw static board
+            drawBoard();
             document.getElementById("statusMsg").innerText = "⚠️ बॉट API URL नहीं मिला। सुनिश्चित करें कि आपने बॉट से WebApp खोला है।";
             return;
         }
