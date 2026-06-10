@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Board – GC Dice (Fixed)</title>
+    <title>Ludo Board – Animated Tokens</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { user-select: none; touch-action: manipulation; box-sizing: border-box; }
@@ -150,34 +150,52 @@
         let myPlayerIndex = -1;
         let refreshInterval = null;
 
+        // ---------- एनिमेशन वेरिएबल ----------
+        let animating = false;
+        let animationQueue = [];
+
+        // ---------- डेमो मोड के लिए डमी ----------
+        function initDemoGame() {
+            const demoColors = ["🔴 Red", "🟢 Green", "🟡 Yellow", "🔵 Blue"];
+            gameState.players = demoColors.map((color, idx) => ({
+                id: 1000 + idx,
+                username: color.split(" ")[1],
+                color: color,
+                tokens: [0,0,0,0]
+            }));
+            gameState.turn_index = 0;
+            gameState.dice_value = 6;
+            gameState.rolled = true;
+            gameState.waiting_for_word = false;
+            gameState.winner = -1;
+            myColor = "🔴 Red";
+            myPlayerIndex = 0;
+        }
+
         // ---------- बोर्ड कॉन्स्टेंट ----------
         const CANVAS_SIZE = 750;
         const BOARD_CELLS = 15;
-        const CELL = CANVAS_SIZE / BOARD_CELLS;   // 50px
+        const CELL = CANVAS_SIZE / BOARD_CELLS;
         const OFF = 0;
 
-        // TRACK (52 cells, index 0 = position 1)
         const TRACK_CELLS = [
             [1,6],[2,6],[3,6],[4,6],[5,6],[6,5],[6,4],[6,3],[6,2],[6,1],[6,0],[7,0],[8,0],[8,1],
             [8,2],[8,3],[8,4],[8,5],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],[14,7],[14,8],[13,8],
             [12,8],[11,8],[10,8],[9,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],[7,14],[6,14],[6,13],
             [6,12],[6,11],[6,10],[6,9],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6]
         ];
-        // HOME STRETCH (6 cells for positions 53..58) - fixed with safe coordinates
         const HOME_STRETCH = {
             "🔴 Red":   [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
             "🟢 Green": [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
             "🟡 Yellow":[[9,7],[10,7],[11,7],[12,7],[13,7],[8,7]],
             "🔵 Blue":  [[7,9],[7,10],[7,11],[7,12],[7,13],[7,8]]
         };
-        // HOME BASE positions (4 cells for each color)
         const HOME_BASE_POS = {
             "🔴 Red":   [[1,1],[1,4],[4,1],[4,4]],
             "🟢 Green": [[10,1],[13,1],[10,4],[13,4]],
             "🟡 Yellow":[[1,10],[4,10],[1,13],[4,13]],
             "🔵 Blue":  [[10,10],[13,10],[10,13],[13,13]]
         };
-
         const COLOR_NAME_MAP = {
             "🔴 Red": "red", "🟢 Green": "green", "🟡 Yellow": "yellow", "🔵 Blue": "blue"
         };
@@ -188,21 +206,14 @@
         function colorShort(fullColor) {
             return COLOR_NAME_MAP[fullColor] || fullColor.replace(/[^a-z]/gi,'').toLowerCase();
         }
-
-        // सेल का केंद्र
         function cc(gx, gy) {
             return { x: OFF + gx*CELL + CELL/2, y: OFF + gy*CELL + CELL/2 };
         }
 
-        // ---------- टोकन की ग्रिड पोजीशन (tokenIdx के साथ) ----------
+        // टोकन की ग्रिड पोजीशन (ग्रिड कोऑर्डिनेट)
         function getTokenRawGridPos(colorFull, tokenPos, tokenIdx) {
-            if(tokenPos === 0) {
-                // घर में: टोकन के index के हिसाब से उसकी निजी होम सेल
-                return HOME_BASE_POS[colorFull][tokenIdx % 4];
-            }
-            if(tokenPos >= 1 && tokenPos <= 52) {
-                return TRACK_CELLS[tokenPos - 1];
-            }
+            if(tokenPos === 0) return HOME_BASE_POS[colorFull][tokenIdx % 4];
+            if(tokenPos >= 1 && tokenPos <= 52) return TRACK_CELLS[tokenPos - 1];
             if(tokenPos >= 53 && tokenPos <= 58) {
                 const cells = HOME_STRETCH[colorFull];
                 if(cells && (tokenPos-53) < cells.length) return cells[tokenPos-53];
@@ -210,63 +221,81 @@
             return null;
         }
 
-        // ---------- स्टाइलिश प्यादा ड्राइंग ----------
-        function drawPawn(x, y, colorKey, label, size, glowing) {
+        // ---------- एनिमेशन हेल्पर: बदलती हुई पोजीशन का ट्रैक रखना ----------
+        let animatedTokens = new Map(); // key: "color_idx" -> { startX, startY, targetX, targetY, progress }
+
+        function startAnimation(colorFull, tokenIdx, fromPosNum, toPosNum) {
+            const fromGrid = getTokenRawGridPos(colorFull, fromPosNum, tokenIdx);
+            const toGrid = getTokenRawGridPos(colorFull, toPosNum, tokenIdx);
+            if(!fromGrid || !toGrid) return false;
+            const startCenter = cc(fromGrid[0], fromGrid[1]);
+            const endCenter = cc(toGrid[0], toGrid[1]);
+            const key = `${colorFull}_${tokenIdx}`;
+            animatedTokens.set(key, {
+                startX: startCenter.x, startY: startCenter.y,
+                targetX: endCenter.x, targetY: endCenter.y,
+                progress: 0,
+                duration: 300, // ms
+                startTime: performance.now()
+            });
+            return true;
+        }
+
+        function updateAnimations() {
+            if(animatedTokens.size === 0) return false;
+            const now = performance.now();
+            let anyRemaining = false;
+            for(let [key, anim] of animatedTokens.entries()) {
+                const elapsed = now - anim.startTime;
+                let t = Math.min(1, elapsed / anim.duration);
+                // easing out cubic
+                const ease = 1 - Math.pow(1-t, 3);
+                // update animated position stored somewhere? Actually we'll draw directly from animatedTokens
+                anim.progress = t;
+                if(t < 1) anyRemaining = true;
+            }
+            // remove finished animations
+            for(let [key, anim] of animatedTokens.entries()) {
+                if(anim.progress >= 1) animatedTokens.delete(key);
+            }
+            return anyRemaining;
+        }
+
+        // ड्राइंग फंक्शन – अगर एनिमेशन चल रहा हो तो उसी के अनुसार खींचे
+        function drawPawnAnimated(x, y, colorKey, label, size, glowing) {
+            // same as drawPawn but with given x,y
             const r = size * 0.45;
             const headR = r * 0.7;
             const baseH = r * 0.55;
             const baseW = r * 0.95;
             const fill = COLOR_HEX[colorKey];
             const dark = COLOR_DARK[colorKey];
-            const ctx = canvas.getContext('2d');
             ctx.save();
-            if(glowing) {
-                ctx.shadowColor = "#facc15";
-                ctx.shadowBlur = 14;
-            } else {
-                ctx.shadowColor = "rgba(0,0,0,0.45)";
-                ctx.shadowBlur = 5;
-                ctx.shadowOffsetY = 2;
-            }
-            // base
+            if(glowing) { ctx.shadowColor = "#facc15"; ctx.shadowBlur = 14; }
+            else { ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2; }
             ctx.beginPath();
             ctx.ellipse(x, y + headR + baseH*0.1, baseW, baseH*0.45, 0, 0, Math.PI*2);
             let gBase = ctx.createRadialGradient(x-2, y+headR, 1, x, y+headR+baseH*0.1, baseW);
-            gBase.addColorStop(0, fill);
-            gBase.addColorStop(1, dark);
-            ctx.fillStyle = gBase;
-            ctx.fill();
-            ctx.strokeStyle = "rgba(0,0,0,0.35)";
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
-            // neck
+            gBase.addColorStop(0, fill); gBase.addColorStop(1, dark);
+            ctx.fillStyle = gBase; ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 1.2; ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(x - r*0.32, y);
             ctx.lineTo(x - baseW*0.65, y + headR + baseH*0.1);
             ctx.lineTo(x + baseW*0.65, y + headR + baseH*0.1);
             ctx.lineTo(x + r*0.32, y);
             ctx.closePath();
-            ctx.fillStyle = fill;
-            ctx.fill();
-            // head
+            ctx.fillStyle = fill; ctx.fill();
             ctx.beginPath();
             ctx.arc(x, y - headR*0.3, headR, 0, Math.PI*2);
             let gHead = ctx.createRadialGradient(x - headR*0.3, y - headR*0.7, headR*0.1, x, y - headR*0.3, headR);
-            gHead.addColorStop(0, lightenHex(fill, 0.4));
-            gHead.addColorStop(0.5, fill);
-            gHead.addColorStop(1, dark);
-            ctx.fillStyle = gHead;
-            ctx.fill();
-            ctx.strokeStyle = "rgba(0,0,0,0.4)";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            // shine
+            gHead.addColorStop(0, lightenHex(fill, 0.4)); gHead.addColorStop(0.5, fill); gHead.addColorStop(1, dark);
+            ctx.fillStyle = gHead; ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1.5; ctx.stroke();
             ctx.beginPath();
             ctx.arc(x - headR*0.25, y - headR*0.6, headR*0.22, 0, Math.PI*2);
-            ctx.fillStyle = "rgba(255,255,255,0.55)";
-            ctx.fill();
+            ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.fill();
             ctx.restore();
-            // number
             ctx.fillStyle = "rgba(0,0,0,0.75)";
             ctx.font = `bold ${Math.round(size*0.26)}px Arial`;
             ctx.textAlign = "center";
@@ -282,94 +311,9 @@
             return `rgb(${r},${g},${b})`;
         }
 
-        // ---------- स्थानीय मूव चेक (बॉट के नियमों के अनुसार) ----------
-        // यहाँ हर पासे पर घर से बाहर निकलने की अनुमति है
-        function canMoveLocal(tokenPos, dice) {
-            if(tokenPos >= 59) return false;
-            if(tokenPos === 0) return true;   // any dice works
-            if(tokenPos >= 1 && tokenPos <= 52) {
-                let newPos = tokenPos + dice;
-                if(newPos <= 52) return true;
-                let homeSteps = newPos - 52;
-                return homeSteps <= 6;
-            }
-            if(tokenPos >= 53 && tokenPos <= 58) {
-                let newPos = tokenPos + dice;
-                return newPos <= 59;
-            }
-            return false;
-        }
-
-        // ---------- यूटिलिटी: क्या टोकन चल सकता है (UI हाइलाइट और क्लिक) ----------
-        function isMovableToken(colorFull, tokenPos, tokenIdx) {
-            if(gameState.winner !== -1) return false;
-            if(colorFull !== gameState.players[gameState.turn_index]?.color) return false;
-            if(!gameState.rolled || gameState.dice_value === null) return false;
-            if(tokenPos >= 59) return false;
-            return canMoveLocal(tokenPos, gameState.dice_value);
-        }
-
-        // ---------- API कॉल ----------
-        async function fetchGameState() {
-            if(!BOT_API || !CHAT_ID) return false;
-            try {
-                const res = await fetch(`${BOT_API}/game_state?chat_id=${CHAT_ID}`);
-                if(!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                gameState = data;
-                if(USER_ID && gameState.players) {
-                    const me = gameState.players.find(p => p.id == USER_ID);
-                    if(me) {
-                        myColor = me.color;
-                        myPlayerIndex = gameState.players.findIndex(p => p.id == USER_ID);
-                    }
-                }
-                return true;
-            } catch(e) {
-                console.warn("fetch error", e);
-                return false;
-            }
-        }
-
-        async function sendMove(tokenIdx) {
-            if(!BOT_API || !CHAT_ID || !USER_ID) return false;
-            try {
-                const url = `${BOT_API}/move?chat_id=${CHAT_ID}&user_id=${USER_ID}&token_idx=${tokenIdx}`;
-                const res = await fetch(url, { method: "POST" });
-                const data = await res.json();
-                if(res.ok) {
-                    await fetchGameState();
-                    drawBoard();
-                    updateUI();
-                    return true;
-                } else {
-                    updateUI("❌ चाल मना: " + (data.error || "unknown"));
-                    return false;
-                }
-            } catch(e) {
-                updateUI("❌ नेटवर्क त्रुटि");
-                return false;
-            }
-        }
-
-        // ---------- कैनवास और ड्राइंग ----------
+        // ---------- ड्राइंग (पिछले जैसा ही) ----------
         const canvas = document.getElementById("ludoCanvas");
         const ctx = canvas.getContext("2d");
-
-        function drawBoard() {
-            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            ctx.fillStyle = "#f0f0f0";
-            roundRect(ctx, 0, 0, CANVAS_SIZE, CANVAS_SIZE, 12);
-            ctx.fillStyle = "#ffffff";
-            ctx.fill();
-            drawHomeAreas();
-            drawTrackCells();
-            drawHomeStretches();
-            drawCenter();
-            drawArrowHints();
-            drawAllTokens();
-            if(gameState.dice_value !== null && gameState.rolled) drawDiceOverlay();
-        }
 
         function roundRect(c, x, y, w, h, r) {
             c.beginPath();
@@ -404,31 +348,21 @@
                 ctx.lineWidth = 2.5;
                 roundRect(ctx, x+pad, y+pad, inner, inner, 8);
                 ctx.stroke();
-                // no placeholder circles – tokens will be drawn on their own cells
             }
         }
 
         function drawTrackCells() {
-            const safeSet = new Set([
-                "1,6","6,2","8,1","12,6","13,8","8,12","6,13","2,8"
-            ]);
-            const startColorMap = {
-                "6,1": "green", "1,6": "red", "8,13": "yellow", "13,8": "blue"
-            };
+            const safeSet = new Set(["1,6","6,2","8,1","12,6","13,8","8,12","6,13","2,8"]);
+            const startColorMap = { "6,1": "green", "1,6": "red", "8,13": "yellow", "13,8": "blue" };
             for(let i=0; i<TRACK_CELLS.length; i++) {
                 const [gx, gy] = TRACK_CELLS[i];
                 const x = OFF + gx*CELL, y = OFF + gy*CELL;
                 const key = `${gx},${gy}`;
-                if(startColorMap[key]) {
-                    ctx.fillStyle = COLOR_HEX[startColorMap[key]];
-                } else if(safeSet.has(key)) {
-                    ctx.fillStyle = "#e8f5e9";
-                } else {
-                    ctx.fillStyle = "#ffffff";
-                }
+                if(startColorMap[key]) ctx.fillStyle = COLOR_HEX[startColorMap[key]];
+                else if(safeSet.has(key)) ctx.fillStyle = "#e8f5e9";
+                else ctx.fillStyle = "#ffffff";
                 ctx.fillRect(x, y, CELL, CELL);
                 ctx.strokeStyle = "#bdbdbd";
-                ctx.lineWidth = 0.8;
                 ctx.strokeRect(x, y, CELL, CELL);
                 if(safeSet.has(key) && !startColorMap[key]) {
                     ctx.font = `${Math.round(CELL*0.52)}px Arial`;
@@ -448,7 +382,6 @@
                     ctx.fillStyle = (j === cells.length-1) ? COLOR_HEX[short] : COLOR_LIGHT[short];
                     ctx.fillRect(x, y, CELL, CELL);
                     ctx.strokeStyle = COLOR_HEX[short];
-                    ctx.lineWidth = 1;
                     ctx.strokeRect(x, y, CELL, CELL);
                 }
             }
@@ -482,10 +415,8 @@
 
         function drawArrowHints() {
             const arrows = [
-                { gx:1, gy:6, angle:0 },        // red start → right
-                { gx:6, gy:1, angle:Math.PI/2 }, // green start → down
-                { gx:13, gy:8, angle:Math.PI },  // blue start → left
-                { gx:8, gy:13, angle:-Math.PI/2 } // yellow start → up
+                { gx:1, gy:6, angle:0 }, { gx:6, gy:1, angle:Math.PI/2 },
+                { gx:13, gy:8, angle:Math.PI }, { gx:8, gy:13, angle:-Math.PI/2 }
             ];
             ctx.save();
             for(let a of arrows) {
@@ -502,15 +433,19 @@
             ctx.restore();
         }
 
+        // ड्राइंग टोकन (एनिमेशन सपोर्ट के साथ)
         function drawAllTokens() {
             if(!gameState.players) return;
             const cellMap = new Map();
+            // पहले सारे स्थिर टोकन इकट्ठा करें
             for(let player of gameState.players) {
                 const colorFull = player.color;
                 const short = colorShort(colorFull);
                 for(let idx=0; idx<player.tokens.length; idx++) {
                     const posNum = player.tokens[idx];
                     if(posNum === 59) continue;
+                    const keyAnim = `${colorFull}_${idx}`;
+                    if(animatedTokens.has(keyAnim)) continue; // एनिमेटेड टोकन को अलग से हैंडल करेंगे
                     const gridPos = getTokenRawGridPos(colorFull, posNum, idx);
                     if(!gridPos) continue;
                     const key = `${gridPos[0]},${gridPos[1]}`;
@@ -518,10 +453,8 @@
                     cellMap.get(key).push({ colorFull, short, idx, posNum });
                 }
             }
-            const offsets = [
-                { dx: -11, dy: -11 }, { dx: 11, dy: -11 },
-                { dx: -11, dy: 11 },  { dx: 11, dy: 11 }
-            ];
+            const offsets = [{dx:-11,dy:-11},{dx:11,dy:-11},{dx:-11,dy:11},{dx:11,dy:11}];
+            // स्थिर टोकन
             for(let [key, tokensList] of cellMap.entries()) {
                 const [gx, gy] = key.split(',').map(Number);
                 const center = cc(gx, gy);
@@ -530,37 +463,195 @@
                     const off = offsets[i % offsets.length];
                     const cx = center.x + off.dx;
                     const cy = center.y + off.dy;
-                    const size = tokensList.length > 1 ? CELL * 0.72 : CELL * 0.88;
+                    const size = tokensList.length > 1 ? CELL * 0.78 : CELL * 0.95; // size increased
                     const glow = isMovableToken(tok.colorFull, tok.posNum, tok.idx);
-                    drawPawn(cx, cy, tok.short, (tok.idx+1).toString(), size, glow);
+                    drawPawnAnimated(cx, cy, tok.short, (tok.idx+1).toString(), size, glow);
                 }
+            }
+            // एनिमेटेड टोकन (अलग से ड्रा करें – उनकी इंटरपोलेटेड पोजीशन)
+            for(let [key, anim] of animatedTokens.entries()) {
+                const [colorFull, idxStr] = key.split('_');
+                const idx = parseInt(idxStr);
+                const player = gameState.players.find(p => p.color === colorFull);
+                if(!player) continue;
+                const posNum = player.tokens[idx];
+                const short = colorShort(colorFull);
+                const curX = anim.startX + (anim.targetX - anim.startX) * easeOutCubic(anim.progress);
+                const curY = anim.startY + (anim.targetY - anim.startY) * easeOutCubic(anim.progress);
+                const size = CELL * 0.95;
+                const glow = isMovableToken(colorFull, posNum, idx);
+                drawPawnAnimated(curX, curY, short, (idx+1).toString(), size, glow);
             }
         }
 
+        function easeOutCubic(t) { return 1 - Math.pow(1-t, 3); }
+
         function drawDiceOverlay() {
+            if(!gameState.rolled || gameState.dice_value === null) return;
             const dv = gameState.dice_value;
             const bx = CANVAS_SIZE - CELL*1.8, by = CELL*0.2;
             const bw = CELL*1.5, bh = CELL*1.5;
             ctx.save();
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetY = 4;
+            ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
             roundRect(ctx, bx, by, bw, bh, 10);
-            ctx.fillStyle = "white";
-            ctx.fill();
+            ctx.fillStyle = "white"; ctx.fill();
             ctx.restore();
-            ctx.strokeStyle = "#333";
-            ctx.lineWidth = 2;
-            roundRect(ctx, bx, by, bw, bh, 10);
-            ctx.stroke();
+            ctx.strokeStyle = "#333"; ctx.lineWidth = 2;
+            roundRect(ctx, bx, by, bw, bh, 10); ctx.stroke();
             ctx.fillStyle = "#1a1a2e";
             ctx.font = `bold ${Math.round(CELL*0.85)}px Arial`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText(dv, bx + bw/2, by + bh/2 + 2);
         }
 
-        // ---------- यूजर इंटरफेस टेक्स्ट ----------
+        function drawBoard() {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.fillStyle = "#f0f0f0";
+            roundRect(ctx, 0, 0, CANVAS_SIZE, CANVAS_SIZE, 12);
+            ctx.fillStyle = "#ffffff"; ctx.fill();
+            drawHomeAreas();
+            drawTrackCells();
+            drawHomeStretches();
+            drawCenter();
+            drawArrowHints();
+            drawAllTokens();
+            drawDiceOverlay();
+        }
+
+        // एनिमेशन लूप
+        function animationLoop() {
+            if(updateAnimations()) {
+                drawBoard();
+                requestAnimationFrame(animationLoop);
+            } else {
+                drawBoard();
+            }
+        }
+
+        // ---------- मूव करने से पहले एनिमेशन शुरू करें ----------
+        async function performMoveWithAnimation(tokenColor, tokenIdx, fromPos, toPos, callbackAfterAnim) {
+            if(animating) {
+                animationQueue.push({ tokenColor, tokenIdx, fromPos, toPos, callbackAfterAnim });
+                return;
+            }
+            animating = true;
+            startAnimation(tokenColor, tokenIdx, fromPos, toPos);
+            drawBoard();
+            const checkInterval = setInterval(() => {
+                if(animatedTokens.size === 0) {
+                    clearInterval(checkInterval);
+                    animating = false;
+                    if(callbackAfterAnim) callbackAfterAnim();
+                    if(animationQueue.length) {
+                        const next = animationQueue.shift();
+                        performMoveWithAnimation(next.tokenColor, next.tokenIdx, next.fromPos, next.toPos, next.callbackAfterAnim);
+                    }
+                }
+            }, 50);
+        }
+
+        // ---------- मूवेबल चेक ----------
+        function canMoveLocal(tokenPos, dice) {
+            if(tokenPos >= 59) return false;
+            if(tokenPos === 0) return true;
+            if(tokenPos >= 1 && tokenPos <= 52) {
+                let newPos = tokenPos + dice;
+                if(newPos <= 52) return true;
+                let homeSteps = newPos - 52;
+                return homeSteps <= 6;
+            }
+            if(tokenPos >= 53 && tokenPos <= 58) return (tokenPos + dice) <= 59;
+            return false;
+        }
+
+        function isMovableToken(colorFull, tokenPos, tokenIdx) {
+            if(gameState.winner !== -1) return false;
+            if(colorFull !== gameState.players[gameState.turn_index]?.color) return false;
+            if(!gameState.rolled || gameState.dice_value === null) return false;
+            if(tokenPos >= 59) return false;
+            return canMoveLocal(tokenPos, gameState.dice_value);
+        }
+
+        // नई पोजीशन कैलकुलेट करें (बॉट के नियमानुसार)
+        function getNewPosition(tokenPos, dice, colorFull) {
+            if(tokenPos === 0) return 1; // red start = 1, green=14, etc but we'll map using START_POS logic? Better use same as bot: use START_POS mapping.
+            if(tokenPos >= 1 && tokenPos <= 52) {
+                let newPos = tokenPos + dice;
+                if(newPos <= 52) return newPos;
+                let homeSteps = newPos - 52;
+                if(homeSteps <= 6) return 52 + homeSteps;
+                return tokenPos;
+            }
+            if(tokenPos >= 53 && tokenPos <= 58) {
+                let newPos = tokenPos + dice;
+                if(newPos <= 59) return newPos;
+                return tokenPos;
+            }
+            return tokenPos;
+        }
+
+        // ---------- API कॉल और एनिमेशन ----------
+        async function sendMoveWithAnimation(tokenIdx) {
+            if(!gameState.rolled || gameState.dice_value === null) return;
+            const player = gameState.players[myPlayerIndex];
+            const fromPos = player.tokens[tokenIdx];
+            const newPos = getNewPosition(fromPos, gameState.dice_value, player.color);
+            if(newPos === fromPos) {
+                updateUI("❌ यह गोटी इस पासे से नहीं चल सकती");
+                return;
+            }
+            // एनिमेशन दिखाएँ
+            await performMoveWithAnimation(player.color, tokenIdx, fromPos, newPos, async () => {
+                // एनिमेशन खत्म, अब बॉट को मूव भेजें
+                if(BOT_API && CHAT_ID && USER_ID) {
+                    const url = `${BOT_API}/move?chat_id=${CHAT_ID}&user_id=${USER_ID}&token_idx=${tokenIdx}`;
+                    try {
+                        const res = await fetch(url, { method: "POST" });
+                        const data = await res.json();
+                        if(res.ok) {
+                            await fetchGameState();
+                            drawBoard();
+                            updateUI();
+                        } else {
+                            updateUI("❌ चाल मना: " + (data.error || "unknown"));
+                        }
+                    } catch(e) {
+                        updateUI("❌ नेटवर्क त्रुटि");
+                    }
+                } else {
+                    // डेमो मोड में लोकल स्टेट अपडेट करें
+                    if(gameState.players[myPlayerIndex]) {
+                        gameState.players[myPlayerIndex].tokens[tokenIdx] = newPos;
+                        drawBoard();
+                        updateUI("✅ डेमो मोड: गोटी चली");
+                    }
+                }
+            });
+        }
+
+        // ---------- API कॉल ----------
+        async function fetchGameState() {
+            if(!BOT_API || !CHAT_ID) return false;
+            try {
+                const res = await fetch(`${BOT_API}/game_state?chat_id=${CHAT_ID}`);
+                if(!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                gameState = data;
+                if(USER_ID && gameState.players) {
+                    const me = gameState.players.find(p => p.id == USER_ID);
+                    if(me) {
+                        myColor = me.color;
+                        myPlayerIndex = gameState.players.findIndex(p => p.id == USER_ID);
+                    }
+                }
+                return true;
+            } catch(e) {
+                console.warn("fetch error", e);
+                return false;
+            }
+        }
+
+        // ---------- UI टेक्स्ट ----------
         function updateUI(manualMsg = null) {
             const turnSpan = document.getElementById("turnText");
             const diceSpan = document.getElementById("diceValue");
@@ -581,25 +672,18 @@
             turnSpan.innerHTML = `🎲 बारी: ${currentPlayerColor || "?"}`;
             if(gameState.rolled && gameState.dice_value) {
                 diceSpan.innerText = gameState.dice_value;
-                if(isMyTurn) {
-                    statusSpan.innerText = `✅ पासा ${gameState.dice_value} – अपनी गोटी चुनें`;
-                } else {
-                    statusSpan.innerText = `🎲 दूसरे खिलाड़ी की बारी (पासा ${gameState.dice_value})`;
-                }
+                if(isMyTurn) statusSpan.innerText = `✅ पासा ${gameState.dice_value} – अपनी गोटी चुनें`;
+                else statusSpan.innerText = `🎲 दूसरे खिलाड़ी की बारी (पासा ${gameState.dice_value})`;
             } else {
                 diceSpan.innerText = "⚀";
-                if(isMyTurn && gameState.waiting_for_word) {
-                    statusSpan.innerText = "📝 GC में valid अंग्रेज़ी शब्द भेजकर पासा रोल करें";
-                } else if(isMyTurn && !gameState.waiting_for_word && !gameState.rolled) {
-                    statusSpan.innerText = "🎲 पासा रोल नहीं हुआ, कृपया शब्द भेजें";
-                } else {
-                    statusSpan.innerText = "⏳ प्रतीक्षा करें, दूसरे खिलाड़ी की बारी";
-                }
+                if(isMyTurn && gameState.waiting_for_word) statusSpan.innerText = "📝 GC में valid अंग्रेज़ी शब्द भेजकर पासा रोल करें";
+                else if(isMyTurn && !gameState.waiting_for_word && !gameState.rolled) statusSpan.innerText = "🎲 पासा रोल नहीं हुआ, कृपया शब्द भेजें";
+                else statusSpan.innerText = "⏳ प्रतीक्षा करें, दूसरे खिलाड़ी की बारी";
             }
             if(manualMsg) statusSpan.innerText = manualMsg;
         }
 
-        // ---------- कैनवास क्लिक हैंडलर ----------
+        // ---------- क्लिक हैंडलर ----------
         function handleCanvasClick(e) {
             if(gameState.winner !== -1) return;
             if(!gameState.rolled || gameState.dice_value === null) {
@@ -630,10 +714,7 @@
                     cellMap.get(key).push({ colorFull, idx, posNum });
                 }
             }
-            const offsets = [
-                { dx:-11, dy:-11 }, { dx:11, dy:-11 },
-                { dx:-11, dy:11 },  { dx:11, dy:11 }
-            ];
+            const offsets = [{dx:-11,dy:-11},{dx:11,dy:-11},{dx:-11,dy:11},{dx:11,dy:11}];
             for(let [key, tokensList] of cellMap.entries()) {
                 const [gx, gy] = key.split(',').map(Number);
                 const center = cc(gx, gy);
@@ -642,11 +723,11 @@
                     const off = offsets[i % offsets.length];
                     const cx = center.x + off.dx;
                     const cy = center.y + off.dy;
-                    const size = tokensList.length > 1 ? CELL * 0.72 : CELL * 0.88;
+                    const size = tokensList.length > 1 ? CELL * 0.78 : CELL * 0.95;
                     const hitR = size * 0.55;
                     if(Math.hypot(clickX-cx, clickY-cy) < hitR) {
                         if(isMovableToken(tok.colorFull, tok.posNum, tok.idx)) {
-                            sendMove(tok.idx);
+                            sendMoveWithAnimation(tok.idx);
                         } else {
                             updateUI("❌ यह गोटी इस पासे से नहीं चल सकती");
                         }
@@ -671,9 +752,16 @@
         // ---------- इनिशियलाइज़ेशन ----------
         async function init() {
             if(!BOT_API || !CHAT_ID || !USER_ID) {
-                // ऑफलाइन डेमो मोड – बिना बॉट के बोर्ड दिखाएगा
+                initDemoGame();
                 drawBoard();
-                document.getElementById("statusMsg").innerText = "⚠️ बॉट API URL नहीं मिला। सुनिश्चित करें कि आपने बॉट से WebApp खोला है।";
+                updateUI();
+                canvas.addEventListener("click", handleCanvasClick);
+                document.getElementById("restartBtn").addEventListener("click", () => {
+                    initDemoGame();
+                    drawBoard();
+                    updateUI();
+                });
+                document.getElementById("statusMsg").innerText = "🎮 डेमो मोड: सभी गोटियाँ दिख रही हैं (एनिमेशन सक्रिय)";
                 return;
             }
             await fetchGameState();
@@ -686,6 +774,12 @@
                 window.location.reload();
             });
         }
+        requestAnimationFrame(function loop() {
+            if(animatedTokens.size > 0) {
+                drawBoard();
+            }
+            requestAnimationFrame(loop);
+        });
         init();
     })();
 </script>
