@@ -11,35 +11,22 @@ body{background:#111827;display:flex;justify-content:center;align-items:center;m
 .game-container{text-align:center;padding:10px;}
 canvas{background:white;border-radius:20px;box-shadow:0 0 25px rgba(0,0,0,.4);max-width:95vw;max-height:95vw;}
 #status{margin-top:15px;color:white;font-size:16px;font-weight:bold;padding:0 10px;}
-#error-box{
-  display:none;
-  background:#ef4444;
-  color:white;
-  padding:12px 20px;
-  border-radius:10px;
-  margin:15px;
-  font-size:14px;
-  text-align:center;
-}
-#loading{
-  color:#60a5fa;
-  font-size:16px;
-  margin-top:20px;
-}
+#loading{color:#60a5fa;font-size:16px;margin-top:20px;}
 </style>
 </head>
 <body>
 <div id="loading">⏳ Loading game...</div>
-<div id="error-box"></div>
 <div class="game-container" id="game-wrap" style="display:none;">
   <canvas id="board" width="750" height="750"></canvas>
   <div id="status">🎲 Ludo WebApp Ready</div>
 </div>
 
 <script>
+// ── Telegram init ────────────────────────────────────────
 const tg = window.Telegram?.WebApp;
 if(tg) tg.ready();
 
+// ── Params ───────────────────────────────────────────────
 function getParam(name){
   const url = new URLSearchParams(window.location.search);
   const startParam = tg?.initDataUnsafe?.start_param || "";
@@ -54,38 +41,32 @@ function getParam(name){
 const CHAT_ID = getParam("chat_id");
 const BOT_API = getParam("api") || "";
 
-function showError(msg){
-  document.getElementById("loading").style.display = "none";
-  const box = document.getElementById("error-box");
-  box.style.display = "block";
-  box.innerHTML = "⚠️ " + msg;
-}
-
+// ── Always start game — chat_id optional ─────────────────
 function startGame(){
   document.getElementById("loading").style.display = "none";
   document.getElementById("game-wrap").style.display = "block";
+  if(!CHAT_ID){
+    document.getElementById("status").innerHTML = "🎲 Demo Mode — Start from Telegram for multiplayer";
+  }
   drawBoard();
 }
 
-if(!CHAT_ID){
-  showError("Group ID not found. Please start the game from the group chat using the bot.");
+if(CHAT_ID && BOT_API){
+  fetch(`${BOT_API}/game_state?chat_id=${CHAT_ID}`)
+    .then(r => r.json())
+    .then(data => {
+      if(data.tokens) loadTokensFromServer(data.tokens);
+      startGame();
+    })
+    .catch(() => {
+      startGame();
+      document.getElementById("status").innerHTML = "⚠️ Offline mode — bot not reachable";
+    });
 } else {
-  if(BOT_API){
-    fetch(`${BOT_API}/game_state?chat_id=${CHAT_ID}`)
-      .then(r => r.json())
-      .then(data => {
-        if(data.tokens) loadTokensFromServer(data.tokens);
-        startGame();
-      })
-      .catch(() => {
-        startGame();
-        document.getElementById("status").innerHTML = "⚠️ Offline mode — bot not reachable";
-      });
-  } else {
-    startGame();
-  }
+  startGame();
 }
 
+// ── Canvas setup ─────────────────────────────────────────
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 
@@ -101,6 +82,7 @@ function loadTokensFromServer(serverTokens){
   serverTokens.forEach((t,i)=>{ if(tokens[i]) Object.assign(tokens[i], t); });
 }
 
+// ── Drawing ───────────────────────────────────────────────
 function drawBoard(){
   ctx.clearRect(0,0,750,750);
   ctx.fillStyle="#ffffff";
@@ -167,6 +149,7 @@ function drawTokens(){
   });
 }
 
+// ── Interaction ───────────────────────────────────────────
 canvas.addEventListener("click",(e)=>{
   const rect=canvas.getBoundingClientRect();
   const scale=750/rect.width;
