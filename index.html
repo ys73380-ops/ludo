@@ -3,14 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Board – GC Dice</title>
+    <title>Ludo Board – GC Dice (Fixed)</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            user-select: none;
-            touch-action: manipulation;
-            box-sizing: border-box;
-        }
+        * { user-select: none; touch-action: manipulation; box-sizing: border-box; }
         body {
             background: #1a1a2e;
             display: flex;
@@ -121,643 +117,577 @@
 </div>
 
 <script>
-    // ---------- TELEGRAM ----------
-    const tg = window.Telegram?.WebApp;
-    if(tg) { tg.ready(); tg.expand(); }
+    (function(){
+        // ---------- TELEGRAM ----------
+        const tg = window.Telegram?.WebApp;
+        if(tg) { tg.ready(); tg.expand(); }
 
-    // ---------- URL PARAMETERS ----------
-    function getQueryParam(name) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const startParam = tg?.initDataUnsafe?.start_param || "";
-        if(name === "chat_id" && !urlParams.get("chat_id") && startParam) {
-            const match = startParam.match(/chatid_(-?\d+)/);
-            if(match) return match[1];
-            if(/^-?\d+$/.test(startParam)) return startParam;
-        }
-        return urlParams.get(name);
-    }
-    const CHAT_ID = getQueryParam("chat_id") || null;
-    const USER_ID = getQueryParam("user_id") || null;
-    const BOT_API = getQueryParam("api") || "";
-
-    // ---------- ग्लोबल वेरिएबल ----------
-    let gameState = {
-        players: [],
-        turn_index: 0,
-        dice_value: null,
-        rolled: false,
-        waiting_for_word: true,
-        winner: -1
-    };
-    let myColor = null;
-    let myPlayerIndex = -1;
-    let refreshInterval = null;
-
-    // ---------- बोर्ड कॉन्स्टेंट ----------
-    const CANVAS_SIZE = 750;
-    const BOARD_CELLS = 15;
-    const CELL = CANVAS_SIZE / BOARD_CELLS;   // 50px per cell
-    const OFF = 0;
-
-    const TRACK_CELLS = [
-        [1,6],[2,6],[3,6],[4,6],[5,6],[6,5],[6,4],[6,3],[6,2],[6,1],[6,0],[7,0],[8,0],[8,1],
-        [8,2],[8,3],[8,4],[8,5],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],[14,7],[14,8],[13,8],
-        [12,8],[11,8],[10,8],[9,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],[7,14],[6,14],[6,13],
-        [6,12],[6,11],[6,10],[6,9],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6]
-    ];
-    const HOME_STRETCH = {
-        "🔴 Red":   [[1,7],[2,7],[3,7],[4,7],[5,7]],
-        "🟢 Green": [[7,1],[7,2],[7,3],[7,4],[7,5]],
-        "🟡 Yellow":[[9,7],[10,7],[11,7],[12,7],[13,7]],
-        "🔵 Blue":  [[7,9],[7,10],[7,11],[7,12],[7,13]]
-    };
-    const HOME_BASE_POS = {
-        "🔴 Red":   [[1,1],[1,4],[4,1],[4,4]],
-        "🟢 Green": [[10,1],[13,1],[10,4],[13,4]],
-        "🟡 Yellow":[[1,10],[4,10],[1,13],[4,13]],
-        "🔵 Blue":  [[10,10],[13,10],[10,13],[13,13]]
-    };
-
-    const COLOR_NAME_MAP = {
-        "🔴 Red": "red", "🟢 Green": "green", "🟡 Yellow": "yellow", "🔵 Blue": "blue"
-    };
-
-    // Rich palette matching image
-    const COLOR_HEX    = { red:"#e8192c", green:"#1cb145", yellow:"#f5c518", blue:"#1565c0" };
-    const COLOR_LIGHT  = { red:"#ffd6da", green:"#c8f5d8", yellow:"#fff9c4", blue:"#bbdefb" };
-    const COLOR_DARK   = { red:"#b71c1c", green:"#1b5e20", yellow:"#f57f17", blue:"#0d47a1" };
-    const COLOR_HOMEBASE = {
-        red:"#e8192c", green:"#1cb145", yellow:"#f5c518", blue:"#1565c0"
-    };
-    const COLOR_STRETCH = {
-        "🔴 Red":"#ffb3b8","🟢 Green":"#b3f5c8","🟡 Yellow":"#fff3b3","🔵 Blue":"#b3d4f5"
-    };
-
-    function colorShort(fullColor) {
-        return COLOR_NAME_MAP[fullColor] || fullColor.replace(/[^a-z]/gi,'').toLowerCase();
-    }
-
-    // Cell center
-    function cc(gridX, gridY) {
-        return { x: OFF + gridX*CELL + CELL/2, y: OFF + gridY*CELL + CELL/2 };
-    }
-
-    // ---------- TOKEN GRID POSITION ----------
-    function getTokenRawGridPos(colorFull, tokenPos) {
-        if(tokenPos === 0) {
-            const player = gameState.players.find(p => p.color === colorFull);
-            if(!player) return null;
-            const idx = player.tokens.indexOf(tokenPos);
-            if(idx === -1) return null;
-            return HOME_BASE_POS[colorFull][idx % 4];
-        }
-        if(tokenPos >= 1 && tokenPos <= 52) {
-            return TRACK_CELLS[tokenPos - 1];
-        }
-        if(tokenPos >= 53 && tokenPos <= 58) {
-            const stretchCells = HOME_STRETCH[colorFull];
-            if(stretchCells && (tokenPos-53) < stretchCells.length) return stretchCells[tokenPos-53];
-        }
-        return null;
-    }
-
-    // ---------- DRAW PAWN (image-style) ----------
-    function drawPawn(x, y, colorKey, label, size, glowing) {
-        const c = ctx;
-        const r = size * 0.45;
-        const headR = r * 0.7;
-        const neckW = r * 0.32;
-        const baseH = r * 0.55;
-        const baseW = r * 0.95;
-        const fill = COLOR_HEX[colorKey];
-        const dark = COLOR_DARK[colorKey];
-
-        c.save();
-        if(glowing) {
-            c.shadowColor = "#facc15";
-            c.shadowBlur = 14;
-        } else {
-            c.shadowColor = "rgba(0,0,0,0.45)";
-            c.shadowBlur = 5;
-            c.shadowOffsetY = 2;
-        }
-
-        // Base ellipse
-        c.beginPath();
-        c.ellipse(x, y + headR + baseH*0.1, baseW, baseH*0.45, 0, 0, Math.PI*2);
-        // Gradient fill for base
-        let gBase = c.createRadialGradient(x-2, y+headR, 1, x, y+headR+baseH*0.1, baseW);
-        gBase.addColorStop(0, fill);
-        gBase.addColorStop(1, dark);
-        c.fillStyle = gBase;
-        c.fill();
-        c.strokeStyle = "rgba(0,0,0,0.35)";
-        c.lineWidth = 1.2;
-        c.stroke();
-
-        // Body/neck connecting head to base
-        c.beginPath();
-        c.moveTo(x - neckW, y);
-        c.lineTo(x - baseW*0.65, y + headR + baseH*0.1);
-        c.lineTo(x + baseW*0.65, y + headR + baseH*0.1);
-        c.lineTo(x + neckW, y);
-        c.closePath();
-        c.fillStyle = fill;
-        c.fill();
-
-        // Head circle
-        c.shadowColor = glowing ? "#facc15" : "rgba(0,0,0,0.3)";
-        c.shadowBlur = glowing ? 14 : 4;
-        c.beginPath();
-        c.arc(x, y - headR*0.3, headR, 0, Math.PI*2);
-        let gHead = c.createRadialGradient(x - headR*0.3, y - headR*0.7, headR*0.1, x, y - headR*0.3, headR);
-        gHead.addColorStop(0, lightenHex(fill, 0.4));
-        gHead.addColorStop(0.5, fill);
-        gHead.addColorStop(1, dark);
-        c.fillStyle = gHead;
-        c.fill();
-        c.strokeStyle = "rgba(0,0,0,0.4)";
-        c.lineWidth = 1.5;
-        c.stroke();
-
-        // Shine
-        c.beginPath();
-        c.arc(x - headR*0.25, y - headR*0.6, headR*0.22, 0, Math.PI*2);
-        c.fillStyle = "rgba(255,255,255,0.55)";
-        c.fill();
-
-        c.restore();
-
-        // Label number
-        c.save();
-        c.fillStyle = "rgba(0,0,0,0.75)";
-        c.font = `bold ${Math.round(size*0.26)}px Arial`;
-        c.textAlign = "center";
-        c.textBaseline = "middle";
-        c.fillText(label, x, y - headR*0.25);
-        c.restore();
-    }
-
-    function lightenHex(hex, amount) {
-        const num = parseInt(hex.replace('#',''), 16);
-        const r = Math.min(255, (num >> 16) + Math.round(255*amount));
-        const g = Math.min(255, ((num>>8)&0xff) + Math.round(255*amount));
-        const b = Math.min(255, (num&0xff) + Math.round(255*amount));
-        return `rgb(${r},${g},${b})`;
-    }
-
-    // ---------- DRAW ALL TOKENS ----------
-    function drawAllTokens() {
-        if(!gameState.players) return;
-        const cellMap = new Map();
-        for(let player of gameState.players) {
-            const colorFull = player.color;
-            const short = colorShort(colorFull);
-            for(let idx=0; idx<player.tokens.length; idx++) {
-                const posNum = player.tokens[idx];
-                if(posNum === 59) continue;
-                const gridPos = getTokenRawGridPos(colorFull, posNum);
-                if(!gridPos) continue;
-                const key = `${gridPos[0]},${gridPos[1]}`;
-                if(!cellMap.has(key)) cellMap.set(key, []);
-                cellMap.get(key).push({ colorFull, short, idx, posNum });
+        // ---------- URL PARAMETERS ----------
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const startParam = tg?.initDataUnsafe?.start_param || "";
+            if(name === "chat_id" && !urlParams.get("chat_id") && startParam) {
+                const match = startParam.match(/chatid_(-?\d+)/);
+                if(match) return match[1];
+                if(/^-?\d+$/.test(startParam)) return startParam;
             }
+            return urlParams.get(name);
         }
-        const offsets = [
-            { dx: -11, dy: -11 }, { dx: 11, dy: -11 },
-            { dx: -11, dy: 11 },  { dx: 11, dy: 11 }
-        ];
-        for(let [key, tokensList] of cellMap.entries()) {
-            const [gx, gy] = key.split(',').map(Number);
-            const center = cc(gx, gy);
-            for(let i=0; i<tokensList.length; i++) {
-                const tok = tokensList[i];
-                const off = offsets[i % offsets.length];
-                const cx = center.x + off.dx;
-                const cy = center.y + off.dy;
-                const size = tokensList.length > 1 ? CELL * 0.72 : CELL * 0.88;
-                const glow = isMovableToken(tok.colorFull, tok.posNum);
-                drawPawn(cx, cy, tok.short, (tok.idx+1).toString(), size, glow);
-            }
-        }
-    }
+        const CHAT_ID = getQueryParam("chat_id") || null;
+        const USER_ID = getQueryParam("user_id") || null;
+        const BOT_API = getQueryParam("api") || "";
 
-    // ---------- MOVABLE CHECK ----------
-    function isMovableToken(colorFull, tokenPos) {
-        if(gameState.winner !== -1) return false;
-        if(colorFull !== gameState.players[gameState.turn_index]?.color) return false;
-        if(!gameState.rolled || gameState.dice_value === null) return false;
-        if(tokenPos >= 59) return false;
-        if(tokenPos === 0) return true;
-        if(tokenPos >= 1) return true;
-        return false;
-    }
-
-    // ---------- API CALLS ----------
-    async function fetchGameState() {
-        if(!BOT_API || !CHAT_ID) return false;
-        try {
-            const res = await fetch(`${BOT_API}/game_state?chat_id=${CHAT_ID}`);
-            if(!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            gameState = data;
-            if(USER_ID && gameState.players) {
-                const me = gameState.players.find(p => p.id == USER_ID);
-                if(me) {
-                    myColor = me.color;
-                    myPlayerIndex = gameState.players.findIndex(p => p.id == USER_ID);
-                }
-            }
-            return true;
-        } catch(e) {
-            console.warn("fetch error", e);
-            return false;
-        }
-    }
-
-    async function sendMove(tokenIdx) {
-        if(!BOT_API || !CHAT_ID || !USER_ID) return false;
-        try {
-            const url = `${BOT_API}/move?chat_id=${CHAT_ID}&user_id=${USER_ID}&token_idx=${tokenIdx}`;
-            const res = await fetch(url, { method: "POST" });
-            const data = await res.json();
-            if(res.ok) {
-                await fetchGameState();
-                drawBoard();
-                updateUI();
-                return true;
-            } else {
-                updateUI("❌ चाल मना: " + (data.error || "unknown"));
-                return false;
-            }
-        } catch(e) {
-            updateUI("❌ नेटवर्क त्रुटि");
-            return false;
-        }
-    }
-
-    // ---------- CANVAS ----------
-    const canvas = document.getElementById("ludoCanvas");
-    const ctx = canvas.getContext("2d");
-
-    // ==================== DRAW BOARD ====================
-    function drawBoard() {
-        ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-
-        // Board background
-        ctx.fillStyle = "#f0f0f0";
-        roundRect(ctx, 0, 0, CANVAS_SIZE, CANVAS_SIZE, 12);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-
-        drawHomeAreas();
-        drawTrackCells();
-        drawHomeStretches();
-        drawCenter();
-        drawArrowHints();
-        drawAllTokens();
-        if(gameState.dice_value !== null && gameState.rolled) drawDiceOverlay();
-    }
-
-    function roundRect(c, x, y, w, h, r) {
-        c.beginPath();
-        c.moveTo(x+r, y);
-        c.lineTo(x+w-r, y); c.quadraticCurveTo(x+w, y, x+w, y+r);
-        c.lineTo(x+w, y+h-r); c.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-        c.lineTo(x+r, y+h); c.quadraticCurveTo(x, y+h, x, y+h-r);
-        c.lineTo(x, y+r); c.quadraticCurveTo(x, y, x+r, y);
-        c.closePath();
-    }
-
-    // ---------- HOME AREAS (large corner squares) ----------
-    function drawHomeAreas() {
-        const homes = [
-            { color:"red",    gx:0,  gy:0  },
-            { color:"green",  gx:9,  gy:0  },
-            { color:"yellow", gx:0,  gy:9  },
-            { color:"blue",   gx:9,  gy:9  }
-        ];
-        for(let h of homes) {
-            const x = OFF + h.gx * CELL;
-            const y = OFF + h.gy * CELL;
-            const size = 6 * CELL;
-
-            // Outer bg
-            ctx.fillStyle = COLOR_HEX[h.color];
-            roundRect(ctx, x+1, y+1, size-2, size-2, 10);
-            ctx.fill();
-
-            // Inner white square
-            const pad = CELL * 0.55;
-            const inner = size - pad*2;
-            ctx.fillStyle = "rgba(255,255,255,0.92)";
-            roundRect(ctx, x+pad, y+pad, inner, inner, 8);
-            ctx.fill();
-
-            // Inner border
-            ctx.strokeStyle = COLOR_HEX[h.color];
-            ctx.lineWidth = 2.5;
-            roundRect(ctx, x+pad, y+pad, inner, inner, 8);
-            ctx.stroke();
-
-            // 4 token placeholder circles inside the inner box
-            const slotPositions = [
-                { dx: inner*0.25, dy: inner*0.25 },
-                { dx: inner*0.75, dy: inner*0.25 },
-                { dx: inner*0.25, dy: inner*0.75 },
-                { dx: inner*0.75, dy: inner*0.75 }
-            ];
-            const slotR = CELL * 0.38;
-            for(let s of slotPositions) {
-                const sx = x + pad + s.dx;
-                const sy = y + pad + s.dy;
-                // Slot shadow bg
-                ctx.beginPath();
-                ctx.arc(sx, sy, slotR, 0, Math.PI*2);
-                ctx.fillStyle = COLOR_LIGHT[h.color];
-                ctx.fill();
-                ctx.strokeStyle = COLOR_HEX[h.color];
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-        }
-    }
-
-    // ---------- TRACK CELLS ----------
-    function drawTrackCells() {
-        const safeSet = new Set([
-            "1,6","6,2","8,1","12,6","13,8","8,12","6,13","2,8","1,6"
-        ]);
-        const coloredStart = {
-            "6,1":"green","1,6":"red","8,13":"yellow","13,8":"blue"
+        // ---------- ग्लोबल वेरिएबल ----------
+        let gameState = {
+            players: [],
+            turn_index: 0,
+            dice_value: null,
+            rolled: false,
+            waiting_for_word: true,
+            winner: -1
         };
-        // Start cell colors
-        const startColorMap = {
-            "6,1": "green", "1,6": "red", "8,13": "yellow", "13,8": "blue"
+        let myColor = null;
+        let myPlayerIndex = -1;
+        let refreshInterval = null;
+
+        // ---------- बोर्ड कॉन्स्टेंट ----------
+        const CANVAS_SIZE = 750;
+        const BOARD_CELLS = 15;
+        const CELL = CANVAS_SIZE / BOARD_CELLS;   // 50px
+        const OFF = 0;
+
+        // TRACK (52 cells, index 0 = position 1)
+        const TRACK_CELLS = [
+            [1,6],[2,6],[3,6],[4,6],[5,6],[6,5],[6,4],[6,3],[6,2],[6,1],[6,0],[7,0],[8,0],[8,1],
+            [8,2],[8,3],[8,4],[8,5],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],[14,7],[14,8],[13,8],
+            [12,8],[11,8],[10,8],[9,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],[7,14],[6,14],[6,13],
+            [6,12],[6,11],[6,10],[6,9],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6]
+        ];
+        // HOME STRETCH (6 cells for positions 53..58) - fixed with safe coordinates
+        const HOME_STRETCH = {
+            "🔴 Red":   [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
+            "🟢 Green": [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
+            "🟡 Yellow":[[9,7],[10,7],[11,7],[12,7],[13,7],[8,7]],
+            "🔵 Blue":  [[7,9],[7,10],[7,11],[7,12],[7,13],[7,8]]
+        };
+        // HOME BASE positions (4 cells for each color)
+        const HOME_BASE_POS = {
+            "🔴 Red":   [[1,1],[1,4],[4,1],[4,4]],
+            "🟢 Green": [[10,1],[13,1],[10,4],[13,4]],
+            "🟡 Yellow":[[1,10],[4,10],[1,13],[4,13]],
+            "🔵 Blue":  [[10,10],[13,10],[10,13],[13,13]]
         };
 
-        for(let i=0; i<TRACK_CELLS.length; i++) {
-            const [gx, gy] = TRACK_CELLS[i];
-            const x = OFF + gx*CELL, y = OFF + gy*CELL;
-            const key = `${gx},${gy}`;
+        const COLOR_NAME_MAP = {
+            "🔴 Red": "red", "🟢 Green": "green", "🟡 Yellow": "yellow", "🔵 Blue": "blue"
+        };
+        const COLOR_HEX    = { red:"#e8192c", green:"#1cb145", yellow:"#f5c518", blue:"#1565c0" };
+        const COLOR_LIGHT  = { red:"#ffd6da", green:"#c8f5d8", yellow:"#fff9c4", blue:"#bbdefb" };
+        const COLOR_DARK   = { red:"#b71c1c", green:"#1b5e20", yellow:"#f57f17", blue:"#0d47a1" };
 
-            if(startColorMap[key]) {
-                ctx.fillStyle = COLOR_HEX[startColorMap[key]];
-            } else if(safeSet.has(key)) {
-                ctx.fillStyle = "#e8f5e9";
-            } else {
-                ctx.fillStyle = "#ffffff";
-            }
-            ctx.fillRect(x, y, CELL, CELL);
-            ctx.strokeStyle = "#bdbdbd";
-            ctx.lineWidth = 0.8;
-            ctx.strokeRect(x, y, CELL, CELL);
-
-            // Safe star
-            if(safeSet.has(key) && !startColorMap[key]) {
-                ctx.font = `${Math.round(CELL*0.52)}px Arial`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("⭐", x + CELL/2, y + CELL/2);
-            }
-        }
-    }
-
-    // ---------- HOME STRETCHES ----------
-    function drawHomeStretches() {
-        for(let [colorFull, cells] of Object.entries(HOME_STRETCH)) {
-            const short = colorShort(colorFull);
-            for(let j=0; j<cells.length; j++) {
-                const [gx, gy] = cells[j];
-                const x = OFF + gx*CELL, y = OFF + gy*CELL;
-                // Gradient lane
-                if(j === cells.length-1) {
-                    ctx.fillStyle = COLOR_HEX[short];
-                } else {
-                    ctx.fillStyle = COLOR_LIGHT[short];
-                }
-                ctx.fillRect(x, y, CELL, CELL);
-                ctx.strokeStyle = COLOR_HEX[short];
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x, y, CELL, CELL);
-            }
-        }
-    }
-
-    // ---------- CENTER TRIANGLE DESIGN ----------
-    function drawCenter() {
-        const cx = OFF + 7.5*CELL;
-        const cy = OFF + 7.5*CELL;
-        const half = 1.5*CELL;
-
-        // White bg
-        ctx.fillStyle = "#f5f5f5";
-        ctx.fillRect(OFF + 6*CELL, OFF + 6*CELL, 3*CELL, 3*CELL);
-
-        // 4 triangles pointing to center
-        const triangles = [
-            { color:"red",    points:[ [cx-half,cy-half], [cx+half,cy-half], [cx,cy] ] },  // top → red
-            { color:"green",  points:[ [cx+half,cy-half], [cx+half,cy+half], [cx,cy] ] }, // right → green
-            { color:"blue",   points:[ [cx-half,cy+half], [cx+half,cy+half], [cx,cy] ] }, // bottom → blue
-            { color:"yellow", points:[ [cx-half,cy-half], [cx-half,cy+half], [cx,cy] ] }  // left → yellow
-        ];
-        for(let t of triangles) {
-            ctx.beginPath();
-            ctx.moveTo(t.points[0][0], t.points[0][1]);
-            ctx.lineTo(t.points[1][0], t.points[1][1]);
-            ctx.lineTo(t.points[2][0], t.points[2][1]);
-            ctx.closePath();
-            ctx.fillStyle = COLOR_HEX[t.color];
-            ctx.fill();
+        function colorShort(fullColor) {
+            return COLOR_NAME_MAP[fullColor] || fullColor.replace(/[^a-z]/gi,'').toLowerCase();
         }
 
-        // Center star
-        ctx.font = `${Math.round(CELL*0.9)}px Arial`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("⭐", cx, cy);
-    }
+        // सेल का केंद्र
+        function cc(gx, gy) {
+            return { x: OFF + gx*CELL + CELL/2, y: OFF + gy*CELL + CELL/2 };
+        }
 
-    // ---------- ARROW HINTS on start cells ----------
-    function drawArrowHints() {
-        // Small arrows showing direction on first track cells
-        const arrowData = [
-            { gx:1, gy:6, angle:0 },        // Red start → right
-            { gx:6, gy:1, angle:Math.PI/2 }, // Green start → down
-            { gx:13, gy:8, angle:Math.PI },  // Blue start → left
-            { gx:8, gy:13, angle:-Math.PI/2} // Yellow start → up
-        ];
-        ctx.save();
-        for(let a of arrowData) {
-            const center = cc(a.gx, a.gy);
+        // ---------- टोकन की ग्रिड पोजीशन (tokenIdx के साथ) ----------
+        function getTokenRawGridPos(colorFull, tokenPos, tokenIdx) {
+            if(tokenPos === 0) {
+                // घर में: टोकन के index के हिसाब से उसकी निजी होम सेल
+                return HOME_BASE_POS[colorFull][tokenIdx % 4];
+            }
+            if(tokenPos >= 1 && tokenPos <= 52) {
+                return TRACK_CELLS[tokenPos - 1];
+            }
+            if(tokenPos >= 53 && tokenPos <= 58) {
+                const cells = HOME_STRETCH[colorFull];
+                if(cells && (tokenPos-53) < cells.length) return cells[tokenPos-53];
+            }
+            return null;
+        }
+
+        // ---------- स्टाइलिश प्यादा ड्राइंग ----------
+        function drawPawn(x, y, colorKey, label, size, glowing) {
+            const r = size * 0.45;
+            const headR = r * 0.7;
+            const baseH = r * 0.55;
+            const baseW = r * 0.95;
+            const fill = COLOR_HEX[colorKey];
+            const dark = COLOR_DARK[colorKey];
+            const ctx = canvas.getContext('2d');
             ctx.save();
-            ctx.translate(center.x, center.y);
-            ctx.rotate(a.angle);
-            ctx.fillStyle = "rgba(80,80,80,0.55)";
-            ctx.font = `${Math.round(CELL*0.4)}px Arial`;
+            if(glowing) {
+                ctx.shadowColor = "#facc15";
+                ctx.shadowBlur = 14;
+            } else {
+                ctx.shadowColor = "rgba(0,0,0,0.45)";
+                ctx.shadowBlur = 5;
+                ctx.shadowOffsetY = 2;
+            }
+            // base
+            ctx.beginPath();
+            ctx.ellipse(x, y + headR + baseH*0.1, baseW, baseH*0.45, 0, 0, Math.PI*2);
+            let gBase = ctx.createRadialGradient(x-2, y+headR, 1, x, y+headR+baseH*0.1, baseW);
+            gBase.addColorStop(0, fill);
+            gBase.addColorStop(1, dark);
+            ctx.fillStyle = gBase;
+            ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,0.35)";
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            // neck
+            ctx.beginPath();
+            ctx.moveTo(x - r*0.32, y);
+            ctx.lineTo(x - baseW*0.65, y + headR + baseH*0.1);
+            ctx.lineTo(x + baseW*0.65, y + headR + baseH*0.1);
+            ctx.lineTo(x + r*0.32, y);
+            ctx.closePath();
+            ctx.fillStyle = fill;
+            ctx.fill();
+            // head
+            ctx.beginPath();
+            ctx.arc(x, y - headR*0.3, headR, 0, Math.PI*2);
+            let gHead = ctx.createRadialGradient(x - headR*0.3, y - headR*0.7, headR*0.1, x, y - headR*0.3, headR);
+            gHead.addColorStop(0, lightenHex(fill, 0.4));
+            gHead.addColorStop(0.5, fill);
+            gHead.addColorStop(1, dark);
+            ctx.fillStyle = gHead;
+            ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,0.4)";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // shine
+            ctx.beginPath();
+            ctx.arc(x - headR*0.25, y - headR*0.6, headR*0.22, 0, Math.PI*2);
+            ctx.fillStyle = "rgba(255,255,255,0.55)";
+            ctx.fill();
+            ctx.restore();
+            // number
+            ctx.fillStyle = "rgba(0,0,0,0.75)";
+            ctx.font = `bold ${Math.round(size*0.26)}px Arial`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText("▶", 0, 0);
-            ctx.restore();
+            ctx.fillText(label, x, y - headR*0.25);
         }
-        ctx.restore();
-    }
 
-    // ---------- DICE OVERLAY ----------
-    function drawDiceOverlay() {
-        const dv = gameState.dice_value;
-        const bx = CANVAS_SIZE - CELL*1.8, by = CELL*0.2;
-        const bw = CELL*1.5, bh = CELL*1.5;
-
-        // Shadow
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetY = 4;
-        roundRect(ctx, bx, by, bw, bh, 10);
-        ctx.fillStyle = "white";
-        ctx.fill();
-        ctx.restore();
-
-        ctx.strokeStyle = "#333";
-        ctx.lineWidth = 2;
-        roundRect(ctx, bx, by, bw, bh, 10);
-        ctx.stroke();
-
-        ctx.fillStyle = "#1a1a2e";
-        ctx.font = `bold ${Math.round(CELL*0.85)}px Arial`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(dv, bx + bw/2, by + bh/2 + 2);
-    }
-
-    // ---------- UI TEXT ----------
-    function updateUI(manualMsg = null) {
-        const turnSpan = document.getElementById("turnText");
-        const diceSpan = document.getElementById("diceValue");
-        const statusSpan = document.getElementById("statusMsg");
-        if(gameState.winner !== -1) {
-            const winnerColor = gameState.players[gameState.winner]?.color || "कोई";
-            turnSpan.innerHTML = `🏆 ${winnerColor} जीत गया! 🏆`;
-            diceSpan.innerText = "—";
-            statusSpan.innerText = "गेम समाप्त। /end या नया गेम बटन दबाएँ।";
-            return;
+        function lightenHex(hex, amount) {
+            const num = parseInt(hex.replace('#',''), 16);
+            const r = Math.min(255, (num >> 16) + Math.round(255*amount));
+            const g = Math.min(255, ((num>>8)&0xff) + Math.round(255*amount));
+            const b = Math.min(255, (num&0xff) + Math.round(255*amount));
+            return `rgb(${r},${g},${b})`;
         }
-        if(!gameState.players || gameState.players.length === 0) {
-            turnSpan.innerHTML = "⏳ गेम शुरू नहीं";
-            return;
-        }
-        const currentPlayerColor = gameState.players[gameState.turn_index]?.color;
-        const isMyTurn = (myColor === currentPlayerColor);
-        turnSpan.innerHTML = `🎲 बारी: ${currentPlayerColor || "?"}`;
-        if(gameState.rolled && gameState.dice_value) {
-            diceSpan.innerText = gameState.dice_value;
-            if(isMyTurn) {
-                statusSpan.innerText = `✅ पासा ${gameState.dice_value} – अपनी गोटी चुनें`;
-            } else {
-                statusSpan.innerText = `🎲 दूसरे खिलाड़ी की बारी (पासा ${gameState.dice_value})`;
+
+        // ---------- स्थानीय मूव चेक (बॉट के नियमों के अनुसार) ----------
+        // यहाँ हर पासे पर घर से बाहर निकलने की अनुमति है
+        function canMoveLocal(tokenPos, dice) {
+            if(tokenPos >= 59) return false;
+            if(tokenPos === 0) return true;   // any dice works
+            if(tokenPos >= 1 && tokenPos <= 52) {
+                let newPos = tokenPos + dice;
+                if(newPos <= 52) return true;
+                let homeSteps = newPos - 52;
+                return homeSteps <= 6;
             }
-        } else {
-            diceSpan.innerText = "⚀";
-            if(isMyTurn && gameState.waiting_for_word) {
-                statusSpan.innerText = "📝 GC में valid अंग्रेज़ी शब्द भेजकर पासा रोल करें";
-            } else if(isMyTurn && !gameState.waiting_for_word && !gameState.rolled) {
-                statusSpan.innerText = "🎲 पासा रोल नहीं हुआ, कृपया शब्द भेजें";
-            } else {
-                statusSpan.innerText = "⏳ प्रतीक्षा करें, दूसरे खिलाड़ी की बारी";
+            if(tokenPos >= 53 && tokenPos <= 58) {
+                let newPos = tokenPos + dice;
+                return newPos <= 59;
             }
+            return false;
         }
-        if(manualMsg) statusSpan.innerText = manualMsg;
-    }
 
-    // ---------- CANVAS CLICK ----------
-    function handleCanvasClick(e) {
-        if(gameState.winner !== -1) return;
-        if(!gameState.rolled || gameState.dice_value === null) {
-            updateUI("⛔ पहले GC में पासा रोल करें (valid शब्द)");
-            return;
+        // ---------- यूटिलिटी: क्या टोकन चल सकता है (UI हाइलाइट और क्लिक) ----------
+        function isMovableToken(colorFull, tokenPos, tokenIdx) {
+            if(gameState.winner !== -1) return false;
+            if(colorFull !== gameState.players[gameState.turn_index]?.color) return false;
+            if(!gameState.rolled || gameState.dice_value === null) return false;
+            if(tokenPos >= 59) return false;
+            return canMoveLocal(tokenPos, gameState.dice_value);
         }
-        const currentTurnColor = gameState.players[gameState.turn_index]?.color;
-        if(myColor !== currentTurnColor) {
-            updateUI("⏳ आपकी बारी नहीं है");
-            return;
-        }
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        let clickX = (e.clientX - rect.left) * scaleX;
-        let clickY = (e.clientY - rect.top) * scaleY;
 
-        const cellMap = new Map();
-        for(let player of gameState.players) {
-            const colorFull = player.color;
-            for(let idx=0; idx<player.tokens.length; idx++) {
-                const posNum = player.tokens[idx];
-                if(posNum === 59) continue;
-                const gridPos = getTokenRawGridPos(colorFull, posNum);
-                if(!gridPos) continue;
-                const key = `${gridPos[0]},${gridPos[1]}`;
-                if(!cellMap.has(key)) cellMap.set(key, []);
-                cellMap.get(key).push({ colorFull, idx, posNum });
-            }
-        }
-        const offsets = [
-            { dx:-11, dy:-11 }, { dx:11, dy:-11 },
-            { dx:-11, dy:11  }, { dx:11, dy:11  }
-        ];
-        for(let [key, tokensList] of cellMap.entries()) {
-            const [gx, gy] = key.split(',').map(Number);
-            const center = cc(gx, gy);
-            for(let i=0; i<tokensList.length; i++) {
-                const tok = tokensList[i];
-                const off = offsets[i % offsets.length];
-                const cx = center.x + off.dx;
-                const cy = center.y + off.dy;
-                const hitR = tokensList.length > 1 ? 18 : 22;
-                if(Math.hypot(clickX-cx, clickY-cy) < hitR) {
-                    if(isMovableToken(tok.colorFull, tok.posNum)) {
-                        sendMove(tok.idx);
-                    } else {
-                        updateUI("❌ यह गोटी इस पासे से नहीं चल सकती");
+        // ---------- API कॉल ----------
+        async function fetchGameState() {
+            if(!BOT_API || !CHAT_ID) return false;
+            try {
+                const res = await fetch(`${BOT_API}/game_state?chat_id=${CHAT_ID}`);
+                if(!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                gameState = data;
+                if(USER_ID && gameState.players) {
+                    const me = gameState.players.find(p => p.id == USER_ID);
+                    if(me) {
+                        myColor = me.color;
+                        myPlayerIndex = gameState.players.findIndex(p => p.id == USER_ID);
                     }
-                    return;
+                }
+                return true;
+            } catch(e) {
+                console.warn("fetch error", e);
+                return false;
+            }
+        }
+
+        async function sendMove(tokenIdx) {
+            if(!BOT_API || !CHAT_ID || !USER_ID) return false;
+            try {
+                const url = `${BOT_API}/move?chat_id=${CHAT_ID}&user_id=${USER_ID}&token_idx=${tokenIdx}`;
+                const res = await fetch(url, { method: "POST" });
+                const data = await res.json();
+                if(res.ok) {
+                    await fetchGameState();
+                    drawBoard();
+                    updateUI();
+                    return true;
+                } else {
+                    updateUI("❌ चाल मना: " + (data.error || "unknown"));
+                    return false;
+                }
+            } catch(e) {
+                updateUI("❌ नेटवर्क त्रुटि");
+                return false;
+            }
+        }
+
+        // ---------- कैनवास और ड्राइंग ----------
+        const canvas = document.getElementById("ludoCanvas");
+        const ctx = canvas.getContext("2d");
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.fillStyle = "#f0f0f0";
+            roundRect(ctx, 0, 0, CANVAS_SIZE, CANVAS_SIZE, 12);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            drawHomeAreas();
+            drawTrackCells();
+            drawHomeStretches();
+            drawCenter();
+            drawArrowHints();
+            drawAllTokens();
+            if(gameState.dice_value !== null && gameState.rolled) drawDiceOverlay();
+        }
+
+        function roundRect(c, x, y, w, h, r) {
+            c.beginPath();
+            c.moveTo(x+r, y);
+            c.lineTo(x+w-r, y); c.quadraticCurveTo(x+w, y, x+w, y+r);
+            c.lineTo(x+w, y+h-r); c.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+            c.lineTo(x+r, y+h); c.quadraticCurveTo(x, y+h, x, y+h-r);
+            c.lineTo(x, y+r); c.quadraticCurveTo(x, y, x+r, y);
+            c.closePath();
+        }
+
+        function drawHomeAreas() {
+            const homes = [
+                { color:"red",    gx:0,  gy:0  },
+                { color:"green",  gx:9,  gy:0  },
+                { color:"yellow", gx:0,  gy:9  },
+                { color:"blue",   gx:9,  gy:9  }
+            ];
+            for(let h of homes) {
+                const x = OFF + h.gx * CELL;
+                const y = OFF + h.gy * CELL;
+                const size = 6 * CELL;
+                ctx.fillStyle = COLOR_HEX[h.color];
+                roundRect(ctx, x+1, y+1, size-2, size-2, 10);
+                ctx.fill();
+                const pad = CELL * 0.55;
+                const inner = size - pad*2;
+                ctx.fillStyle = "rgba(255,255,255,0.92)";
+                roundRect(ctx, x+pad, y+pad, inner, inner, 8);
+                ctx.fill();
+                ctx.strokeStyle = COLOR_HEX[h.color];
+                ctx.lineWidth = 2.5;
+                roundRect(ctx, x+pad, y+pad, inner, inner, 8);
+                ctx.stroke();
+                // no placeholder circles – tokens will be drawn on their own cells
+            }
+        }
+
+        function drawTrackCells() {
+            const safeSet = new Set([
+                "1,6","6,2","8,1","12,6","13,8","8,12","6,13","2,8"
+            ]);
+            const startColorMap = {
+                "6,1": "green", "1,6": "red", "8,13": "yellow", "13,8": "blue"
+            };
+            for(let i=0; i<TRACK_CELLS.length; i++) {
+                const [gx, gy] = TRACK_CELLS[i];
+                const x = OFF + gx*CELL, y = OFF + gy*CELL;
+                const key = `${gx},${gy}`;
+                if(startColorMap[key]) {
+                    ctx.fillStyle = COLOR_HEX[startColorMap[key]];
+                } else if(safeSet.has(key)) {
+                    ctx.fillStyle = "#e8f5e9";
+                } else {
+                    ctx.fillStyle = "#ffffff";
+                }
+                ctx.fillRect(x, y, CELL, CELL);
+                ctx.strokeStyle = "#bdbdbd";
+                ctx.lineWidth = 0.8;
+                ctx.strokeRect(x, y, CELL, CELL);
+                if(safeSet.has(key) && !startColorMap[key]) {
+                    ctx.font = `${Math.round(CELL*0.52)}px Arial`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("⭐", x + CELL/2, y + CELL/2);
                 }
             }
         }
-    }
 
-    // ---------- AUTO REFRESH ----------
-    function startAutoRefresh() {
-        if(refreshInterval) clearInterval(refreshInterval);
-        refreshInterval = setInterval(async () => {
-            if(BOT_API && CHAT_ID) {
-                await fetchGameState();
-                drawBoard();
-                updateUI();
+        function drawHomeStretches() {
+            for(let [colorFull, cells] of Object.entries(HOME_STRETCH)) {
+                const short = colorShort(colorFull);
+                for(let j=0; j<cells.length; j++) {
+                    const [gx, gy] = cells[j];
+                    const x = OFF + gx*CELL, y = OFF + gy*CELL;
+                    ctx.fillStyle = (j === cells.length-1) ? COLOR_HEX[short] : COLOR_LIGHT[short];
+                    ctx.fillRect(x, y, CELL, CELL);
+                    ctx.strokeStyle = COLOR_HEX[short];
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, CELL, CELL);
+                }
             }
-        }, 2500);
-    }
-
-    // ---------- INIT ----------
-    async function init() {
-        if(!BOT_API || !CHAT_ID || !USER_ID) {
-            // Demo mode: draw static board
-            drawBoard();
-            document.getElementById("statusMsg").innerText = "⚠️ बॉट API URL नहीं मिला। सुनिश्चित करें कि आपने बॉट से WebApp खोला है।";
-            return;
         }
-        await fetchGameState();
-        drawBoard();
-        updateUI();
-        startAutoRefresh();
-        canvas.addEventListener("click", handleCanvasClick);
-        document.getElementById("restartBtn").addEventListener("click", () => {
-            if(tg) tg.close();
-            window.location.reload();
-        });
-    }
 
-    init();
+        function drawCenter() {
+            const cx = OFF + 7.5*CELL;
+            const cy = OFF + 7.5*CELL;
+            ctx.fillStyle = "#f5f5f5";
+            ctx.fillRect(OFF + 6*CELL, OFF + 6*CELL, 3*CELL, 3*CELL);
+            const triangles = [
+                { color:"red",    points: [[cx-CELL*1.5, cy-CELL*1.5], [cx+CELL*1.5, cy-CELL*1.5], [cx, cy]] },
+                { color:"green",  points: [[cx+CELL*1.5, cy-CELL*1.5], [cx+CELL*1.5, cy+CELL*1.5], [cx, cy]] },
+                { color:"blue",   points: [[cx-CELL*1.5, cy+CELL*1.5], [cx+CELL*1.5, cy+CELL*1.5], [cx, cy]] },
+                { color:"yellow", points: [[cx-CELL*1.5, cy-CELL*1.5], [cx-CELL*1.5, cy+CELL*1.5], [cx, cy]] }
+            ];
+            for(let t of triangles) {
+                ctx.beginPath();
+                ctx.moveTo(t.points[0][0], t.points[0][1]);
+                ctx.lineTo(t.points[1][0], t.points[1][1]);
+                ctx.lineTo(t.points[2][0], t.points[2][1]);
+                ctx.closePath();
+                ctx.fillStyle = COLOR_HEX[t.color];
+                ctx.fill();
+            }
+            ctx.font = `${Math.round(CELL*0.9)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("⭐", cx, cy);
+        }
+
+        function drawArrowHints() {
+            const arrows = [
+                { gx:1, gy:6, angle:0 },        // red start → right
+                { gx:6, gy:1, angle:Math.PI/2 }, // green start → down
+                { gx:13, gy:8, angle:Math.PI },  // blue start → left
+                { gx:8, gy:13, angle:-Math.PI/2 } // yellow start → up
+            ];
+            ctx.save();
+            for(let a of arrows) {
+                const center = cc(a.gx, a.gy);
+                ctx.translate(center.x, center.y);
+                ctx.rotate(a.angle);
+                ctx.fillStyle = "rgba(80,80,80,0.55)";
+                ctx.font = `${Math.round(CELL*0.4)}px Arial`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("▶", 0, 0);
+                ctx.setTransform(1,0,0,1,0,0);
+            }
+            ctx.restore();
+        }
+
+        function drawAllTokens() {
+            if(!gameState.players) return;
+            const cellMap = new Map();
+            for(let player of gameState.players) {
+                const colorFull = player.color;
+                const short = colorShort(colorFull);
+                for(let idx=0; idx<player.tokens.length; idx++) {
+                    const posNum = player.tokens[idx];
+                    if(posNum === 59) continue;
+                    const gridPos = getTokenRawGridPos(colorFull, posNum, idx);
+                    if(!gridPos) continue;
+                    const key = `${gridPos[0]},${gridPos[1]}`;
+                    if(!cellMap.has(key)) cellMap.set(key, []);
+                    cellMap.get(key).push({ colorFull, short, idx, posNum });
+                }
+            }
+            const offsets = [
+                { dx: -11, dy: -11 }, { dx: 11, dy: -11 },
+                { dx: -11, dy: 11 },  { dx: 11, dy: 11 }
+            ];
+            for(let [key, tokensList] of cellMap.entries()) {
+                const [gx, gy] = key.split(',').map(Number);
+                const center = cc(gx, gy);
+                for(let i=0; i<tokensList.length; i++) {
+                    const tok = tokensList[i];
+                    const off = offsets[i % offsets.length];
+                    const cx = center.x + off.dx;
+                    const cy = center.y + off.dy;
+                    const size = tokensList.length > 1 ? CELL * 0.72 : CELL * 0.88;
+                    const glow = isMovableToken(tok.colorFull, tok.posNum, tok.idx);
+                    drawPawn(cx, cy, tok.short, (tok.idx+1).toString(), size, glow);
+                }
+            }
+        }
+
+        function drawDiceOverlay() {
+            const dv = gameState.dice_value;
+            const bx = CANVAS_SIZE - CELL*1.8, by = CELL*0.2;
+            const bw = CELL*1.5, bh = CELL*1.5;
+            ctx.save();
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            roundRect(ctx, bx, by, bw, bh, 10);
+            ctx.fillStyle = "white";
+            ctx.fill();
+            ctx.restore();
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 2;
+            roundRect(ctx, bx, by, bw, bh, 10);
+            ctx.stroke();
+            ctx.fillStyle = "#1a1a2e";
+            ctx.font = `bold ${Math.round(CELL*0.85)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(dv, bx + bw/2, by + bh/2 + 2);
+        }
+
+        // ---------- यूजर इंटरफेस टेक्स्ट ----------
+        function updateUI(manualMsg = null) {
+            const turnSpan = document.getElementById("turnText");
+            const diceSpan = document.getElementById("diceValue");
+            const statusSpan = document.getElementById("statusMsg");
+            if(gameState.winner !== -1) {
+                const winnerColor = gameState.players[gameState.winner]?.color || "कोई";
+                turnSpan.innerHTML = `🏆 ${winnerColor} जीत गया! 🏆`;
+                diceSpan.innerText = "—";
+                statusSpan.innerText = "गेम समाप्त। /end या नया गेम बटन दबाएँ।";
+                return;
+            }
+            if(!gameState.players || gameState.players.length === 0) {
+                turnSpan.innerHTML = "⏳ गेम शुरू नहीं";
+                return;
+            }
+            const currentPlayerColor = gameState.players[gameState.turn_index]?.color;
+            const isMyTurn = (myColor === currentPlayerColor);
+            turnSpan.innerHTML = `🎲 बारी: ${currentPlayerColor || "?"}`;
+            if(gameState.rolled && gameState.dice_value) {
+                diceSpan.innerText = gameState.dice_value;
+                if(isMyTurn) {
+                    statusSpan.innerText = `✅ पासा ${gameState.dice_value} – अपनी गोटी चुनें`;
+                } else {
+                    statusSpan.innerText = `🎲 दूसरे खिलाड़ी की बारी (पासा ${gameState.dice_value})`;
+                }
+            } else {
+                diceSpan.innerText = "⚀";
+                if(isMyTurn && gameState.waiting_for_word) {
+                    statusSpan.innerText = "📝 GC में valid अंग्रेज़ी शब्द भेजकर पासा रोल करें";
+                } else if(isMyTurn && !gameState.waiting_for_word && !gameState.rolled) {
+                    statusSpan.innerText = "🎲 पासा रोल नहीं हुआ, कृपया शब्द भेजें";
+                } else {
+                    statusSpan.innerText = "⏳ प्रतीक्षा करें, दूसरे खिलाड़ी की बारी";
+                }
+            }
+            if(manualMsg) statusSpan.innerText = manualMsg;
+        }
+
+        // ---------- कैनवास क्लिक हैंडलर ----------
+        function handleCanvasClick(e) {
+            if(gameState.winner !== -1) return;
+            if(!gameState.rolled || gameState.dice_value === null) {
+                updateUI("⛔ पहले GC में पासा रोल करें (valid शब्द)");
+                return;
+            }
+            const currentTurnColor = gameState.players[gameState.turn_index]?.color;
+            if(myColor !== currentTurnColor) {
+                updateUI("⏳ आपकी बारी नहीं है");
+                return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clickX = (e.clientX - rect.left) * scaleX;
+            let clickY = (e.clientY - rect.top) * scaleY;
+
+            const cellMap = new Map();
+            for(let player of gameState.players) {
+                const colorFull = player.color;
+                for(let idx=0; idx<player.tokens.length; idx++) {
+                    const posNum = player.tokens[idx];
+                    if(posNum === 59) continue;
+                    const gridPos = getTokenRawGridPos(colorFull, posNum, idx);
+                    if(!gridPos) continue;
+                    const key = `${gridPos[0]},${gridPos[1]}`;
+                    if(!cellMap.has(key)) cellMap.set(key, []);
+                    cellMap.get(key).push({ colorFull, idx, posNum });
+                }
+            }
+            const offsets = [
+                { dx:-11, dy:-11 }, { dx:11, dy:-11 },
+                { dx:-11, dy:11 },  { dx:11, dy:11 }
+            ];
+            for(let [key, tokensList] of cellMap.entries()) {
+                const [gx, gy] = key.split(',').map(Number);
+                const center = cc(gx, gy);
+                for(let i=0; i<tokensList.length; i++) {
+                    const tok = tokensList[i];
+                    const off = offsets[i % offsets.length];
+                    const cx = center.x + off.dx;
+                    const cy = center.y + off.dy;
+                    const size = tokensList.length > 1 ? CELL * 0.72 : CELL * 0.88;
+                    const hitR = size * 0.55;
+                    if(Math.hypot(clickX-cx, clickY-cy) < hitR) {
+                        if(isMovableToken(tok.colorFull, tok.posNum, tok.idx)) {
+                            sendMove(tok.idx);
+                        } else {
+                            updateUI("❌ यह गोटी इस पासे से नहीं चल सकती");
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
+        // ---------- ऑटो रिफ्रेश ----------
+        function startAutoRefresh() {
+            if(refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(async () => {
+                if(BOT_API && CHAT_ID) {
+                    await fetchGameState();
+                    drawBoard();
+                    updateUI();
+                }
+            }, 2500);
+        }
+
+        // ---------- इनिशियलाइज़ेशन ----------
+        async function init() {
+            if(!BOT_API || !CHAT_ID || !USER_ID) {
+                // ऑफलाइन डेमो मोड – बिना बॉट के बोर्ड दिखाएगा
+                drawBoard();
+                document.getElementById("statusMsg").innerText = "⚠️ बॉट API URL नहीं मिला। सुनिश्चित करें कि आपने बॉट से WebApp खोला है।";
+                return;
+            }
+            await fetchGameState();
+            drawBoard();
+            updateUI();
+            startAutoRefresh();
+            canvas.addEventListener("click", handleCanvasClick);
+            document.getElementById("restartBtn").addEventListener("click", () => {
+                if(tg) tg.close();
+                window.location.reload();
+            });
+        }
+        init();
+    })();
 </script>
 </body>
 </html>
