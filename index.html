@@ -1,487 +1,280 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Royale - Live Board (No Dice)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo – Move Token</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * {
-            user-select: none;
-            touch-action: manipulation;
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            background: radial-gradient(circle at top, #141523 0%, #080910 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            padding: 16px;
-            color: #ffffff;
-        }
-        .container {
-            max-width: 530px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-        .title {
-            text-align: center;
-            color: #facc15;
-            font-weight: 800;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-        canvas {
-            display: block;
-            margin: 0 auto;
-            border-radius: 1.5rem;
-            width: 100%;
-            height: auto;
-            background: white;
-            cursor: pointer;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .status {
-            background: rgba(30, 34, 56, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 1.2rem;
-            padding: 12px 16px;
-            text-align: center;
-            font-size: 0.82rem;
-            color: #e2e8f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        }
+        canvas { border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
     </style>
 </head>
-<body>
-<div class="container">
-    <div class="title">👑 LIVE LUDO ROYALE</div>
-    <canvas id="ludoCanvas" width="750" height="750"></canvas>
-    <div class="status" id="statusMsg">⏳ लाइव बोर्ड लोड हो रहा है...</div>
-</div>
-
-<script>
-    (function(){
+<body class="bg-gray-900 flex justify-center items-center min-h-screen p-4">
+    <div class="bg-gray-800 rounded-2xl p-4 shadow-2xl">
+        <canvas id="boardCanvas" width="900" height="900" class="rounded-2xl"></canvas>
+        <div class="mt-4 text-white text-center">
+            <p id="statusMsg" class="text-lg font-mono">Loading game...</p>
+            <div id="tokenButtons" class="flex flex-wrap gap-3 justify-center mt-4"></div>
+            <p class="text-xs text-gray-500 mt-2">⚡ Any dice (1-6) can open token. No extra turn on 6.</p>
+        </div>
+    </div>
+    <script>
+        // ---------- Telegram WebApp Init ----------
         const tg = window.Telegram?.WebApp;
-        if(tg) { tg.ready(); tg.expand(); }
+        tg?.ready();
+        tg?.expand();
 
-        // ========== CONFIGURATION (DYNAMICS BINDING WITH PY BOT) ==========
+        // ---------- Get ALL parameters from URL (bot sends chat_id, user_id, api) ----------
         const urlParams = new URLSearchParams(window.location.search);
-        const CHAT_ID = urlParams.get("chat_id") || "";
-        const USER_ID = urlParams.get("user_id") || "";
-        const API_BASE = urlParams.get("api") || ""; // बोट द्वारा भेजे जाने वाले लाइव यूआरएल को डायनामिक रूप से लेगा
-        const API_URL = API_BASE ? `${API_BASE}/game_state` : "https://your-bot-api.com/game_state";
+        const CHAT_ID = parseInt(urlParams.get('chat_id'));
+        let API_BASE = urlParams.get('api');
+        if (!API_BASE) {
+            API_BASE = window.location.origin;
+        }
+        API_BASE = API_BASE.replace(/\/$/, '');
 
-        // ========== BOARD CONSTANTS (EXACT 52 CELL TRACK) ==========
-        const CELL = 750 / 15; // 50px
-        const TRACK = [
-            // Red starting quadrant (pos 1-5)
-            [1,6],[2,6],[3,6],[4,6],[5,6],
-            // Green quadrant going up (pos 6-11)
-            [6,5],[6,4],[6,3],[6,2],[6,1],[6,0],
-            [7,0], // Top Edge cell (pos 12)
-            // Green quadrant going down (pos 13-18)
-            [8,0],[8,1],[8,2],[8,3],[8,4],[8,5],
-            // Blue quadrant going right (pos 19-24)
-            [9,6],[10,6],[11,6],[12,6],[13,6],[14,6],
-            [14,7], // Right Edge cell (pos 25)
-            // Yellow starting quadrant (pos 26-31)
-            [14,8],[13,8],[12,8],[11,8],[10,8],[9,8],
-            // Yellow quadrant going down (pos 32-37)
-            [8,9],[8,10],[8,11],[8,12],[8,13],[8,14],
-            [7,14], // Bottom Edge cell (pos 38)
-            // Blue starting quadrant (pos 39-44)
-            [6,14],[6,13],[6,12],[6,11],[6,10],[6,9],
-            // Red transition back column (pos 45-50)
-            [5,8],[4,8],[3,8],[2,8],[1,8],[0,8],
-            [0,7], // Left Edge cell (pos 51)
-            [0,6]  // Final transition back cell (pos 52)
-        ];
-
-        const SAFE_SPOTS = new Set([1,9,14,22,27,35,40,48]);
-
-        const COLORS = {
-            red: "#ff4b5c", green: "#00e676", yellow: "#ffd600", blue: "#2979ff",
-            dark_red: "#b91c2c", dark_green: "#15803d", dark_yellow: "#ca8a04", dark_blue: "#1e3a8a"
-        };
-
-        const HOME_BASES = {
-            red: [[1,1],[1,4],[4,1],[4,4]],
-            green: [[10,1],[13,1],[10,4],[13,4]],
-            blue: [[10,10],[13,10],[10,13],[13,13]],
-            yellow: [[1,10],[4,10],[1,13],[4,13]]
-        };
-
-        const HOME_STRETCH = {
-            red: [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
-            green: [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
-            blue: [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]],
-            yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
-        };
-
-        // exact starting position values synced with Py Bot variables
-        const START_POS = { red: 1, green: 21, yellow: 51, blue: 29 };
-
-        // ========== GLOBAL STATE ==========
-        let currentTokens = {
-            red: [0,0,0,0],
-            green: [0,0,0,0],
-            blue: [0,0,0,0],
-            yellow: [0,0,0,0]
-        };
-        let animatedTokens = new Map(); // key "color_idx" -> { path, step, progress, startTime }
-        let animFrame = null;
-        let pollingInterval = null;
-
-        // ========== HELPER FUNCTIONS ==========
-        // पायथन बोट के रंगों को फ़्रंटएंड कीज़ से सुरक्षित रूप से मैच करने का सुरक्षा फंक्शन
-        function normalizeColorKey(color) {
-            if (!color) return "red";
-            const c = color.toString().toLowerCase();
-            if (c.includes("red")) return "red";
-            if (c.includes("green")) return "green";
-            if (c.includes("yellow")) return "yellow";
-            if (c.includes("blue")) return "blue";
-            return c;
+        if (!CHAT_ID) {
+            document.getElementById('statusMsg').innerText = 'Missing chat_id. Please open from Telegram bot.';
+            throw new Error('Missing chat_id');
         }
 
-        function getGridFromPos(color, pos, idx) {
-            const key = normalizeColorKey(color);
-            if(pos === 0) return HOME_BASES[key][idx % HOME_BASES[key].length];
-            if(pos >= 1 && pos <= 52) return TRACK[pos-1];
-            if(pos >= 53 && pos <= 58) return HOME_STRETCH[key][pos-53];
-            return null;
+        // ---------- USER_ID: URL param first (bot sends it), then Telegram WebApp ----------
+        // FIX: urlParams.get('user_id') pehle check karo — bot ne URL mein bheja hai
+        let USER_ID = parseInt(urlParams.get('user_id')) || tg?.initDataUnsafe?.user?.id;
+        if (!USER_ID) {
+            document.getElementById('statusMsg').innerText = 'Missing user_id. Please open from Telegram bot message.';
+            throw new Error('User ID required');
         }
+        USER_ID = parseInt(USER_ID);
 
-        function getNextPosition(pos, color) {
-            const key = normalizeColorKey(color);
-            if(pos === 0) return START_POS[key];
-            if(pos === 52) return 53;
-            if(pos >= 53 && pos < 58) return pos+1;
-            if(pos === 58) return 59;
-            return pos+1;
-        }
+        // ---------- Board drawing ----------
+        const BOARD_SIZE = 900;
+        const CENTER = BOARD_SIZE/2;
+        const SAFE_POS = new Set([1,9,14,22,27,35,40,48]);
 
-        function getPath(fromPos, toPos, color) {
-            const key = normalizeColorKey(color);
-            let path = [];
-            let cur = fromPos;
-            while(cur !== toPos && path.length < 60) {
-                path.push(cur);
-                cur = getNextPosition(cur, key);
+        function getPositionCoords(pos, playerColor = null) {
+            if (pos === 0) return [-100, -100];
+            if (pos === 59) return [CENTER, CENTER];
+            if (pos >= 53 && pos <= 58) {
+                const stretchMap = {
+                    '🔴 Red': [[750,750],[700,750],[650,750],[600,750],[550,750],[500,750]],
+                    '🟢 Green': [[750,150],[750,200],[750,250],[750,300],[750,350],[750,400]],
+                    '🟡 Yellow': [[150,150],[200,150],[250,150],[300,150],[350,150],[400,150]],
+                    '🔵 Blue': [[150,750],[150,700],[150,650],[150,600],[150,550],[150,500]]
+                };
+                const idx = pos - 53;
+                return stretchMap[playerColor]?.[idx] || [CENTER, CENTER];
             }
-            path.push(toPos);
-            return path;
+            if (pos >= 1 && pos <= 13) { let x = 750 - (pos-1)*50; return [x, 750]; }
+            else if (pos >= 14 && pos <= 26) { let y = 750 - (pos-14)*50; return [150, y]; }
+            else if (pos >= 27 && pos <= 39) { let x = 150 + (pos-27)*50; return [x, 150]; }
+            else if (pos >= 40 && pos <= 52) { let y = 150 + (pos-40)*50; return [750, y]; }
+            return [CENTER, CENTER];
         }
 
-        // ========== SMOOTH ANIMATION ==========
-        function startAnimation(color, idx, fromPos, toPos) {
-            if(fromPos === toPos) return;
-            const keyColor = normalizeColorKey(color);
-            const path = getPath(fromPos, toPos, keyColor);
-            if(path.length < 2) return;
-            const key = `${keyColor}_${idx}`;
-            animatedTokens.set(key, {
-                color: keyColor, idx, path,
-                step: 0,
-                startTime: performance.now(),
-                duration: (path.length-1) * 120  // 120ms per step
+        const HOME_YARDS = {
+            "🔴 Red": { x: 780, y: 780 },
+            "🟢 Green": { x: 780, y: 120 },
+            "🟡 Yellow": { x: 120, y: 120 },
+            "🔵 Blue": { x: 120, y: 780 }
+        };
+
+        let gameState = null;
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawBoard() {
+            if (!gameState) return;
+            const players = gameState.players;
+            const turnIdx = gameState.turn_index;
+            const diceValue = gameState.dice_value;
+            const rolled = gameState.rolled;
+
+            ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
+            ctx.fillStyle = '#f5e6d3';
+            ctx.fillRect(0,0,BOARD_SIZE,BOARD_SIZE);
+            ctx.strokeStyle = '#2c1a0c';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(150,150,600,600);
+            ctx.fillStyle = '#e0c8a0';
+            ctx.fillRect(300,300,300,300);
+            ctx.strokeRect(300,300,300,300);
+
+            const homes = [
+                { pts: [[750,750],[900,750],[750,900]], color: '220,60,60' },
+                { pts: [[750,0],[900,0],[750,150]], color: '60,220,60' },
+                { pts: [[0,0],[150,0],[0,150]], color: '220,220,60' },
+                { pts: [[0,750],[150,900],[0,900]], color: '60,60,220' }
+            ];
+            homes.forEach(h => {
+                ctx.beginPath();
+                ctx.moveTo(h.pts[0][0], h.pts[0][1]);
+                ctx.lineTo(h.pts[1][0], h.pts[1][1]);
+                ctx.lineTo(h.pts[2][0], h.pts[2][1]);
+                ctx.fillStyle = `rgb(${h.color})`;
+                ctx.fill();
+                ctx.stroke();
             });
-            if(!animFrame) animFrame = requestAnimationFrame(animateLoop);
-        }
 
-        function animateLoop(now) {
-            let anyActive = false;
-            for(let [key, anim] of animatedTokens.entries()) {
-                let t = Math.min(1, (now - anim.startTime) / anim.duration);
-                let totalSteps = anim.path.length - 1;
-                let stepFloat = t * totalSteps;
-                let newStep = Math.floor(stepFloat);
-                if(newStep > anim.step) {
-                    anim.step = newStep;
-                }
-                if(stepFloat >= totalSteps - 0.001) {
-                    let finalPos = anim.path[anim.path.length-1];
-                    currentTokens[anim.color][anim.idx] = finalPos;
-                    animatedTokens.delete(key);
-                } else {
-                    anyActive = true;
+            for (let pos=1; pos<=52; pos++) {
+                let [x,y] = getPositionCoords(pos);
+                ctx.beginPath();
+                ctx.arc(x,y,16,0,2*Math.PI);
+                ctx.fillStyle = '#fff5e8';
+                ctx.fill();
+                ctx.strokeStyle = '#a57c4c';
+                ctx.stroke();
+                if (SAFE_POS.has(pos)) {
+                    ctx.fillStyle = '#ffd966';
+                    ctx.beginPath();
+                    ctx.arc(x,y,12,0,2*Math.PI);
+                    ctx.fill();
                 }
             }
-            drawBoard();
-            if(anyActive) {
-                animFrame = requestAnimationFrame(animateLoop);
-            } else {
-                cancelAnimationFrame(animFrame);
-                animFrame = null;
+            for (let pos=53; pos<=58; pos++) {
+                for (let col of players.map(p=>p.color)) {
+                    let [x,y] = getPositionCoords(pos, col);
+                    if (x && y) {
+                        ctx.beginPath();
+                        ctx.arc(x,y,14,0,2*Math.PI);
+                        ctx.fillStyle = '#edd5b0';
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.fillStyle = '#c9a87b';
+            ctx.beginPath();
+            ctx.arc(CENTER,CENTER,20,0,2*Math.PI);
+            ctx.fill();
+
+            players.forEach((player, pIdx) => {
+                player.tokens.forEach((pos, tIdx) => {
+                    let x, y;
+                    if (pos === 0) {
+                        const homePos = HOME_YARDS[player.color];
+                        const offsetX = (tIdx % 2) * 30 - 15;
+                        const offsetY = Math.floor(tIdx / 2) * 30 - 15;
+                        x = homePos.x + offsetX;
+                        y = homePos.y + offsetY;
+                    } else if (pos === 59) {
+                        x = CENTER + (tIdx%2)*15 - 7;
+                        y = CENTER + Math.floor(tIdx/2)*15 - 7;
+                    } else {
+                        [x,y] = getPositionCoords(pos, player.color);
+                    }
+                    ctx.beginPath();
+                    ctx.arc(x, y, 18, 0, 2*Math.PI);
+                    const rgb = player.color === '🔴 Red' ? '220,60,60' : player.color === '🟢 Green' ? '60,220,60' : player.color === '🟡 Yellow' ? '220,220,60' : '60,60,220';
+                    ctx.fillStyle = `rgb(${rgb})`;
+                    ctx.fill();
+                    ctx.strokeStyle = '#111';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 18px "Segoe UI"';
+                    ctx.fillText((tIdx+1).toString(), x-7, y+8);
+                });
+            });
+
+            if (turnIdx < players.length) {
+                const turnColor = players[turnIdx].color;
+                const turnMap = {
+                    "🔴 Red": [[750,750],[900,750],[750,900]],
+                    "🟢 Green": [[750,0],[900,0],[750,150]],
+                    "🟡 Yellow": [[0,0],[150,0],[0,150]],
+                    "🔵 Blue": [[0,750],[150,900],[0,900]]
+                };
+                const pts = turnMap[turnColor];
+                if (pts) {
+                    ctx.beginPath();
+                    ctx.moveTo(pts[0][0], pts[0][1]);
+                    ctx.lineTo(pts[1][0], pts[1][1]);
+                    ctx.lineTo(pts[2][0], pts[2][1]);
+                    ctx.strokeStyle = '#FFD966';
+                    ctx.lineWidth = 8;
+                    ctx.stroke();
+                }
+            }
+            if (diceValue && rolled) {
+                ctx.font = 'bold 36px monospace';
+                ctx.fillStyle = '#2c3e2f';
+                ctx.fillText(`🎲 ${diceValue}`, 30, 70);
             }
         }
 
-        // ========== UPDATE FROM BACKEND ==========
         async function fetchGameState() {
             try {
-                let url = API_URL;
-                if(CHAT_ID) url += `?chat_id=${CHAT_ID}&user_id=${USER_ID}`;
-                const res = await fetch(url);
-                if(!res.ok) throw new Error("Network error");
-                const data = await res.json();
-                
-                // पायथन ऐरे लिस्ट फ़ॉर्मेट को फ़्रंटएंड ऑब्जेक्ट्स में सुरक्षित बदलें
-                const newTokens = {};
-                if (data.players) {
-                    data.players.forEach(p => {
-                        const normKey = normalizeColorKey(p.color);
-                        newTokens[normKey] = p.tokens;
-                    });
+                const res = await fetch(`${API_BASE}/game_state/${CHAT_ID}`);
+                if (res.ok) {
+                    gameState = await res.json();
+                    drawBoard();
+                    updateUI();
+                } else if (res.status === 404) {
+                    document.getElementById('statusMsg').innerText = "No active game. Start with /start2 or /start4 in Telegram.";
                 }
-
-                // Compare and animate
-                for(let color of ["red","green","blue","yellow"]) {
-                    let oldArr = currentTokens[color];
-                    let newArr = newTokens[color];
-                    if(!newArr) continue;
-                    for(let i=0; i<4; i++) {
-                        let oldPos = oldArr[i];
-                        let newPos = newArr[i];
-                        if(oldPos !== newPos) {
-                            startAnimation(color, i, oldPos, newPos);
-                        }
-                    }
-                }
-                // Update non-animated tokens directly
-                for(let color of ["red","green","blue","yellow"]) {
-                    let newArr = newTokens[color];
-                    if(newArr) {
-                        for(let i=0; i<4; i++) {
-                            let key = `${color}_${i}`;
-                            if(!animatedTokens.has(key)) {
-                                currentTokens[color][i] = newArr[i];
-                            }
-                        }
-                    }
-                }
-                document.getElementById("statusMsg").innerHTML = "⚡ लाइव अपडेट सक्रिय | लाइव सिंक चालू है";
-            } catch(e) {
-                console.warn("Fetch failed", e);
-                document.getElementById("statusMsg").innerHTML = "⚠️ कनेक्ट नहीं हो पाया | API चेक करो";
+            } catch(err) {
+                console.error(err);
+                document.getElementById('statusMsg').innerText = "Cannot connect to bot API. Make sure bot is running.";
             }
         }
 
-        // ========== DRAW BOARD ==========
-        function drawBoard() {
-            const ctx = document.getElementById('ludoCanvas').getContext('2d');
-            const canvas = document.getElementById('ludoCanvas');
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#f8fafc";
-            ctx.fillRect(0,0,canvas.width,canvas.height);
-
-            // Home areas
-            const zones = [[0,0,"red"],[9,0,"green"],[0,9,"yellow"],[9,9,"blue"]];
-            for(let [x,y,col] of zones) {
-                ctx.fillStyle = COLORS[col];
-                ctx.fillRect(x*CELL+2, y*CELL+2, CELL*6-4, CELL*6-4);
-                ctx.fillStyle = "#fff";
-                ctx.fillRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
-                ctx.strokeStyle = COLORS[col];
-                ctx.lineWidth = 2.5;
-                ctx.strokeRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
-            }
-
-            // Track cells
-            for(let i=0; i<TRACK.length; i++) {
-                let [gx,gy] = TRACK[i];
-                let x = gx*CELL, y = gy*CELL;
-                let pos = i+1;
-                let isSafe = SAFE_SPOTS.has(pos);
-                let isStart = (pos === START_POS.red || pos === START_POS.green || pos === START_POS.blue || pos === START_POS.yellow);
-                let startColor = null;
-                if(pos === START_POS.red) startColor = "red";
-                else if(pos === START_POS.green) startColor = "green";
-                else if(pos === START_POS.blue) startColor = "blue";
-                else if(pos === START_POS.yellow) startColor = "yellow";
-
-                if(isStart) {
-                    ctx.fillStyle = COLORS[startColor];
-                    ctx.fillRect(x,y,CELL,CELL);
-                } else if(isSafe) {
-                    ctx.fillStyle = "#f1f5f9";
-                    ctx.fillRect(x,y,CELL,CELL);
-                } else {
-                    ctx.fillStyle = "#ffffff";
-                    ctx.fillRect(x,y,CELL,CELL);
-                }
-                ctx.strokeStyle = "#cbd5e0";
-                ctx.strokeRect(x,y,CELL,CELL);
-                if(isSafe || isStart) {
-                    ctx.font = `${CELL*0.45}px Arial`;
-                    ctx.fillStyle = "#f59e0b";
-                    ctx.textAlign = "center";
-                    ctx.fillText("⭐", x+CELL/2, y+CELL/2+5);
-                    ctx.textAlign = "left";
-                }
-            }
-
-            // Home stretch
-            for(let [col, cells] of Object.entries(HOME_STRETCH)) {
-                for(let j=0; j<cells.length; j++) {
-                    let [gx,gy] = cells[j];
-                    let x = gx*CELL, y = gy*CELL;
-                    ctx.fillStyle = (j===cells.length-1) ? COLORS[col] : "#eef2ff";
-                    ctx.fillRect(x,y,CELL,CELL);
-                    ctx.strokeStyle = COLORS[col];
-                    ctx.strokeRect(x,y,CELL,CELL);
-                }
-            }
-
-            // Center
-            let cx = CELL*7.5, cy = CELL*7.5;
-            ctx.fillStyle = "#f1f5f9";
-            ctx.fillRect(CELL*6, CELL*6, CELL*3, CELL*3);
-            let tris = [
-                {c:"red", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy-CELL*1.5],[cx,cy]]},
-                {c:"green", pts:[[cx+CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-                {c:"blue", pts:[[cx-CELL*1.5,cy+CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-                {c:"yellow", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx-CELL*1.5,cy+CELL*1.5],[cx,cy]]}
-            ];
-            for(let t of tris) {
-                ctx.beginPath();
-                ctx.moveTo(t.pts[0][0], t.pts[0][1]);
-                ctx.lineTo(t.pts[1][0], t.pts[1][1]);
-                ctx.lineTo(t.pts[2][0], t.pts[2][1]);
-                ctx.fillStyle = COLORS[t.c];
-                ctx.fill();
-            }
-            ctx.font = `bold ${CELL*0.9}px Arial`;
-            ctx.fillStyle = "#1e293b";
-            ctx.fillText("🏆", cx, cy+8);
-
-            // Draw tokens (normal + animated)
-            drawTokens(ctx);
-        }
-
-        function drawTokens(ctx) {
-            const offsets = [[-12,-12],[12,-12],[-12,12],[12,12]];
-            let staticTokens = [];
-            for(let color of ["red","green","blue","yellow"]) {
-                for(let idx=0; idx<4; idx++) {
-                    let key = `${color}_${idx}`;
-                    if(!animatedTokens.has(key)) {
-                        let pos = currentTokens[color][idx];
-                        if(pos === 59) continue;
-                        let grid = getGridFromPos(color, pos, idx);
-                        if(grid) staticTokens.push({color, idx, pos, grid});
-                    }
-                }
-            }
-            // Draw static
-            let cellMap = new Map();
-            for(let t of staticTokens) {
-                let key = `${t.grid[0]},${t.grid[1]}`;
-                if(!cellMap.has(key)) cellMap.set(key, []);
-                cellMap.get(key).push(t);
-            }
-            for(let [_, list] of cellMap.entries()) {
-                let [gx, gy] = list[0].grid;
-                let cx = gx*CELL + CELL/2;
-                let cy = gy*CELL + CELL/2;
-                for(let i=0; i<list.length; i++) {
-                    let t = list[i];
-                    let off = offsets[i % offsets.length];
-                    drawPawn(ctx, cx+off[0], cy+off[1], t.color, (t.idx+1).toString(), false);
-                }
-            }
-
-            // Draw animated tokens
-            for(let [key, anim] of animatedTokens.entries()) {
-                let { color, idx, path, step, startTime, duration } = anim;
-                let now = performance.now();
-                let t = Math.min(1, (now - startTime) / duration);
-                let totalSteps = path.length - 1;
-                let stepFloat = t * totalSteps;
-                let curStep = Math.floor(stepFloat);
-                let nextStep = Math.min(curStep+1, totalSteps);
-                let fromPos = path[curStep];
-                let toPos = path[nextStep];
-                let fromGrid = getGridFromPos(color, fromPos, idx);
-                let toGrid = getGridFromPos(color, toPos, idx);
-                if(fromGrid && toGrid) {
-                    let fx = fromGrid[0]*CELL + CELL/2;
-                    let fy = fromGrid[1]*CELL + CELL/2;
-                    let tx = toGrid[0]*CELL + CELL/2;
-                    let ty = toGrid[1]*CELL + CELL/2;
-                    let lerp = stepFloat - curStep;
-                    let curX = fx + (tx-fx)*lerp;
-                    let curY = fy + (ty-fy)*lerp;
-                    drawPawn(ctx, curX, curY, color, (idx+1).toString(), false);
-                }
+        async function moveToken(tokenIdx) {
+            if (!gameState) return;
+            if (gameState.winner !== -1) { alert("Game already finished!"); return; }
+            const myIdx = gameState.players.findIndex(p => p.id === USER_ID);
+            if (myIdx === -1) { alert("You are not a player! Check your User ID."); return; }
+            if (gameState.turn_index !== myIdx) { alert("Not your turn!"); return; }
+            if (!gameState.rolled) { alert("Dice not rolled! Type a word in Telegram group first."); return; }
+            const res = await fetch(`${API_BASE}/move/${CHAT_ID}/${USER_ID}/${tokenIdx}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                if (data.status === 'won') alert(`🏆 ${gameState.players[data.winner].username} won!`);
+                fetchGameState();
+            } else {
+                alert(data.error);
             }
         }
 
-        // Modernized Pawn with subtle inner-shadow, highlights and precise gradient lighting
-        function drawPawn(ctx, x, y, colorKey, label, selectable) {
-            const r = CELL * 0.38;
-            ctx.save();
-            ctx.shadowBlur = 6;
-            ctx.shadowOffsetY = 3;
-            ctx.shadowColor = "rgba(0,0,0,0.4)";
-            
-            // Outer shadow ring
-            ctx.beginPath();
-            ctx.ellipse(x, y+r*0.65, r*0.85, r*0.4, 0, 0, Math.PI*2);
-            ctx.fillStyle = COLORS[`dark_${colorKey}`];
-            ctx.fill();
-            
-            // Pawn Base with Gradient
-            ctx.beginPath();
-            ctx.ellipse(x, y+r*0.3, r*0.75, r*0.5, 0, 0, Math.PI*2);
-            let baseGrad = ctx.createRadialGradient(x - r*0.2, y + r*0.1, 1, x, y + r*0.3, r*0.75);
-            baseGrad.addColorStop(0, COLORS[colorKey]);
-            baseGrad.addColorStop(1, COLORS[`dark_${colorKey}`]);
-            ctx.fillStyle = baseGrad;
-            ctx.fill();
-            
-            // Pawn Head with Glossy Radial Highlight
-            ctx.beginPath();
-            ctx.arc(x, y-r*0.25, r*0.65, 0, Math.PI*2);
-            let headGrad = ctx.createRadialGradient(x - r*0.2, y - r*0.4, r*0.1, x, y - r*0.25, r*0.65);
-            headGrad.addColorStop(0, "#ffffff");
-            headGrad.addColorStop(0.3, COLORS[colorKey]);
-            headGrad.addColorStop(1, COLORS[`dark_${colorKey}`]);
-            ctx.fillStyle = headGrad;
-            ctx.fill();
-            
-            // Inside label text styling
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetY = 0;
-            ctx.fillStyle = "#ffffff";
-            ctx.font = `bold ${Math.floor(CELL*0.28)}px "Segoe UI", sans-serif`;
-            ctx.textAlign = "center";
-            ctx.fillText(label, x, y-r*0.18);
-            ctx.restore();
+        function updateUI() {
+            const statusDiv = document.getElementById('statusMsg');
+            if (!gameState) return;
+            if (gameState.winner !== -1) {
+                statusDiv.innerHTML = `🏆 Winner: ${gameState.players[gameState.winner].username} 🏆`;
+                document.getElementById('tokenButtons').innerHTML = '';
+                return;
+            }
+            const myIdx = gameState.players.findIndex(p => p.id === USER_ID);
+            if (myIdx === -1) {
+                statusDiv.innerHTML = "You are not a player. Use /join in Telegram. (Your ID: "+USER_ID+")";
+                document.getElementById('tokenButtons').innerHTML = '';
+                return;
+            }
+            const myTurn = (gameState.turn_index === myIdx);
+            if (myTurn && gameState.rolled) {
+                statusDiv.innerHTML = `🎲 Dice = ${gameState.dice_value} — Click your token to move!`;
+            } else if (myTurn && !gameState.rolled) {
+                statusDiv.innerHTML = `🔤 Your turn! Type a valid English word in Telegram group.`;
+            } else {
+                statusDiv.innerHTML = `⏳ Waiting for ${gameState.players[gameState.turn_index].username}'s turn.`;
+            }
+            const container = document.getElementById('tokenButtons');
+            if (myTurn && gameState.rolled && gameState.winner === -1) {
+                const myTokens = gameState.players[myIdx].tokens;
+                container.innerHTML = myTokens.map((pos, i) => `
+                    <button onclick="moveToken(${i})" class="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-xl font-bold text-white">
+                        Token ${i+1} ${pos === 0 ? '🏠' : (pos === 59 ? '🏆' : pos)}
+                    </button>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-gray-400">Wait for your turn and dice roll...</p>';
+            }
         }
 
-        // ========== INIT ==========
-        function init() {
-            drawBoard();
-            fetchGameState();
-            pollingInterval = setInterval(fetchGameState, 2500);
-        }
-
-        // Start
-        init();
-    })();
-</script>
+        // Refresh every 2 seconds
+        setInterval(fetchGameState, 2000);
+        fetchGameState();
+    </script>
 </body>
 </html>
