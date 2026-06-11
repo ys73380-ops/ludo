@@ -3,46 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Royale - हर रंग अपने Purple Square से (हार्डकोर)</title>
+    <title>Ludo Royale - Live Board (No Dice)</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { user-select: none; touch-action: manipulation; box-sizing: border-box; margin: 0; padding: 0; }
-        :root {
-            --bg-gradient: radial-gradient(circle at top, #1e2030 0%, #0c0d14 100%);
-            --panel-bg: rgba(22, 25, 41, 0.75);
-            --card-bg: rgba(30, 34, 56, 0.6);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --text-primary: #ffffff;
-            --text-muted: #8e94b2;
+        * {
+            user-select: none;
+            touch-action: manipulation;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         body {
-            background: var(--bg-gradient);
+            background: radial-gradient(circle at top, #141523 0%, #080910 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding: 16px;
+            color: #ffffff;
         }
-        .main-wrapper { width: 100%; max-width: 530px; display: flex; flex-direction: column; gap: 16px; }
-        .header-bar { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; }
-        .brand-title {
-            font-size: 1.2rem; font-weight: 800;
-            background: linear-gradient(135deg, #facc15, #ff8c00);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        .container {
+            max-width: 530px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
         }
-        .player-dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .title {
+            text-align: center;
+            color: #facc15;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        /* Dynamic Esports Player Dashboard */
+        .player-dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
         .player-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background: rgba(30, 34, 56, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 1rem;
             padding: 10px 14px;
             display: flex;
             align-items: center;
             gap: 10px;
-            transition: 0.2s;
             position: relative;
+            overflow: hidden;
         }
         .player-card::before {
             content: '';
@@ -52,636 +65,475 @@
             bottom: 0;
             width: 4px;
             background: var(--player-color);
-            border-radius: 4px 0 0 4px;
         }
-        .player-card.active-turn {
-            background: rgba(30, 34, 56, 0.96);
-            border-color: var(--player-color);
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.05);
-            animation: turnPulse 2s infinite alternate;
-        }
-        @keyframes turnPulse {
-            0% { box-shadow: 0 0 4px var(--player-color); }
-            100% { box-shadow: 0 0 12px var(--player-color); }
-        }
-        .player-indicator {
-            width: 12px; height: 12px;
+        .player-dot {
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: var(--player-color);
             box-shadow: 0 0 8px var(--player-color);
         }
-        .player-name { font-weight: 700; font-size: 0.85rem; }
-        .player-meta { font-size: 0.65rem; color: var(--text-muted); }
-        .game-container {
-            background: var(--panel-bg);
-            backdrop-filter: blur(14px);
-            border-radius: 1.8rem;
-            padding: 12px;
-            border: 1px solid var(--border-color);
+        .player-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
+        .player-title {
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+        }
+        .player-tokens-status {
+            font-size: 0.65rem;
+            color: #8e94b2;
+            font-weight: 500;
+        }
+
         canvas {
             display: block;
             margin: 0 auto;
-            border-radius: 1.2rem;
+            border-radius: 1.5rem;
             width: 100%;
             height: auto;
             background: white;
             cursor: pointer;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .control-hub { display: flex; gap: 12px; margin-top: 14px; align-items: center; }
-        .turn-display {
-            flex: 1;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 1.1rem;
-            padding: 10px 16px;
-            font-weight: 700;
-            font-size: 0.85rem;
+        
+        .status {
+            background: rgba(30, 34, 56, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 1.2rem;
+            padding: 12px 16px;
+            text-align: center;
+            font-size: 0.82rem;
+            color: #e2e8f0;
             display: flex;
+            justify-content: center;
             align-items: center;
             gap: 8px;
-            height: 50px;
-        }
-        .status-msg-banner {
-            background: rgba(15,23,42,0.7);
-            backdrop-filter: blur(8px);
-            padding: 10px 16px;
-            border-radius: 1rem;
-            font-size: 0.8rem;
-            text-align: center;
-            margin-top: 10px;
-            border: 1px solid var(--border-color);
-        }
-        .status-msg-banner.error { background: rgba(239,68,68,0.15); color: #fecaca; border-color: rgba(239,68,68,0.25); }
-        .status-msg-banner.success { background: rgba(16,185,129,0.12); color: #a7f3d0; border-color: rgba(16,185,129,0.25); }
-        @media (max-width:550px) {
-            .player-name { font-size: 0.7rem; }
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         }
     </style>
 </head>
 <body>
-<div class="main-wrapper">
-    <div class="header-bar">
-        <div class="brand-title">🎲 LUDO ROYALE (हार्डकोर – हर रंग अपने Purple से)</div>
+<div class="container">
+    <div class="title">👑 LIVE LUDO ROYALE</div>
+    
+    <!-- Live Dashboard Grid -->
+    <div class="player-dashboard" id="playerDashboard">
+        <!-- Loaded dynamically on start -->
     </div>
-    <div class="player-dashboard" id="playerList"></div>
-    <div class="game-container">
-        <canvas id="ludoCanvas" width="750" height="750"></canvas>
-        <div class="control-hub">
-            <div class="turn-display" id="turnText"><span>⚡ Loading...</span></div>
-        </div>
-        <div class="status-msg-banner" id="statusMsg">✨ टैप करें | हर गोटी अपने Purple Circle से शुरू (हार्डकोर)</div>
-    </div>
+    
+    <canvas id="ludoCanvas" width="750" height="750"></canvas>
+    <div class="status" id="statusMsg">⏳ लाइव बोर्ड लोड हो रहा है...</div>
 </div>
 
 <script>
-(function () {
-    const tg = window.Telegram?.WebApp;
-    if (tg) { tg.ready(); tg.expand(); }
+    (function(){
+        const tg = window.Telegram?.WebApp;
+        if(tg) { tg.ready(); tg.expand(); }
 
-    const CANVAS_SIZE = 750;
-    const CELL = CANVAS_SIZE / 15;
+        // ========== CONFIGURATION ==========
+        const API_URL = "https://your-bot-api.com/game_state";   // <-- CHANGE THIS
+        const CHAT_ID = new URLSearchParams(window.location.search).get("chat_id") || "";
+        const USER_ID = new URLSearchParams(window.location.search).get("user_id") || "";
 
-    // ============== 52 सेल सही क्रम में ==============
-    const TRACK_CELLS = [
-        [1,6],[2,6],[3,6],[4,6],[5,6],      // Red zone
-        [6,5],[6,4],[6,3],[6,2],[6,1],[6,0], // left side
-        [7,0],[8,0],                         // top-left corner
-        [8,1],[8,2],[8,3],[8,4],[8,5],      // towards Green start
-        [8,6],                               // 🟢 GREEN START (Purple Point)
-        [9,6],[10,6],[11,6],[12,6],[13,6],[14,6], // top edge
-        [14,7],                              // top-right corner
-        [14,8],[13,8],[12,8],[11,8],[10,8],[9,8], // right side
-        [8,8],                               // 🟡 YELLOW START (Purple Point)
-        [8,9],[8,10],[8,11],[8,12],[8,13],[8,14], // down
-        [7,14],                              // bottom-right corner
-        [6,14],[6,13],[6,12],[6,11],[6,10],[6,9], // bottom edge
-        [6,8],                               // 🔵 BLUE START (Purple Point)
-        [5,8],[4,8],[3,8],[2,8],[1,8],[0,8], // left side
-        [0,7],                               // bottom-left corner
-        [0,6]                                // back to Red start's previous
-    ];
-    console.assert(TRACK_CELLS.length === 52, "Track length mismatch");
+        // ========== BOARD CONSTANTS ==========
+        const CELL = 750 / 15; // 50px
+        const TRACK = [
+            [1,6],[2,6],[3,6],[4,6],[5,6],
+            [6,5],[6,4],[6,3],[6,2],[6,1],[6,0],
+            [7,0],[8,0],
+            [8,1],[8,2],[8,3],[8,4],[8,5],
+            [8,6],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],
+            [14,7],
+            [14,8],[13,8],[12,8],[11,8],[10,8],[9,8],
+            [8,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],
+            [7,14],
+            [6,14],[6,13],[6,12],[6,11],[6,10],[6,9],
+            [6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6]
+        ].slice(0,52);
 
-    const HOME_STRETCH = {
-        "🔴 Red":    [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
-        "🟢 Green":  [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
-        "🟡 Yellow": [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]],
-        "🔵 Blue":   [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]]
-    };
+        const SAFE_SPOTS = new Set([1,9,14,22,27,35,40,48]);
 
-    const HOME_BASE_POS = {
-        "🔴 Red":    [[1,1],[1,4],[4,1],[4,4]],
-        "🟢 Green":  [[10,1],[13,1],[10,4],[13,4]],
-        "🟡 Yellow": [[1,10],[4,10],[1,13],[4,13]],
-        "🔵 Blue":   [[10,10],[13,10],[10,13],[13,13]]
-    };
+        const COLORS = {
+            red: "#ff4b5c", green: "#00e676", yellow: "#ffd600", blue: "#2979ff",
+            dark_red: "#b91c2c", dark_green: "#15803d", dark_yellow: "#ca8a04", dark_blue: "#1e3a8a"
+        };
 
-    // हर रंग का अपना Purple Point – हार्डकोडेड (फिर से जाँच कर ली)
-    const START_POS = {
-        "🔴 Red": 1,        // [1,6]
-        "🟢 Green": (() => { for(let i=0;i<TRACK_CELLS.length;i++) if(TRACK_CELLS[i][0]===8 && TRACK_CELLS[i][1]===6) return i+1; return 18; })(),
-        "🟡 Yellow": (() => { for(let i=0;i<TRACK_CELLS.length;i++) if(TRACK_CELLS[i][0]===8 && TRACK_CELLS[i][1]===8) return i+1; return 32; })(),
-        "🔵 Blue": (() => { for(let i=0;i<TRACK_CELLS.length;i++) if(TRACK_CELLS[i][0]===6 && TRACK_CELLS[i][1]===8) return i+1; return 46; })()
-    };
+        const HOME_BASES = {
+            red: [[1,1],[1,4],[4,1],[4,4]],
+            green: [[10,1],[13,1],[10,4],[13,4]],
+            blue: [[10,10],[13,10],[10,13],[13,13]],
+            yellow: [[1,10],[4,10],[1,13],[4,13]]
+        };
 
-    const SAFE_SPOTS = new Set([1, 9, 14, 22, 27, 35, 40, 48]);
+        const HOME_STRETCH = {
+            red: [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
+            green: [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
+            blue: [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]],
+            yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
+        };
 
-    const COLOR_HEX  = { red:"#ff4b5c", green:"#00e676", yellow:"#ffd600", blue:"#2979ff" };
-    const COLOR_DARK = { red:"#b91c2c", green:"#15803d", yellow:"#ca8a04", blue:"#1e3a8a" };
-    const COLOR_LIGHT= { red:"#fff0f2", green:"#e6f7ef", yellow:"#fffae6", blue:"#eef2ff" };
-    const OFFSETS = [[-10,-10],[10,-10],[-10,10],[10,10]];
+        const START_POS = { red: 1, green: 14, blue: 27, yellow: 40 };
 
-    function normalizeColor(color) {
-        if (!color) return "🔴 Red";
-        const c = color.toString().toLowerCase();
-        if (c.includes("red")) return "🔴 Red";
-        if (c.includes("green")) return "🟢 Green";
-        if (c.includes("yellow")) return "🟡 Yellow";
-        if (c.includes("blue")) return "🔵 Blue";
-        return color;
-    }
+        // ========== GLOBAL STATE ==========
+        let currentTokens = {
+            red: [0,0,0,0],
+            green: [0,0,0,0],
+            blue: [0,0,0,0],
+            yellow: [0,0,0,0]
+        };
+        let animatedTokens = new Map(); // key "color_idx" -> { path, step, progress, startTime }
+        let animFrame = null;
+        let pollingInterval = null;
 
-    function colorShort(c) {
-        const norm = normalizeColor(c);
-        const map = {"🔴 Red":"red","🟢 Green":"green","🟡 Yellow":"yellow","🔵 Blue":"blue"};
-        return map[norm] || "red";
-    }
-
-    function getGridFromPos(colorFull, posNum, tokenIdx) {
-        const normColor = normalizeColor(colorFull);
-        if (posNum === 0) {
-            const bases = HOME_BASE_POS[normColor] || HOME_BASE_POS["🔴 Red"];
-            return bases[tokenIdx % bases.length];
+        // ========== HELPER FUNCTIONS ==========
+        function getGridFromPos(color, pos, idx) {
+            if(pos === 0) return HOME_BASES[color][idx % HOME_BASES[color].length];
+            if(pos >= 1 && pos <= 52) return TRACK[pos-1];
+            if(pos >= 53 && pos <= 58) return HOME_STRETCH[color][pos-53];
+            return null;
         }
-        if (posNum >= 1 && posNum <= 52) return TRACK_CELLS[posNum-1];
-        if (posNum >= 53 && posNum <= 58) {
-            const stretch = HOME_STRETCH[normColor];
-            return stretch ? stretch[posNum-53] : null;
+
+        function getNextPosition(pos, color) {
+            if(pos === 0) return START_POS[color];
+            if(pos === 52) return 53;
+            if(pos >= 53 && pos < 58) return pos+1;
+            if(pos === 58) return 59;
+            return pos+1;
         }
-        return null;
-    }
 
-    // 🔥 हार्डकोर: घर (0) से सीधा अपने Purple Point पर
-    function getNextPosition(pos, colorFull) {
-        const normColor = normalizeColor(colorFull);
-        if (pos === 0) return START_POS[normColor];
-        if (pos === 52) return 53;
-        if (pos >= 53 && pos < 58) return pos+1;
-        if (pos === 58) return 59;
-        if (pos >= 59) return 59;
-        return pos+1;
-    }
-
-    function addStepsFromPos(startPos, steps, colorFull) {
-        let cur = startPos;
-        for (let i=0; i<steps; i++) {
-            const nxt = getNextPosition(cur, colorFull);
-            if (nxt === 59) return 59;
-            if (nxt === cur) return cur;
-            cur = nxt;
-        }
-        return cur;
-    }
-
-    function getNewPosition(tokenPos, dice, colorFull) {
-        const normColor = normalizeColor(colorFull);
-        if (tokenPos === 0) return START_POS[normColor];
-        return addStepsFromPos(tokenPos, dice, normColor);
-    }
-
-    function canMoveToken(tokenPos, dice, colorFull, allMyTokens) {
-        if (tokenPos >= 59 || dice===null || dice===undefined) return false;
-        const newPos = getNewPosition(tokenPos, dice, colorFull);
-        if (newPos === tokenPos) return false;
-        const isSafe = SAFE_SPOTS.has(newPos) || (newPos>=53 && newPos<=58);
-        if (allMyTokens.includes(newPos) && newPos!==tokenPos && !isSafe) return false;
-        return true;
-    }
-
-    // Game state (backend से आएगा)
-    let gameState = {
-        players:[], turn_index:0,
-        dice_value:null, rolled:false,
-        waiting_for_word:false, winner:-1
-    };
-    let myColor = null, myPlayerIdx = -1;
-    let isMoving = false, moveQueue = [];
-    let refreshTimer = null;
-    let animatedTokens = new Map();
-
-    function buildPath(colorFull, fromPos, toPos) {
-        const normColor = normalizeColor(colorFull);
-        if (fromPos === toPos) return [fromPos];
-        let path = [fromPos], cur = fromPos, limit=0;
-        while (cur !== toPos && limit<70) {
-            cur = getNextPosition(cur, normColor);
-            path.push(cur);
-            limit++;
-        }
-        return path;
-    }
-
-    function startAnimation(colorFull, tokenIdx, fromPos, toPos) {
-        const path = buildPath(colorFull, fromPos, toPos);
-        if (path.length<2) return false;
-        animatedTokens.set(`${colorFull}_${tokenIdx}`, {
-            colorFull, tokenIdx, path,
-            stepIndex:0, progress:0,
-            startTime: performance.now(), stepDuration:130
-        });
-        return true;
-    }
-
-    function updateAnimations() {
-        let any = false;
-        const now = performance.now();
-        for (let [key, a] of animatedTokens.entries()) {
-            const total = a.path.length-1;
-            const elapsed = now - a.startTime;
-            const totalDuration = total * a.stepDuration;
-            const t = Math.min(1, elapsed/totalDuration);
-            const sf = t * total;
-            a.stepIndex = Math.min(Math.floor(sf), total-1);
-            a.progress = sf - Math.floor(sf);
-            if (t<1) any = true;
-            else animatedTokens.delete(key);
-        }
-        return any;
-    }
-
-    function easeOut(x) { return 1 - Math.pow(1-x, 3); }
-
-    // ========== ड्राइंग ==========
-    const canvas = document.getElementById('ludoCanvas');
-    const ctx = canvas.getContext('2d');
-
-    function pathRR(x,y,w,h,r) {
-        ctx.beginPath();
-        ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
-        ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-        ctx.lineTo(x+w,y+h-r);
-        ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-        ctx.lineTo(x+r,y+h);
-        ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-        ctx.lineTo(x,y+r);
-        ctx.quadraticCurveTo(x,y,x+r,y);
-    }
-
-    function drawHomeAreas() {
-        const zones = [[0,0],[9,0],[0,9],[9,9]];
-        const colors = ["red","green","yellow","blue"];
-        zones.forEach((z,i) => {
-            const x = z[0]*CELL, y = z[1]*CELL;
-            const col = colors[i];
-            pathRR(x+2,y+2,CELL*6-4,CELL*6-4,14);
-            ctx.fillStyle = COLOR_HEX[col]; ctx.fill();
-            pathRR(x+CELL*0.8,y+CELL*0.8,CELL*4.4,CELL*4.4,10);
-            ctx.fillStyle = "#fff"; ctx.fill();
-            ctx.strokeStyle = COLOR_HEX[col]; ctx.lineWidth = 2.5; ctx.stroke();
-        });
-    }
-
-    function drawTrack() {
-        // सभी 4 Purple Points – हार्डकोडेड
-        const purplePoints = new Set(["1,6","8,6","8,8","6,8"]);
-
-        for (let i=0; i<TRACK_CELLS.length; i++) {
-            const [gx,gy] = TRACK_CELLS[i];
-            const x = gx*CELL, y = gy*CELL;
-            const key = `${gx},${gy}`;
-            const isSafe = SAFE_SPOTS.has(i+1);
-            const isPurple = purplePoints.has(key);
-
-            if (isPurple) {
-                ctx.fillStyle = "#9c27b0";
-                ctx.fillRect(x,y,CELL,CELL);
-                ctx.fillStyle = "rgba(206, 147, 216, 0.5)";
-                ctx.fillRect(x,y,CELL,CELL);
-            } else if (isSafe) {
-                ctx.fillStyle = "#f1f5f9";
-                ctx.fillRect(x,y,CELL,CELL);
-            } else {
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(x,y,CELL,CELL);
+        function getPath(fromPos, toPos, color) {
+            let path = [];
+            let cur = fromPos;
+            while(cur !== toPos && path.length < 60) {
+                path.push(cur);
+                cur = getNextPosition(cur, color);
             }
-
-            ctx.strokeStyle = "#e2e8f0";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x,y,CELL,CELL);
-
-            if (isPurple) {
-                ctx.beginPath();
-                ctx.arc(x+CELL/2, y+CELL/2, CELL*0.22, 0, 2*Math.PI);
-                ctx.fillStyle = "#ffd966";
-                ctx.fill();
-                ctx.fillStyle = "#000";
-                ctx.font = `${CELL*0.45}px Arial`;
-                ctx.textAlign = "center";
-                ctx.fillText("⭐", x+CELL/2, y+CELL/2+5);
-                ctx.textAlign = "left";
-            } else if (isSafe && !purplePoints.has(key)) {
-                ctx.font = `${CELL*0.48}px Arial`;
-                ctx.fillStyle = "#f59e0b";
-                ctx.textAlign = "center";
-                ctx.fillText("⭐", x+CELL/2, y+CELL/2+5);
-                ctx.textAlign = "left";
-            }
-        }
-    }
-
-    function drawHomeStretch() {
-        for (let [colorFull, cells] of Object.entries(HOME_STRETCH)) {
-            const short = colorShort(colorFull);
-            for (let j=0; j<cells.length; j++) {
-                const [gx,gy] = cells[j];
-                const x = gx*CELL, y = gy*CELL;
-                ctx.fillStyle = (j===cells.length-1) ? COLOR_HEX[short] : COLOR_LIGHT[short];
-                ctx.fillRect(x,y,CELL,CELL);
-                ctx.strokeStyle = COLOR_HEX[short];
-                ctx.lineWidth = 1.2;
-                ctx.strokeRect(x,y,CELL,CELL);
-            }
-        }
-    }
-
-    function drawCenter() {
-        const cx = CELL*7.5, cy = CELL*7.5;
-        ctx.fillStyle = "#f1f5f9";
-        ctx.fillRect(CELL*6,CELL*6,CELL*3,CELL*3);
-        const tris = [
-            {c:"red", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy-CELL*1.5],[cx,cy]]},
-            {c:"green", pts:[[cx+CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-            {c:"blue", pts:[[cx-CELL*1.5,cy+CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-            {c:"yellow", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx-CELL*1.5,cy+CELL*1.5],[cx,cy]]}
-        ];
-        for (let t of tris) {
-            ctx.beginPath();
-            ctx.moveTo(t.pts[0][0], t.pts[0][1]);
-            ctx.lineTo(t.pts[1][0], t.pts[1][1]);
-            ctx.lineTo(t.pts[2][0], t.pts[2][1]);
-            ctx.fillStyle = COLOR_HEX[t.c]; ctx.fill();
-        }
-        ctx.font = `bold ${CELL*0.9}px Arial`;
-        ctx.fillStyle = "#1e293b";
-        ctx.textAlign = "center";
-        ctx.fillText("🏆", cx, cy+8);
-        ctx.textAlign = "left";
-    }
-
-    function drawPawn(x, y, colorKey, label, glowing) {
-        const r = CELL * 0.38;
-        ctx.save();
-        if (glowing) { ctx.shadowBlur=16; ctx.shadowColor="#facc15"; }
-        else { ctx.shadowBlur=4; ctx.shadowOffsetY=2; ctx.shadowColor="rgba(0,0,0,0.4)"; }
-        ctx.beginPath();
-        ctx.ellipse(x, y+r*0.65, r*0.85, r*0.4, 0, 0, Math.PI*2);
-        ctx.fillStyle = COLOR_DARK[colorKey]; ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(x, y+r*0.3, r*0.75, r*0.5, 0, 0, Math.PI*2);
-        ctx.fillStyle = COLOR_HEX[colorKey]; ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x, y-r*0.25, r*0.65, 0, Math.PI*2);
-        ctx.fillStyle = COLOR_HEX[colorKey]; ctx.fill();
-        ctx.shadowBlur=0; ctx.shadowOffsetY=0;
-        ctx.fillStyle = "#fff";
-        ctx.font = `bold ${Math.floor(CELL*0.28)}px 'Segoe UI'`;
-        ctx.textAlign = "center";
-        ctx.fillText(label, x, y-r*0.18);
-        ctx.textAlign = "left";
-        ctx.restore();
-    }
-
-    function buildCellMap() {
-        const map = new Map();
-        for (let p of gameState.players) {
-            for (let idx=0; idx<p.tokens.length; idx++) {
-                const pos = p.tokens[idx];
-                if (pos === 59) continue;
-                const keyAnim = `${p.color}_${idx}`;
-                if (animatedTokens.has(keyAnim)) continue;
-                const grid = getGridFromPos(p.color, pos, idx);
-                if (!grid) continue;
-                const key = `${grid[0]},${grid[1]}`;
-                if (!map.has(key)) map.set(key, []);
-                map.get(key).push({ color:p.color, idx, pos, tokens:p.tokens });
-            }
-        }
-        return map;
-    }
-
-    function drawAllTokens() {
-        const cellMap = buildCellMap();
-        const isTurnRolled = gameState.rolled && gameState.dice_value !== null;
-        const turnColor = gameState.players[gameState.turn_index]?.color;
-
-        for (let [gridKey, list] of cellMap.entries()) {
-            const [gx,gy] = gridKey.split(',').map(Number);
-            const cx = gx*CELL + CELL/2, cy = gy*CELL + CELL/2;
-            for (let i=0; i<list.length; i++) {
-                const t = list[i];
-                const off = OFFSETS[i % OFFSETS.length];
-                const movable = isTurnRolled && t.color === turnColor &&
-                                canMoveToken(t.pos, gameState.dice_value, t.color, t.tokens);
-                drawPawn(cx+off[0], cy+off[1], colorShort(t.color), (t.idx+1).toString(), movable);
-            }
+            path.push(toPos);
+            return path;
         }
 
-        for (let [_, a] of animatedTokens.entries()) {
-            const fromPos = a.path[a.stepIndex];
-            const toPos = a.path[Math.min(a.stepIndex+1, a.path.length-1)];
-            const fg = getGridFromPos(a.colorFull, fromPos, a.tokenIdx);
-            const tg2 = getGridFromPos(a.colorFull, toPos, a.tokenIdx);
-            if (!fg || !tg2) continue;
-            const sx = fg[0]*CELL+CELL/2, sy = fg[1]*CELL+CELL/2;
-            const ex = tg2[0]*CELL+CELL/2, ey = tg2[1]*CELL+CELL/2;
-            const te = easeOut(a.progress);
-            drawPawn(sx+(ex-sx)*te, sy+(ey-sy)*te, colorShort(a.colorFull), (a.tokenIdx+1).toString(), false);
-        }
-    }
-
-    function drawBoard() {
-        ctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
-        ctx.fillStyle = "#fef9e3";
-        pathRR(0,0,CANVAS_SIZE,CANVAS_SIZE,20);
-        ctx.fill();
-        drawHomeAreas();
-        drawTrack();
-        drawHomeStretch();
-        drawCenter();
-        drawAllTokens();
-    }
-
-    function animLoop() {
-        if (updateAnimations()) drawBoard();
-        requestAnimationFrame(animLoop);
-    }
-    animLoop();
-
-    // ========== बैकएंड कॉल ==========
-    async function performMove(tokenIdx) {
-        if (isMoving) { moveQueue.push(tokenIdx); return; }
-        const currentPlayer = gameState.players[myPlayerIdx];
-        if (!currentPlayer) return;
-        const fromPos = currentPlayer.tokens[tokenIdx];
-        const dice = gameState.dice_value;
-        if (!canMoveToken(fromPos, dice, currentPlayer.color, currentPlayer.tokens)) {
-            updateStatus("❌ यह गोटी नहीं चल सकती", "error");
-            return;
-        }
-        const newPos = getNewPosition(fromPos, dice, currentPlayer.color);
-        if (newPos === fromPos) { updateStatus("❌ चाल संभव नहीं","error"); return; }
-
-        isMoving = true;
-        startAnimation(currentPlayer.color, tokenIdx, fromPos, newPos);
-        drawBoard();
-        const steps = buildPath(currentPlayer.color, fromPos, newPos).length - 1;
-        await new Promise(r => setTimeout(r, steps * 130 + 50));
-
-        try {
-            const url = `${window.BOT_API}/move?chat_id=${window.CHAT_ID}&user_id=${window.USER_ID}&token_idx=${tokenIdx}`;
-            const res = await fetch(url, { method:"POST" });
-            const data = await res.json();
-            if (res.ok) {
-                await fetchGameState();
-                updateStatus("✅ गोटी चली! (अपने Purple Square पर)", "success");
-            } else {
-                updateStatus("⛔ " + (data.error || "चाल अस्वीकृत"), "error");
-            }
-        } catch(e) {
-            updateStatus("❌ नेटवर्क त्रुटि", "error");
-        }
-        drawBoard(); updateUI();
-        isMoving = false;
-        if (moveQueue.length) performMove(moveQueue.shift());
-    }
-
-    async function fetchGameState() {
-        if (!window.BOT_API || !window.CHAT_ID) return;
-        try {
-            const res = await fetch(`${window.BOT_API}/game_state?chat_id=${window.CHAT_ID}`);
-            if (res.ok) {
-                const data = await res.json();
-                gameState = data;
-                if (window.USER_ID && gameState.players) {
-                    const idx = gameState.players.findIndex(p => p.id == window.USER_ID);
-                    if (idx !== -1) { myPlayerIdx = idx; myColor = gameState.players[idx].color; }
-                }
-            }
-        } catch(e) { console.warn(e); }
-        updateUI(); drawBoard();
-    }
-
-    function updateStatus(msg, type="info") {
-        const b = document.getElementById("statusMsg");
-        b.innerText = msg;
-        b.className = `status-msg-banner ${type}`;
-        setTimeout(() => { if (b.innerText === msg) b.className = "status-msg-banner"; }, 2500);
-    }
-
-    function updateUI() {
-        const playerDiv = document.getElementById("playerList");
-        const turnSpan = document.getElementById("turnText");
-        if (gameState.players?.length) {
-            playerDiv.innerHTML = "";
-            gameState.players.forEach((p, idx) => {
-                const isTurn = gameState.turn_index === idx;
-                const isMe = myColor === p.color;
-                const sc = colorShort(p.color);
-                let statusTxt = isTurn ? (gameState.rolled ? "🎲 गोटी चुनें" : "⏳ पासे का इंतज़ार") : "प्रतीक्षा";
-                if (isMe) statusTxt += " (आप)";
-                const card = document.createElement("div");
-                card.className = `player-card ${isTurn ? "active-turn" : ""}`;
-                card.style.setProperty("--player-color", COLOR_HEX[sc]);
-                card.innerHTML = `
-                    <div class="player-indicator"></div>
-                    <div>
-                        <div class="player-name">${p.username || sc}</div>
-                        <div class="player-meta">${statusTxt}</div>
-                    </div>`;
-                playerDiv.appendChild(card);
+        // ========== SMOOTH ANIMATION ==========
+        function startAnimation(color, idx, fromPos, toPos) {
+            if(fromPos === toPos) return;
+            const path = getPath(fromPos, toPos, color);
+            if(path.length < 2) return;
+            const key = `${color}_${idx}`;
+            animatedTokens.set(key, {
+                color, idx, path,
+                step: 0,
+                startTime: performance.now(),
+                duration: (path.length-1) * 120  // 120ms per step
             });
+            if(!animFrame) animFrame = requestAnimationFrame(animateLoop);
         }
-        if (gameState.winner !== -1) {
-            const winner = gameState.players[gameState.winner];
-            turnSpan.innerHTML = `<span>🏆 ${winner?.username || ''} जीते!</span>`;
-            return;
-        }
-        const cc = gameState.players[gameState.turn_index]?.color;
-        const sc = colorShort(cc);
-        turnSpan.innerHTML = `
-            <span style="background:${COLOR_HEX[sc]};width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:8px;"></span>
-            बारी: ${cc || '?'}`;
-    }
 
-    function handleCanvasClick(e) {
-        if (gameState.winner !== -1) return;
-        if (!gameState.rolled || gameState.dice_value === null) {
-            updateStatus("⏳ पासे का इंतज़ार करें", "error");
-            return;
+        function animateLoop(now) {
+            let anyActive = false;
+            for(let [key, anim] of animatedTokens.entries()) {
+                let t = Math.min(1, (now - anim.startTime) / anim.duration);
+                let totalSteps = anim.path.length - 1;
+                let stepFloat = t * totalSteps;
+                let newStep = Math.floor(stepFloat);
+                if(newStep > anim.step) {
+                    anim.step = newStep;
+                }
+                if(stepFloat >= totalSteps - 0.001) {
+                    let finalPos = anim.path[anim.path.length-1];
+                    currentTokens[anim.color][anim.idx] = finalPos;
+                    animatedTokens.delete(key);
+                } else {
+                    anyActive = true;
+                }
+            }
+            drawBoard();
+            if(anyActive) {
+                animFrame = requestAnimationFrame(animateLoop);
+            } else {
+                cancelAnimationFrame(animFrame);
+                animFrame = null;
+            }
         }
-        const turnColor = gameState.players[gameState.turn_index]?.color;
-        if (myColor !== turnColor) {
-            updateStatus("⏳ अभी आपकी बारी नहीं है", "error");
-            return;
-        }
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const cx = (e.clientX - rect.left) * scaleX;
-        const cy = (e.clientY - rect.top) * scaleY;
 
-        const cellMap = buildCellMap();
-        for (let [gridKey, list] of cellMap.entries()) {
-            const [gx,gy] = gridKey.split(',').map(Number);
-            const bx = gx*CELL + CELL/2, by = gy*CELL + CELL/2;
-            for (let i=0; i<list.length; i++) {
-                const item = list[i];
-                if (item.color !== myColor) continue;
-                const off = OFFSETS[i % OFFSETS.length];
-                const dist = Math.hypot(cx - (bx+off[0]), cy - (by+off[1]));
-                if (dist < CELL * 0.48) {
-                    if (canMoveToken(item.pos, gameState.dice_value, myColor, item.tokens)) {
-                        performMove(item.idx);
-                    } else {
-                        updateStatus("❌ यह गोटी इस पासे से Purple Point तक नहीं पहुँच सकती", "error");
+        // ========== LIVE PLAYER STATUS DASHBOARD ==========
+        function updateDashboard(tokens) {
+            const dashboard = document.getElementById("playerDashboard");
+            if(!dashboard || !tokens) return;
+            dashboard.innerHTML = "";
+            const translation = { red: "लाल टीम", green: "हरी टीम", yellow: "पीली टीम", blue: "नीली टीम" };
+            for(let col of ["red", "green", "yellow", "blue"]) {
+                const arr = tokens[col] || [0,0,0,0];
+                const homeCount = arr.filter(p => p >= 59).length;
+                const activeCount = arr.filter(p => p > 0 && p < 59).length;
+                
+                const card = document.createElement("div");
+                card.className = `player-card`;
+                card.style.setProperty("--player-color", COLORS[col]);
+                card.innerHTML = `
+                    <div class="player-dot"></div>
+                    <div class="player-details">
+                        <span class="player-title">${translation[col]}</span>
+                        <span class="player-tokens-status">घर पहुँचा: ${homeCount}/4 | मैदान पर: ${activeCount}</span>
+                    </div>
+                `;
+                dashboard.appendChild(card);
+            }
+        }
+
+        // ========== UPDATE FROM BACKEND ==========
+        async function fetchGameState() {
+            try {
+                let url = API_URL;
+                if(CHAT_ID) url += `?chat_id=${CHAT_ID}&user_id=${USER_ID}`;
+                const res = await fetch(url);
+                if(!res.ok) throw new Error("Network error");
+                const data = await res.json();
+                const newTokens = data.players;
+                if(!newTokens) return;
+
+                // Compare and animate
+                for(let color of ["red","green","blue","yellow"]) {
+                    let oldArr = currentTokens[color];
+                    let newArr = newTokens[color];
+                    if(!newArr) continue;
+                    for(let i=0; i<4; i++) {
+                        let oldPos = oldArr[i];
+                        let newPos = newArr[i];
+                        if(oldPos !== newPos) {
+                            startAnimation(color, i, oldPos, newPos);
+                        }
                     }
-                    return;
+                }
+                // Update non-animated tokens directly
+                for(let color of ["red","green","blue","yellow"]) {
+                    let newArr = newTokens[color];
+                    if(newArr) {
+                        for(let i=0; i<4; i++) {
+                            let key = `${color}_${i}`;
+                            if(!animatedTokens.has(key)) {
+                                currentTokens[color][i] = newArr[i];
+                            }
+                        }
+                    }
+                }
+                updateDashboard(currentTokens);
+                document.getElementById("statusMsg").innerHTML = "⚡ लाइव अपडेट सक्रिय | लाइव सिंक चालू है";
+            } catch(e) {
+                console.warn("Fetch failed", e);
+                document.getElementById("statusMsg").innerHTML = "⚠️ कनेक्ट नहीं हो पाया | API चेक करो";
+            }
+        }
+
+        // ========== DRAW BOARD ==========
+        function drawBoard() {
+            const ctx = document.getElementById('ludoCanvas').getContext('2d');
+            const canvas = document.getElementById('ludoCanvas');
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#f8fafc";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+
+            // Home areas
+            const zones = [[0,0,"red"],[9,0,"green"],[0,9,"yellow"],[9,9,"blue"]];
+            for(let [x,y,col] of zones) {
+                ctx.fillStyle = COLORS[col];
+                ctx.fillRect(x*CELL+2, y*CELL+2, CELL*6-4, CELL*6-4);
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
+                ctx.strokeStyle = COLORS[col];
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
+            }
+
+            // Track cells
+            for(let i=0; i<TRACK.length; i++) {
+                let [gx,gy] = TRACK[i];
+                let x = gx*CELL, y = gy*CELL;
+                let pos = i+1;
+                let isSafe = SAFE_SPOTS.has(pos);
+                let isStart = (pos === START_POS.red || pos === START_POS.green || pos === START_POS.blue || pos === START_POS.yellow);
+                let startColor = null;
+                if(pos === START_POS.red) startColor = "red";
+                else if(pos === START_POS.green) startColor = "green";
+                else if(pos === START_POS.blue) startColor = "blue";
+                else if(pos === START_POS.yellow) startColor = "yellow";
+
+                if(isStart) {
+                    ctx.fillStyle = COLORS[startColor];
+                    ctx.fillRect(x,y,CELL,CELL);
+                } else if(isSafe) {
+                    ctx.fillStyle = "#f1f5f9";
+                    ctx.fillRect(x,y,CELL,CELL);
+                } else {
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(x,y,CELL,CELL);
+                }
+                ctx.strokeStyle = "#cbd5e0";
+                ctx.strokeRect(x,y,CELL,CELL);
+                if(isSafe || isStart) {
+                    ctx.font = `${CELL*0.45}px Arial`;
+                    ctx.fillStyle = "#f59e0b";
+                    ctx.textAlign = "center";
+                    ctx.fillText("⭐", x+CELL/2, y+CELL/2+5);
+                    ctx.textAlign = "left";
+                }
+            }
+
+            // Home stretch
+            for(let [col, cells] of Object.entries(HOME_STRETCH)) {
+                for(let j=0; j<cells.length; j++) {
+                    let [gx,gy] = cells[j];
+                    let x = gx*CELL, y = gy*CELL;
+                    ctx.fillStyle = (j===cells.length-1) ? COLORS[col] : "#eef2ff";
+                    ctx.fillRect(x,y,CELL,CELL);
+                    ctx.strokeStyle = COLORS[col];
+                    ctx.strokeRect(x,y,CELL,CELL);
+                }
+            }
+
+            // Center
+            let cx = CELL*7.5, cy = CELL*7.5;
+            ctx.fillStyle = "#f1f5f9";
+            ctx.fillRect(CELL*6, CELL*6, CELL*3, CELL*3);
+            let tris = [
+                {c:"red", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy-CELL*1.5],[cx,cy]]},
+                {c:"green", pts:[[cx+CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
+                {c:"blue", pts:[[cx-CELL*1.5,cy+CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
+                {c:"yellow", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx-CELL*1.5,cy+CELL*1.5],[cx,cy]]}
+            ];
+            for(let t of tris) {
+                ctx.beginPath();
+                ctx.moveTo(t.pts[0][0], t.pts[0][1]);
+                ctx.lineTo(t.pts[1][0], t.pts[1][1]);
+                ctx.lineTo(t.pts[2][0], t.pts[2][1]);
+                ctx.fillStyle = COLORS[t.c];
+                ctx.fill();
+            }
+            ctx.font = `bold ${CELL*0.9}px Arial`;
+            ctx.fillStyle = "#1e293b";
+            ctx.fillText("🏆", cx, cy+8);
+
+            // Draw tokens (normal + animated)
+            drawTokens(ctx);
+        }
+
+        function drawTokens(ctx) {
+            const offsets = [[-12,-12],[12,-12],[-12,12],[12,12]];
+            let staticTokens = [];
+            for(let color of ["red","green","blue","yellow"]) {
+                for(let idx=0; idx<4; idx++) {
+                    let key = `${color}_${idx}`;
+                    if(!animatedTokens.has(key)) {
+                        let pos = currentTokens[color][idx];
+                        if(pos === 59) continue;
+                        let grid = getGridFromPos(color, pos, idx);
+                        if(grid) staticTokens.push({color, idx, pos, grid});
+                    }
+                }
+            }
+            // Draw static
+            let cellMap = new Map();
+            for(let t of staticTokens) {
+                let key = `${t.grid[0]},${t.grid[1]}`;
+                if(!cellMap.has(key)) cellMap.set(key, []);
+                cellMap.get(key).push(t);
+            }
+            for(let [_, list] of cellMap.entries()) {
+                let [gx, gy] = list[0].grid;
+                let cx = gx*CELL + CELL/2;
+                let cy = gy*CELL + CELL/2;
+                for(let i=0; i<list.length; i++) {
+                    let t = list[i];
+                    let off = offsets[i % offsets.length];
+                    drawPawn(ctx, cx+off[0], cy+off[1], t.color, (t.idx+1).toString(), false);
+                }
+            }
+
+            // Draw animated tokens
+            for(let [key, anim] of animatedTokens.entries()) {
+                let { color, idx, path, step, startTime, duration } = anim;
+                let now = performance.now();
+                let t = Math.min(1, (now - startTime) / duration);
+                let totalSteps = path.length - 1;
+                let stepFloat = t * totalSteps;
+                let curStep = Math.floor(stepFloat);
+                let nextStep = Math.min(curStep+1, totalSteps);
+                let fromPos = path[curStep];
+                let toPos = path[nextStep];
+                let fromGrid = getGridFromPos(color, fromPos, idx);
+                let toGrid = getGridFromPos(color, toPos, idx);
+                if(fromGrid && toGrid) {
+                    let fx = fromGrid[0]*CELL + CELL/2;
+                    let fy = fromGrid[1]*CELL + CELL/2;
+                    let tx = toGrid[0]*CELL + CELL/2;
+                    let ty = toGrid[1]*CELL + CELL/2;
+                    let lerp = stepFloat - curStep;
+                    let curX = fx + (tx-fx)*lerp;
+                    let curY = fy + (ty-fy)*lerp;
+                    drawPawn(ctx, curX, curY, color, (idx+1).toString(), false);
                 }
             }
         }
-    }
 
-    function getQueryParam(name) {
-        const url = new URLSearchParams(window.location.search);
-        const start = tg?.initDataUnsafe?.start_param || "";
-        if (name === "chat_id" && !url.get("chat_id") && start) {
-            const m = start.match(/chatid_(-?\d+)/);
-            if (m) return m[1];
+        // Modernized Pawn with subtle inner-shadow, highlights and precise gradient lighting
+        function drawPawn(ctx, x, y, colorKey, label, selectable) {
+            const r = CELL * 0.38;
+            ctx.save();
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 3;
+            ctx.shadowColor = "rgba(0,0,0,0.4)";
+            
+            // Outer shadow ring
+            ctx.beginPath();
+            ctx.ellipse(x, y+r*0.65, r*0.85, r*0.4, 0, 0, Math.PI*2);
+            ctx.fillStyle = COLORS[`dark_${colorKey}`];
+            ctx.fill();
+            
+            // Pawn Base with Gradient
+            ctx.beginPath();
+            ctx.ellipse(x, y+r*0.3, r*0.75, r*0.5, 0, 0, Math.PI*2);
+            let baseGrad = ctx.createRadialGradient(x - r*0.2, y + r*0.1, 1, x, y + r*0.3, r*0.75);
+            baseGrad.addColorStop(0, COLORS[colorKey]);
+            baseGrad.addColorStop(1, COLORS[`dark_${colorKey}`]);
+            ctx.fillStyle = baseGrad;
+            ctx.fill();
+            
+            // Pawn Head with Glossy Radial Highlight
+            ctx.beginPath();
+            ctx.arc(x, y-r*0.25, r*0.65, 0, Math.PI*2);
+            let headGrad = ctx.createRadialGradient(x - r*0.2, y - r*0.4, r*0.1, x, y - r*0.25, r*0.65);
+            headGrad.addColorStop(0, "#ffffff");
+            headGrad.addColorStop(0.3, COLORS[colorKey]);
+            headGrad.addColorStop(1, COLORS[`dark_${colorKey}`]);
+            ctx.fillStyle = headGrad;
+            ctx.fill();
+            
+            // Inside label text styling
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.fillStyle = "#ffffff";
+            ctx.font = `bold ${Math.floor(CELL*0.28)}px "Segoe UI", sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(label, x, y-r*0.18);
+            ctx.restore();
         }
-        return url.get(name);
-    }
 
-    async function init() {
-        window.BOT_API = getQueryParam("api") || "";
-        window.CHAT_ID = getQueryParam("chat_id") || null;
-        window.USER_ID = getQueryParam("user_id") || null;
-        if (!window.BOT_API || !window.CHAT_ID || !window.USER_ID) {
-            updateStatus("⚠️ Telegram WebApp context missing. Open from bot chat.", "error");
-            return;
+        // ========== INIT ==========
+        function init() {
+            // Build Initial Empty Dashboard
+            updateDashboard(currentTokens);
+            drawBoard();
+            fetchGameState();
+            pollingInterval = setInterval(fetchGameState, 2500);
         }
-        await fetchGameState();
-        canvas.addEventListener("click", handleCanvasClick);
-        canvas.addEventListener("touchstart", e => {
-            e.preventDefault();
-            handleCanvasClick({ clientX:e.changedTouches[0].clientX, clientY:e.changedTouches[0].clientY });
-        }, { passive:false });
-        if (refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(fetchGameState, 3000);
-    }
-    init();
-})();
+
+        // Start
+        init();
+    })();
 </script>
 </body>
 </html>
