@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Royale - Smooth Movement</title>
+    <title>Ludo Royale - Sync Mode</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -59,26 +59,16 @@
             flex: 1;
             text-align: center;
         }
-        .dice-area {
+        .dice-badge {
             background: #2d2f42;
-            padding: 5px 12px;
+            padding: 6px 16px;
             border-radius: 2rem;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: bold;
             text-align: center;
             min-width: 70px;
-            cursor: pointer;
             box-shadow: 0 2px 8px black;
-        }
-        .roll-btn {
-            background: #facc15;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 2rem;
-            font-weight: bold;
-            color: #1e293b;
-            cursor: pointer;
-            font-size: 1rem;
+            color: #facc15;
         }
         .status {
             background: #1e1f2e;
@@ -86,12 +76,8 @@
             padding: 6px 12px;
             margin-top: 8px;
             text-align: center;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: #a0aec0;
-        }
-        @media (max-width: 550px) {
-            .dice-area { font-size: 1.5rem; min-width: 55px; }
-            .roll-btn { padding: 6px 12px; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -99,11 +85,10 @@
 <div class="main">
     <canvas id="ludoCanvas" width="750" height="750"></canvas>
     <div class="info-panel">
-        <div class="turn-indicator" id="turnText">⚡ Loading...</div>
-        <div class="dice-area" id="diceValue">🎲</div>
-        <button class="roll-btn" id="rollBtn">पासा फेंको</button>
+        <div class="turn-indicator" id="turnText">⚡ सर्वर से कनेक्ट हो रहा है...</div>
+        <div class="dice-badge" id="diceValue">🎲 -</div>
     </div>
-    <div class="status" id="statusMsg">✨ Smooth Movement | अपनी गोटी पर टैप करें</div>
+    <div class="status" id="statusMsg">🔄 गेम लोड हो रहा है...</div>
 </div>
 
 <script>
@@ -114,6 +99,19 @@
         const canvas = document.getElementById('ludoCanvas');
         const ctx = canvas.getContext('2d');
         const CELL = canvas.width / 15; // 50px
+
+        // Get query parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const chatId = urlParams.get('chat_id');
+        const userId = parseInt(urlParams.get('user_id'), 10);
+        let apiBase = urlParams.get('api') || window.location.origin;
+
+        if (apiBase && !apiBase.startsWith("http")) {
+            apiBase = "https://" + apiBase;
+        }
+        if (apiBase.endsWith("/")) {
+            apiBase = apiBase.slice(0, -1);
+        }
 
         // ---------- STANDARD TRACK (52 cells) ----------
         const TRACK = [
@@ -127,7 +125,7 @@
             [8,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14], //33-39
             [7,14], //40
             [6,14],[6,13],[6,12],[6,11],[6,10],[6,9], //41-46
-            [6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6] //47-55 -> take first 52
+            [6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6] //47-55
         ].slice(0,52);
 
         const SAFE_SPOTS = new Set([1,9,14,22,27,35,40,48]);
@@ -151,12 +149,12 @@
             yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
         };
 
-        // HARDCODED START POSITIONS (1-based)
+        // Aligning with Bot Python Start Positions
         const START_POS = {
             red: 1,
-            green: 14,
-            blue: 27,
-            yellow: 40
+            green: 21,
+            yellow: 51,
+            blue: 29
         };
 
         const COLOR_ORDER = ["red", "green", "blue", "yellow"];
@@ -165,24 +163,31 @@
         // ---------- GAME STATE ----------
         let gameState = {
             players: {
-                red: { tokens: [0,0,0,0], finished: 0 },
-                green: { tokens: [0,0,0,0], finished: 0 },
-                blue: { tokens: [0,0,0,0], finished: 0 },
-                yellow: { tokens: [0,0,0,0], finished: 0 }
+                red: { tokens: [0,0,0,0], finished: 0, username: "", id: null },
+                green: { tokens: [0,0,0,0], finished: 0, username: "", id: null },
+                blue: { tokens: [0,0,0,0], finished: 0, username: "", id: null },
+                yellow: { tokens: [0,0,0,0], finished: 0, username: "", id: null }
             },
             turnIndex: 0,
             diceValue: null,
             rolled: false,
             winner: null,
-            isMoving: false,      // animation in progress
-            moveQueue: []         // queue moves if multiple
+            isMoving: false
         };
 
-        let currentTurnColor = COLOR_ORDER[gameState.turnIndex];
-        let animationFrame = null;
-        let activeAnimation = null; // { color, tokenIdx, fromPos, toPos, stepIndex, totalSteps, startTime, durationPerStep }
+        let currentTurnColor = "red";
+        let isPolling = true;
+        let globalGameState = null;
 
-        // ---------- HELPER FUNCTIONS ----------
+        function getFrontendColorKey(backendColor) {
+            if (backendColor.includes("Red")) return "red";
+            if (backendColor.includes("Green")) return "green";
+            if (backendColor.includes("Blue")) return "blue";
+            if (backendColor.includes("Yellow")) return "yellow";
+            return "red";
+        }
+
+        // ---------- COORDINATE MAPS ----------
         function getGridFromPos(color, pos, tokenIdx) {
             if(pos === 0) {
                 let base = HOME_BASES[color];
@@ -193,143 +198,51 @@
                 let stretch = HOME_STRETCH[color];
                 return stretch[pos-53];
             }
+            if(pos === 59) {
+                // Return center coordinates
+                return [7.5, 7.5];
+            }
             return null;
         }
 
-        function getNextPosition(currentPos, color) {
-            if(currentPos === 0) return START_POS[color];
-            if(currentPos === 52) return 53;
-            if(currentPos >= 53 && currentPos < 58) return currentPos + 1;
-            if(currentPos === 58) return 59; // reached center
-            if(currentPos >= 59) return 59;
-            return currentPos + 1;
-        }
-
-        // Build full path (list of positions) from fromPos to toPos (inclusive)
+        // Build box-by-box track step array
         function getPath(fromPos, toPos, color) {
-            let path = [];
-            let cur = fromPos;
-            while(cur !== toPos && path.length < 60) {
-                path.push(cur);
-                cur = getNextPosition(cur, color);
+            let path = [fromPos];
+            if (fromPos === 0) {
+                let start = START_POS[color];
+                path.push(start);
+                let current = start;
+                while (current < toPos) {
+                    current++;
+                    if (current > 58) {
+                        path.push(59);
+                        break;
+                    } else {
+                        path.push(current);
+                    }
+                }
+            } else {
+                let current = fromPos;
+                while (current < toPos) {
+                    current++;
+                    if (current > 58) {
+                        path.push(59);
+                        break;
+                    } else {
+                        path.push(current);
+                    }
+                }
             }
-            path.push(toPos);
             return path;
         }
 
-        // Move token (no animation, just state update)
-        function applyMoveImmediately(color, tokenIdx, dice) {
-            let player = gameState.players[color];
-            let oldPos = player.tokens[tokenIdx];
-            let newPos;
-            if(oldPos === 0) {
-                newPos = START_POS[color];
-            } else {
-                newPos = oldPos;
-                for(let i=0; i<dice; i++) {
-                    newPos = getNextPosition(newPos, color);
-                    if(newPos === 59) break;
-                }
-            }
-            if(newPos === 59) {
-                player.finished++;
-                player.tokens[tokenIdx] = 59;
-            } else {
-                player.tokens[tokenIdx] = newPos;
-                // Cutting: if not safe and another token present, send it home
-                if(!SAFE_SPOTS.has(newPos) && !(newPos>=53 && newPos<=58)) {
-                    for(let otherColor of COLOR_ORDER) {
-                        if(otherColor === color) continue;
-                        let otherPlayer = gameState.players[otherColor];
-                        for(let i=0; i<otherPlayer.tokens.length; i++) {
-                            if(otherPlayer.tokens[i] === newPos) {
-                                otherPlayer.tokens[i] = 0;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Animation: returns a promise that resolves when animation finishes
-        function animateToken(color, tokenIdx, dice) {
-            return new Promise((resolve) => {
-                let player = gameState.players[color];
-                let fromPos = player.tokens[tokenIdx];
-                let toPos;
-                if(fromPos === 0) {
-                    toPos = START_POS[color];
-                } else {
-                    toPos = fromPos;
-                    for(let i=0; i<dice; i++) {
-                        toPos = getNextPosition(toPos, color);
-                        if(toPos === 59) break;
-                    }
-                }
-                if(fromPos === toPos) { resolve(); return; }
-                let path = getPath(fromPos, toPos, color);
-                if(path.length < 2) { resolve(); return; }
-                // path[0] = fromPos, path[path.length-1] = toPos
-                let stepDuration = 150; // ms per step
-                let startTime = performance.now();
-                let totalSteps = path.length - 1;
-                let stepIndex = 0;
-                function animate(currentTime) {
-                    let elapsed = currentTime - startTime;
-                    let progress = Math.min(1, elapsed / (totalSteps * stepDuration));
-                    let stepFloat = progress * totalSteps;
-                    let newStepIndex = Math.floor(stepFloat);
-                    if(newStepIndex > stepIndex) {
-                        // move to next position in path
-                        stepIndex = newStepIndex;
-                        // update actual token position in state (so drawing shows intermediate)
-                        // But we keep actual state only at end. For smooth drawing we use a separate animated token map.
-                    }
-                    if(stepIndex >= totalSteps) {
-                        // animation finished - apply final state
-                        applyMoveImmediately(color, tokenIdx, dice);
-                        activeAnimation = null;
-                        drawBoard();
-                        resolve();
-                    } else {
-                        // draw intermediate frame
-                        drawBoardWithAnimation(color, tokenIdx, path, stepIndex, progress - stepIndex, stepDuration);
-                        requestAnimationFrame(animate);
-                    }
-                }
-                // store animation data
-                activeAnimation = { color, tokenIdx, path, stepIndex:0, totalSteps, startTime: performance.now(), stepDuration };
-                requestAnimationFrame(animate);
-            });
-        }
-
-        // Draw board with animated token
-        function drawBoardWithAnimation(color, tokenIdx, path, currentStepIndex, tween, stepDuration) {
-            drawBoardStatic(); // draw board without tokens first
-            // draw all normal tokens except the animated one
-            drawAllStaticTokens(color, tokenIdx);
-            // draw animated token at interpolated position
-            let fromGrid = getGridFromPos(color, path[currentStepIndex], tokenIdx);
-            let toGrid = getGridFromPos(color, path[currentStepIndex+1], tokenIdx);
-            if(fromGrid && toGrid) {
-                let fromX = fromGrid[0]*CELL + CELL/2;
-                let fromY = fromGrid[1]*CELL + CELL/2;
-                let toX = toGrid[0]*CELL + CELL/2;
-                let toY = toGrid[1]*CELL + CELL/2;
-                let ease = tween; // linear for simplicity
-                let curX = fromX + (toX - fromX) * ease;
-                let curY = fromY + (toY - fromY) * ease;
-                drawPawn(curX, curY, color, (tokenIdx+1).toString(), false);
-            }
-        }
-
+        // ---------- DRAWING SYSTEM ----------
         function drawBoardStatic() {
             ctx.clearRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "#fef9e3";
             ctx.fillRect(0,0,canvas.width,canvas.height);
 
-            // Home areas
+            // Base Squares
             const zones = [[0,0,"red"],[9,0,"green"],[0,9,"yellow"],[9,9,"blue"]];
             for(let [x,y,col] of zones) {
                 ctx.fillStyle = COLORS[col];
@@ -341,7 +254,7 @@
                 ctx.strokeRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
             }
 
-            // Track cells
+            // Path Tiles
             for(let i=0; i<TRACK.length; i++) {
                 let [gx,gy] = TRACK[i];
                 let x = gx*CELL, y = gy*CELL;
@@ -375,7 +288,7 @@
                 }
             }
 
-            // Home stretch
+            // Home Stretch Roads
             for(let [col, cells] of Object.entries(HOME_STRETCH)) {
                 for(let j=0; j<cells.length; j++) {
                     let [gx,gy] = cells[j];
@@ -387,7 +300,7 @@
                 }
             }
 
-            // Center
+            // Center Triangle
             let cx = CELL*7.5, cy = CELL*7.5;
             ctx.fillStyle = "#f1f5f9";
             ctx.fillRect(CELL*6, CELL*6, CELL*3, CELL*3);
@@ -414,8 +327,8 @@
             const r = CELL * 0.38;
             ctx.save();
             if(selectable) {
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = "#facc15";
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#eab308";
             } else {
                 ctx.shadowBlur = 4;
                 ctx.shadowOffsetY = 2;
@@ -467,15 +380,13 @@
                 for(let i=0; i<list.length; i++) {
                     let item = list[i];
                     let off = offsets[i % offsets.length];
-                    let selectable = false; // not needed for static draw
-                    drawPawn(cx+off[0], cy+off[1], item.color, (item.idx+1).toString(), selectable);
+                    drawPawn(cx+off[0], cy+off[1], item.color, (item.idx+1).toString(), false);
                 }
             }
         }
 
         function drawBoard() {
             drawBoardStatic();
-            // draw all tokens normally
             const offsets = [[-12,-12],[12,-12],[-12,12],[12,12]];
             let positions = [];
             for(let col of COLOR_ORDER) {
@@ -493,8 +404,8 @@
                 if(!cellMap.has(key)) cellMap.set(key, []);
                 cellMap.get(key).push(p);
             }
-            let isTurnRolled = gameState.rolled && gameState.diceValue !== null && !gameState.winner && !gameState.isMoving;
-            let turnColor = currentTurnColor;
+
+            let isTurnRolled = gameState.rolled && !gameState.winner && !gameState.isMoving;
             for(let [_, list] of cellMap.entries()) {
                 let [gx, gy] = list[0].grid;
                 let cx = gx*CELL + CELL/2;
@@ -502,23 +413,25 @@
                 for(let i=0; i<list.length; i++) {
                     let item = list[i];
                     let off = offsets[i % offsets.length];
-                    let selectable = isTurnRolled && item.color === turnColor && canMove(item.pos, gameState.diceValue, item.color, gameState.players[item.color].tokens);
+                    let isMyToken = (gameState.players[item.color].id === userId);
+                    let selectable = isTurnRolled && isMyToken && item.color === currentTurnColor && canMove(item.pos, gameState.diceValue, item.color, gameState.players[item.color].tokens);
                     drawPawn(cx+off[0], cy+off[1], item.color, (item.idx+1).toString(), selectable);
                 }
             }
         }
 
+        // ---------- GAME LOGIC INTEGRATION ----------
         function canMove(tokenPos, dice, color, allTokens) {
             if(tokenPos >= 59) return false;
             if(!dice) return false;
             let newPos;
             if(tokenPos === 0) newPos = START_POS[color];
             else {
-                newPos = tokenPos;
-                for(let i=0; i<dice; i++) {
-                    newPos = getNextPosition(newPos, color);
-                    if(newPos === 59) break;
+                newPos = tokenPos + dice;
+                if (1 <= tokenPos && tokenPos <= 52 && newPos > 52) {
+                    newPos = 52 + (newPos - 52); // align with backend formula
                 }
+                if (newPos > 58) newPos = 59;
             }
             if(newPos === tokenPos) return false;
             let isSafe = SAFE_SPOTS.has(newPos) || (newPos>=53 && newPos<=58);
@@ -526,105 +439,212 @@
             return true;
         }
 
-        // Move with animation
-        async function moveTokenWithAnimation(color, tokenIdx, dice) {
-            if(gameState.isMoving) return false;
+        // Box by Box hopping animation
+        function animateTokenPath(color, tokenIdx, path) {
+            return new Promise((resolve) => {
+                if (path.length < 2) { resolve(); return; }
+                let stepDuration = 220; // Hop time in milliseconds
+                let totalSteps = path.length - 1;
+                let startTime = performance.now();
+
+                function animate(currentTime) {
+                    let elapsed = currentTime - startTime;
+                    let totalDuration = totalSteps * stepDuration;
+                    let progress = Math.min(1, elapsed / totalDuration);
+                    let stepFloat = progress * totalSteps;
+                    let stepIndex = Math.floor(stepFloat);
+                    let stepProgress = stepFloat - stepIndex;
+
+                    if (stepIndex >= totalSteps) {
+                        gameState.players[color].tokens[tokenIdx] = path[path.length - 1];
+                        drawBoard();
+                        resolve();
+                    } else {
+                        drawBoardStatic();
+                        drawAllStaticTokens(color, tokenIdx);
+
+                        let fromGrid = getGridFromPos(color, path[stepIndex], tokenIdx);
+                        let toGrid = getGridFromPos(color, path[stepIndex+1], tokenIdx);
+
+                        if(fromGrid && toGrid) {
+                            let fromX = fromGrid[0]*CELL + CELL/2;
+                            let fromY = fromGrid[1]*CELL + CELL/2;
+                            let toX = toGrid[0]*CELL + CELL/2;
+                            let toY = toGrid[1]*CELL + CELL/2;
+
+                            // Linear coordinate transition
+                            let curX = fromX + (toX - fromX) * stepProgress;
+                            let curY = fromY + (toY - fromY) * stepProgress;
+
+                            // Parabolic bounce curve (visual hopping effect)
+                            let hopHeight = CELL * 0.45 * Math.sin(stepProgress * Math.PI);
+                            curY -= hopHeight;
+
+                            drawPawn(curX, curY, color, (tokenIdx+1).toString(), false);
+                        }
+                        requestAnimationFrame(animate);
+                    }
+                }
+                requestAnimationFrame(animate);
+            });
+        }
+
+        async function handleTokenClick(tokenIdx) {
+            if (gameState.isMoving) return;
+            isPolling = false; // Pause polling during movement animation
             gameState.isMoving = true;
-            await animateToken(color, tokenIdx, dice);
-            gameState.isMoving = false;
-            // after animation, check win, turn change, dice=6 etc.
-            let player = gameState.players[color];
-            if(player.finished === 4) {
-                gameState.winner = color;
-                document.getElementById("rollBtn").disabled = true;
-                document.getElementById("statusMsg").innerText = `🏆 ${COLOR_NAMES[color]} जीत गया! 🏆`;
-                drawBoard();
-                return true;
-            }
-            if(dice === 6) {
-                gameState.rolled = false;
-                gameState.diceValue = null;
-                document.getElementById("diceValue").innerText = "🎲";
-                document.getElementById("statusMsg").innerText = "🎲 6 आया! फिर से पासा फेंको";
-                updateUI();
-                drawBoard();
-                return true;
+
+            const color = currentTurnColor;
+            const player = gameState.players[color];
+            const fromPos = player.tokens[tokenIdx];
+            const dice = gameState.diceValue;
+
+            let toPos;
+            if (fromPos === 0) {
+                toPos = START_POS[color];
             } else {
-                // next turn
-                gameState.turnIndex = (gameState.turnIndex + 1) % COLOR_ORDER.length;
-                gameState.rolled = false;
-                gameState.diceValue = null;
-                currentTurnColor = COLOR_ORDER[gameState.turnIndex];
-                updateUI();
-                drawBoard();
-                return true;
+                toPos = fromPos + dice;
+                if (1 <= fromPos && fromPos <= 52 && toPos > 52) {
+                    toPos = 52 + (toPos - 52);
+                }
+                if (toPos > 58) toPos = 59;
+            }
+
+            let path = getPath(fromPos, toPos, color);
+            updateStatus("🚀 गोटी आगे बढ़ रही है...");
+
+            await animateTokenPath(color, tokenIdx, path);
+
+            // API Server update
+            try {
+                const response = await fetch(`${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.error) {
+                    updateStatus(`❌ त्रुटि: ${result.error}`);
+                    isPolling = true;
+                    pollState();
+                } else {
+                    isPolling = true;
+                    // Trigger immediate refresh after backend state update
+                    const stateRes = await fetch(`${apiBase}/game_state?chat_id=${chatId}`);
+                    if (stateRes.ok) {
+                        const stateData = await stateRes.json();
+                        globalGameState = stateData;
+                        syncWithBackendState(stateData);
+                    }
+                }
+            } catch (err) {
+                console.error("Committing move failed:", err);
+                updateStatus("❌ कनेक्शन टूट गया! सर्वर से रिस्पॉन्स नहीं मिला।");
+                isPolling = true;
+            } finally {
+                gameState.isMoving = false;
             }
         }
 
-        async function tryMove(color, tokenIdx) {
-            if(gameState.winner) return;
-            if(color !== currentTurnColor) {
-                document.getElementById("statusMsg").innerText = "⏳ अभी आपकी बारी नहीं है";
-                return;
+        // ---------- SERVER SYNC IMPLEMENTATION ----------
+        function syncWithBackendState(data) {
+            // Reset player map
+            gameState.players = {};
+            for (let col of ["red", "green", "blue", "yellow"]) {
+                gameState.players[col] = { tokens: [0, 0, 0, 0], finished: 0, username: "Empty", id: null };
             }
-            if(!gameState.rolled) {
-                document.getElementById("statusMsg").innerText = "⏳ पहले पासा फेंको!";
-                return;
-            }
-            let player = gameState.players[color];
-            let tokenPos = player.tokens[tokenIdx];
-            let dice = gameState.diceValue;
-            if(!canMove(tokenPos, dice, color, player.tokens)) {
-                document.getElementById("statusMsg").innerText = "❌ यह गोटी नहीं चल सकती";
-                return;
-            }
-            // disable roll button during movement
-            document.getElementById("rollBtn").disabled = true;
-            await moveTokenWithAnimation(color, tokenIdx, dice);
-            document.getElementById("rollBtn").disabled = false;
-            if(gameState.winner) {
-                document.getElementById("rollBtn").disabled = true;
-            }
-        }
 
-        function rollDice() {
-            if(gameState.winner) return;
-            if(gameState.rolled) {
-                document.getElementById("statusMsg").innerText = "⏳ पहले गोटी चलाओ!";
-                return;
+            data.players.forEach(p => {
+                const colKey = getFrontendColorKey(p.color);
+                let finishedCount = p.tokens.filter(pos => pos >= 59).length;
+                gameState.players[colKey] = {
+                    tokens: [...p.tokens],
+                    finished: finishedCount,
+                    username: p.username,
+                    id: p.id
+                };
+            });
+
+            gameState.turnIndex = data.turn_index;
+            gameState.diceValue = data.dice_value;
+            gameState.rolled = data.rolled;
+            gameState.winner = data.winner;
+            gameState.waiting_for_word = data.waiting_for_word;
+
+            if (data.players && data.players[data.turn_index]) {
+                const curPlayer = data.players[data.turn_index];
+                currentTurnColor = getFrontendColorKey(curPlayer.color);
+
+                let statusText = "";
+                document.getElementById("turnText").innerHTML = `🎲 बारी: ${curPlayer.username} (${COLOR_NAMES[currentTurnColor]})`;
+                document.getElementById("diceValue").innerText = data.dice_value ? `🎲 ${data.dice_value}` : "🎲";
+
+                if (gameState.winner !== -1) {
+                    const winnerPlayer = data.players[gameState.winner];
+                    statusText = `🏆 ${winnerPlayer.username} (${winnerPlayer.color}) जीत गए! 🏆`;
+                    document.getElementById("turnText").innerHTML = "🏁 खेल समाप्त!";
+                } else if (gameState.waiting_for_word) {
+                    statusText = `⏳ ${curPlayer.username} Telegram में शब्द भेजकर पासा फेंक रहे हैं...`;
+                } else if (gameState.rolled) {
+                    if (curPlayer.id === userId) {
+                        statusText = `🎲 आपकी बारी है! पासा: ${gameState.diceValue} | अपनी गोटी पर क्लिक करें।`;
+                    } else {
+                        statusText = `🎲 ${curPlayer.username} का पासा: ${gameState.diceValue} आया है। गोटी चलने की प्रतीक्षा है...`;
+                    }
+                } else {
+                    statusText = `⏳ ${curPlayer.username} के पासे की प्रतीक्षा है...`;
+                }
+                updateStatus(statusText);
             }
-            let dice = Math.floor(Math.random() * 6) + 1;
-            gameState.diceValue = dice;
-            gameState.rolled = true;
-            document.getElementById("diceValue").innerText = dice;
-            updateUI();
             drawBoard();
-            document.getElementById("statusMsg").innerText = `🎲 पासा: ${dice} | अपनी गोटी चुनें`;
         }
 
-        function updateUI() {
-            let turnName = COLOR_NAMES[currentTurnColor];
-            document.getElementById("turnText").innerHTML = `🎲 बारी: ${turnName}`;
-            if(gameState.winner) {
-                document.getElementById("turnText").innerHTML = `🏆 ${COLOR_NAMES[gameState.winner]} जीता! 🏆`;
+        async function pollState() {
+            if (!chatId) {
+                updateStatus("❌ यूआरएल त्रुटि: chat_id अनुपस्थित है!");
+                return;
+            }
+            if (gameState.isMoving) {
+                setTimeout(pollState, 2000);
+                return;
+            }
+            try {
+                const res = await fetch(`${apiBase}/game_state?chat_id=${chatId}`);
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        updateStatus("⚠️ इस ग्रुप में कोई एक्टिव गेम नहीं है।");
+                    } else {
+                        updateStatus("⚠️ सर्वर से कनेक्ट करने में त्रुटि आ रही है।");
+                    }
+                    setTimeout(pollState, 3000);
+                    return;
+                }
+                const data = await res.json();
+                if (JSON.stringify(data) !== JSON.stringify(globalGameState)) {
+                    globalGameState = data;
+                    syncWithBackendState(data);
+                }
+            } catch (err) {
+                console.error("Fetch API connection error:", err);
+                updateStatus("⚠️ कनेक्शन स्थापित किया जा रहा है...");
+            }
+            if (isPolling) {
+                setTimeout(pollState, 2000);
             }
         }
 
-        // ----- Canvas click handler -----
+        function updateStatus(msg) {
+            document.getElementById("statusMsg").innerText = "✨ " + msg;
+        }
+
+        // ---------- CANVAS EVENT HANDLERS ----------
         function handleCanvasClick(e) {
-            if(gameState.winner) return;
-            if(!gameState.rolled) {
-                document.getElementById("statusMsg").innerText = "⏳ पहले पासा फेंको!";
-                return;
-            }
-            if(gameState.isMoving) {
-                document.getElementById("statusMsg").innerText = "⏳ गोटी चल रही है, कृपया प्रतीक्षा करें";
-                return;
-            }
+            if (gameState.winner !== -1 || !gameState.rolled || gameState.isMoving) return;
+
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             let clientX, clientY;
+
             if(e.touches) {
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
@@ -633,10 +653,12 @@
                 clientX = e.clientX;
                 clientY = e.clientY;
             }
+
             const mx = (clientX - rect.left) * scaleX;
             const my = (clientY - rect.top) * scaleY;
 
             const offsets = [[-12,-12],[12,-12],[-12,12],[12,12]];
+
             for(let color of COLOR_ORDER) {
                 let player = gameState.players[color];
                 for(let idx=0; idx<player.tokens.length; idx++) {
@@ -650,20 +672,21 @@
                     let pawnX = cx + off[0];
                     let pawnY = cy + off[1];
                     let dist = Math.hypot(mx - pawnX, my - pawnY);
+
                     if(dist < CELL * 0.45) {
-                        if(color !== currentTurnColor) {
-                            document.getElementById("statusMsg").innerText = "⏳ अभी आपकी बारी नहीं है";
+                        if (player.id !== userId) {
+                            updateStatus("⏳ यह आपकी गोटी नहीं है!");
                             return;
                         }
-                        if(!gameState.rolled) {
-                            document.getElementById("statusMsg").innerText = "⏳ पहले पासा फेंको!";
+                        if(color !== currentTurnColor) {
+                            updateStatus("⏳ अभी आपकी बारी नहीं है!");
                             return;
                         }
                         let dice = gameState.diceValue;
                         if(canMove(pos, dice, color, player.tokens)) {
-                            tryMove(color, idx);
+                            handleTokenClick(idx);
                         } else {
-                            document.getElementById("statusMsg").innerText = "❌ यह गोटी नहीं चल सकती";
+                            updateStatus("❌ यह गोटी आगे नहीं बढ़ सकती!");
                         }
                         return;
                     }
@@ -678,18 +701,8 @@
             handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY });
         }, { passive: false });
 
-        document.getElementById("rollBtn").addEventListener('click', () => {
-            if(gameState.winner) return;
-            if(gameState.isMoving) {
-                document.getElementById("statusMsg").innerText = "⏳ गोटी चल रही है...";
-                return;
-            }
-            rollDice();
-        });
-
-        drawBoard();
-        updateUI();
-        document.getElementById("statusMsg").innerText = "🎲 पासा फेंको और गोटी चुनो | Smooth Animation";
+        // Initialize Webapp Sync Polling
+        pollState();
     })();
 </script>
 </body>
