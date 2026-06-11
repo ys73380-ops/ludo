@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Royale - Live Board</title>
+    <title>Ludo Royale - Live Board (No Dice)</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -38,58 +38,6 @@
             letter-spacing: 1px;
             text-transform: uppercase;
         }
-        
-        /* Live Team Dashboard */
-        .player-dashboard {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            width: 100%;
-        }
-        .player-card {
-            background: rgba(30, 34, 56, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 1rem;
-            padding: 10px 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        .player-card::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: var(--player-color);
-        }
-        .player-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: var(--player-color);
-            box-shadow: 0 0 8px var(--player-color);
-        }
-        .player-details {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .player-title {
-            font-size: 0.8rem;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            color: #ffffff;
-        }
-        .player-tokens-status {
-            font-size: 0.65rem;
-            color: #8e94b2;
-            font-weight: 500;
-        }
-
         canvas {
             display: block;
             margin: 0 auto;
@@ -101,7 +49,6 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        
         .status {
             background: rgba(30, 34, 56, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.05);
@@ -121,12 +68,6 @@
 <body>
 <div class="container">
     <div class="title">👑 LIVE LUDO ROYALE</div>
-    
-    <!-- Live Dashboard Grid -->
-    <div class="player-dashboard" id="playerDashboard">
-        <!-- Dynmically synced on update -->
-    </div>
-    
     <canvas id="ludoCanvas" width="750" height="750"></canvas>
     <div class="status" id="statusMsg">⏳ लाइव बोर्ड लोड हो रहा है...</div>
 </div>
@@ -136,11 +77,12 @@
         const tg = window.Telegram?.WebApp;
         if(tg) { tg.ready(); tg.expand(); }
 
-        // ========== CONFIGURATION ==========
-        // 🔁 यहाँ अपना API endpoint डालें (Render/VPS URL) जो लाइव स्टेट देता है
-        const API_URL = "https://your-bot-api.com/game_state";   // <-- CHANGE THIS
-        const CHAT_ID = new URLSearchParams(window.location.search).get("chat_id") || "";
-        const USER_ID = new URLSearchParams(window.location.search).get("user_id") || "";
+        // ========== CONFIGURATION (DYNAMICS BINDING WITH PY BOT) ==========
+        const urlParams = new URLSearchParams(window.location.search);
+        const CHAT_ID = urlParams.get("chat_id") || "";
+        const USER_ID = urlParams.get("user_id") || "";
+        const API_BASE = urlParams.get("api") || ""; // बोट द्वारा भेजे जाने वाले लाइव यूआरएल को डायनामिक रूप से लेगा
+        const API_URL = API_BASE ? `${API_BASE}/game_state` : "https://your-bot-api.com/game_state";
 
         // ========== BOARD CONSTANTS (EXACT 52 CELL TRACK) ==========
         const CELL = 750 / 15; // 50px
@@ -189,8 +131,8 @@
             yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
         };
 
-        // Exact Start positions mapping with Py server
-        const START_POS = { red: 1, green: 14, blue: 27, yellow: 40 };
+        // exact starting position values synced with Py Bot variables
+        const START_POS = { red: 1, green: 21, yellow: 51, blue: 29 };
 
         // ========== GLOBAL STATE ==========
         let currentTokens = {
@@ -204,7 +146,7 @@
         let pollingInterval = null;
 
         // ========== HELPER FUNCTIONS ==========
-        // पायथन के ईमोजी रंग नामों को फ़्रंटएंड कीज़ से सुरक्षित रूप से मैच करने का फंक्शन
+        // पायथन बोट के रंगों को फ़्रंटएंड कीज़ से सुरक्षित रूप से मैच करने का सुरक्षा फंक्शन
         function normalizeColorKey(color) {
             if (!color) return "red";
             const c = color.toString().toLowerCase();
@@ -287,31 +229,6 @@
             }
         }
 
-        // ========== LIVE PLAYER STATUS DASHBOARD ==========
-        function updateDashboard(tokens) {
-            const dashboard = document.getElementById("playerDashboard");
-            if(!dashboard || !tokens) return;
-            dashboard.innerHTML = "";
-            const translation = { red: "लाल टीम", green: "हरी टीम", yellow: "पीली टीम", blue: "नीली टीम" };
-            for(let col of ["red", "green", "yellow", "blue"]) {
-                const arr = tokens[col] || [0,0,0,0];
-                const homeCount = arr.filter(p => p >= 59).length;
-                const activeCount = arr.filter(p => p > 0 && p < 59).length;
-                
-                const card = document.createElement("div");
-                card.className = `player-card`;
-                card.style.setProperty("--player-color", COLORS[col]);
-                card.innerHTML = `
-                    <div class="player-dot"></div>
-                    <div class="player-details">
-                        <span class="player-title">${translation[col]}</span>
-                        <span class="player-tokens-status">होम: ${homeCount}/4 | एक्टिव: ${activeCount}</span>
-                    </div>
-                `;
-                dashboard.appendChild(card);
-            }
-        }
-
         // ========== UPDATE FROM BACKEND ==========
         async function fetchGameState() {
             try {
@@ -321,7 +238,7 @@
                 if(!res.ok) throw new Error("Network error");
                 const data = await res.json();
                 
-                // पायथन कीज़ ("🔴 Red" आदि) को सुरक्षित रूप से मैप करें
+                // पायथन ऐरे लिस्ट फ़ॉर्मेट को फ़्रंटएंड ऑब्जेक्ट्स में सुरक्षित बदलें
                 const newTokens = {};
                 if (data.players) {
                     data.players.forEach(p => {
@@ -355,7 +272,6 @@
                         }
                     }
                 }
-                updateDashboard(currentTokens);
                 document.getElementById("statusMsg").innerHTML = "⚡ लाइव अपडेट सक्रिय | लाइव सिंक चालू है";
             } catch(e) {
                 console.warn("Fetch failed", e);
@@ -558,8 +474,6 @@
 
         // ========== INIT ==========
         function init() {
-            // Build Initial Empty Dashboard
-            updateDashboard(currentTokens);
             drawBoard();
             fetchGameState();
             pollingInterval = setInterval(fetchGameState, 2500);
