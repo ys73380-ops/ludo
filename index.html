@@ -39,7 +39,7 @@
             text-transform: uppercase;
         }
         
-        /* Dynamic Live Team Dashboard */
+        /* Live Team Dashboard */
         .player-dashboard {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -124,7 +124,7 @@
     
     <!-- Live Dashboard Grid -->
     <div class="player-dashboard" id="playerDashboard">
-        <!-- Loaded dynamically on sync -->
+        <!-- Dynmically synced on update -->
     </div>
     
     <canvas id="ludoCanvas" width="750" height="750"></canvas>
@@ -137,6 +137,7 @@
         if(tg) { tg.ready(); tg.expand(); }
 
         // ========== CONFIGURATION ==========
+        // 🔁 यहाँ अपना API endpoint डालें (Render/VPS URL) जो लाइव स्टेट देता है
         const API_URL = "https://your-bot-api.com/game_state";   // <-- CHANGE THIS
         const CHAT_ID = new URLSearchParams(window.location.search).get("chat_id") || "";
         const USER_ID = new URLSearchParams(window.location.search).get("user_id") || "";
@@ -188,6 +189,7 @@
             yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
         };
 
+        // Exact Start positions mapping with Py server
         const START_POS = { red: 1, green: 14, blue: 27, yellow: 40 };
 
         // ========== GLOBAL STATE ==========
@@ -202,15 +204,28 @@
         let pollingInterval = null;
 
         // ========== HELPER FUNCTIONS ==========
+        // पायथन के ईमोजी रंग नामों को फ़्रंटएंड कीज़ से सुरक्षित रूप से मैच करने का फंक्शन
+        function normalizeColorKey(color) {
+            if (!color) return "red";
+            const c = color.toString().toLowerCase();
+            if (c.includes("red")) return "red";
+            if (c.includes("green")) return "green";
+            if (c.includes("yellow")) return "yellow";
+            if (c.includes("blue")) return "blue";
+            return c;
+        }
+
         function getGridFromPos(color, pos, idx) {
-            if(pos === 0) return HOME_BASES[color][idx % HOME_BASES[color].length];
+            const key = normalizeColorKey(color);
+            if(pos === 0) return HOME_BASES[key][idx % HOME_BASES[key].length];
             if(pos >= 1 && pos <= 52) return TRACK[pos-1];
-            if(pos >= 53 && pos <= 58) return HOME_STRETCH[color][pos-53];
+            if(pos >= 53 && pos <= 58) return HOME_STRETCH[key][pos-53];
             return null;
         }
 
         function getNextPosition(pos, color) {
-            if(pos === 0) return START_POS[color];
+            const key = normalizeColorKey(color);
+            if(pos === 0) return START_POS[key];
             if(pos === 52) return 53;
             if(pos >= 53 && pos < 58) return pos+1;
             if(pos === 58) return 59;
@@ -218,11 +233,12 @@
         }
 
         function getPath(fromPos, toPos, color) {
+            const key = normalizeColorKey(color);
             let path = [];
             let cur = fromPos;
             while(cur !== toPos && path.length < 60) {
                 path.push(cur);
-                cur = getNextPosition(cur, color);
+                cur = getNextPosition(cur, key);
             }
             path.push(toPos);
             return path;
@@ -231,11 +247,12 @@
         // ========== SMOOTH ANIMATION ==========
         function startAnimation(color, idx, fromPos, toPos) {
             if(fromPos === toPos) return;
-            const path = getPath(fromPos, toPos, color);
+            const keyColor = normalizeColorKey(color);
+            const path = getPath(fromPos, toPos, keyColor);
             if(path.length < 2) return;
-            const key = `${color}_${idx}`;
+            const key = `${keyColor}_${idx}`;
             animatedTokens.set(key, {
-                color, idx, path,
+                color: keyColor, idx, path,
                 step: 0,
                 startTime: performance.now(),
                 duration: (path.length-1) * 120  // 120ms per step
@@ -288,7 +305,7 @@
                     <div class="player-dot"></div>
                     <div class="player-details">
                         <span class="player-title">${translation[col]}</span>
-                        <span class="player-tokens-status">होम: ${homeCount}/4 | मैदान पर: ${activeCount}</span>
+                        <span class="player-tokens-status">होम: ${homeCount}/4 | एक्टिव: ${activeCount}</span>
                     </div>
                 `;
                 dashboard.appendChild(card);
@@ -303,8 +320,15 @@
                 const res = await fetch(url);
                 if(!res.ok) throw new Error("Network error");
                 const data = await res.json();
-                const newTokens = data.players;
-                if(!newTokens) return;
+                
+                // पायथन कीज़ ("🔴 Red" आदि) को सुरक्षित रूप से मैप करें
+                const newTokens = {};
+                if (data.players) {
+                    data.players.forEach(p => {
+                        const normKey = normalizeColorKey(p.color);
+                        newTokens[normKey] = p.tokens;
+                    });
+                }
 
                 // Compare and animate
                 for(let color of ["red","green","blue","yellow"]) {
