@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Royale</title>
+    <title>Ludo Royale | Telegram</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { user-select:none; touch-action:manipulation; box-sizing:border-box; margin:0; padding:0; }
@@ -75,32 +75,13 @@
             display:flex; align-items:center; gap:8px; height:50px;
         }
         
-        /* अब डाइस और नया गेम बटन डिफ़ॉल्ट रूप से दिखेंगे, ज़रूरत पड़ने पर JS से छिपाए जाएँगे */
+        /* हमेशा छिपा रहेगा (टेलीग्राम मोड में पासा बैकएंड से आता है) */
         .dice-widget {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 1rem;
-            padding: 6px 14px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: 0.2s;
+            display: none !important;
         }
-        .dice-widget:hover { background: rgba(255,255,255,0.2); }
-        .dice-cube { font-size: 1.8rem; }
-
         .restart-btn {
-            background: rgba(255,255,255,0.15);
-            border: none;
-            border-radius: 1rem;
-            padding: 10px 18px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
+            display: none !important;
         }
-        .restart-btn:hover { background: rgba(255,255,255,0.3); }
         
         .status-msg-banner {
             background:rgba(15,23,42,0.7); backdrop-filter:blur(8px);
@@ -125,14 +106,14 @@
         <canvas id="ludoCanvas" width="750" height="750"></canvas>
         <div class="control-hub">
             <div class="turn-display" id="turnText"><span>⚡ Loading...</span></div>
-            
+            <!-- सिर्फ डिस्प्ले के लिए, छिपा रहेगा -->
             <div class="dice-widget" id="diceWidget">
-                <span>🎲</span>
+                <span>Dice</span>
                 <div class="dice-cube" id="diceValue">⚀</div>
             </div>
             <button class="restart-btn" id="restartBtn">🔄 New</button>
         </div>
-        <div class="status-msg-banner" id="statusMsg">✨ Choose your token | Tap to move exactly dice steps</div>
+        <div class="status-msg-banner" id="statusMsg">⏳ बैकएंड से कनेक्ट हो रहा है...</div>
     </div>
 </div>
 
@@ -144,9 +125,7 @@
     const CANVAS_SIZE = 750;
     const CELL = CANVAS_SIZE / 15;
 
-    // ─────────────────────────────────────────────
-    // REAL FIXED LUDO 52 OUTER TRACK CELLS (CLOCKWISE)
-    // ─────────────────────────────────────────────
+    // ── 52 बाहरी ट्रैक सेल (बिलकुल बैकएंड के अनुसार) ──
     const TRACK_CELLS = [
         [1,6],[2,6],[3,6],[4,6],[5,6],
         [6,5],[6,4],[6,3],[6,2],[6,1],[6,0],
@@ -164,10 +143,10 @@
     ];
 
     const HOME_STRETCH = {
-        "🔴 Red":    [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],   
-        "🟢 Green":  [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],   
-        "🟡 Yellow": [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]], 
-        "🔵 Blue":   [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]] 
+        "🔴 Red":    [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
+        "🟢 Green":  [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
+        "🟡 Yellow": [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]],
+        "🔵 Blue":   [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]]
     };
 
     const HOME_BASE_POS = {
@@ -225,14 +204,14 @@
         return target > 58 ? 59 : target;
     }
 
+    // ✅ फिक्स: गोटी केवल 6 आने पर ही घर से बाहर निकलेगी
     function canMoveToken(tokenPos, dice, colorFull, allMyTokens) {
         if (tokenPos >= 59 || dice === null || dice === undefined) return false;
-        // ✅ FIX: केवल 6 आने पर ही गोटी घर से बाहर निकल सकती है
         if (tokenPos === 0 && dice !== 6) return false;
-        
+
         const newPos = getNewPosition(tokenPos, dice, colorFull);
         if (newPos === tokenPos) return false;
-        
+
         const isSafe = SAFE_SPOTS.has(newPos) || (newPos >= 53 && newPos <= 58);
         if (allMyTokens.includes(newPos) && newPos !== tokenPos && !isSafe) {
             return false;
@@ -240,6 +219,7 @@
         return true;
     }
 
+    // ── स्टेट ──
     let gameState = {
         players:[], turn_index:0,
         dice_value:null, rolled:false,
@@ -252,6 +232,7 @@
     let refreshTimer = null;
     let animatedTokens = new Map();
 
+    // ── एनिमेशन ──
     function buildPath(colorFull, fromPos, toPos) {
         if (fromPos === toPos) return [fromPos];
         let path = [fromPos], cur = fromPos, limit = 0;
@@ -282,7 +263,7 @@
             const elapsed = now - a.startTime;
             const totalDuration = total * a.stepDuration;
             const t = Math.min(1, elapsed / totalDuration);
-            
+
             const sf = t * total;
             a.stepIndex = Math.min(Math.floor(sf), total - 1);
             a.progress  = sf - Math.floor(sf);
@@ -294,6 +275,7 @@
 
     function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
 
+    // ── कैनवस ड्राइंग ──
     const canvas = document.getElementById('ludoCanvas');
     const ctx    = canvas.getContext('2d');
 
@@ -316,7 +298,7 @@
             const col = z[2];
             pathRR(x+2,y+2,CELL*6-4,CELL*6-4,14);
             ctx.fillStyle = COLOR_HEX[col]; ctx.fill();
-            
+
             pathRR(x+CELL*0.8,y+CELL*0.8,CELL*4.4,CELL*4.4,10);
             ctx.fillStyle = "#fff"; ctx.fill();
             ctx.strokeStyle = COLOR_HEX[col]; ctx.lineWidth = 2.5; ctx.stroke();
@@ -390,19 +372,19 @@
         ctx.save();
         if (glowing) { ctx.shadowBlur=16; ctx.shadowColor="#facc15"; }
         else         { ctx.shadowBlur=4;  ctx.shadowOffsetY=2; ctx.shadowColor="rgba(0,0,0,0.4)"; }
-        
+
         ctx.beginPath();
         ctx.ellipse(x, y+r*0.65, r*0.85, r*0.4, 0, 0, Math.PI*2);
         ctx.fillStyle = COLOR_DARK[colorKey]; ctx.fill();
-        
+
         ctx.beginPath();
         ctx.ellipse(x, y+r*0.3, r*0.75, r*0.5, 0, 0, Math.PI*2);
         ctx.fillStyle = COLOR_HEX[colorKey]; ctx.fill();
-        
+
         ctx.beginPath();
         ctx.arc(x, y-r*0.25, r*0.65, 0, Math.PI*2);
         ctx.fillStyle = COLOR_HEX[colorKey]; ctx.fill();
-        
+
         ctx.shadowBlur=0; ctx.shadowOffsetY=0;
         ctx.fillStyle = "#fff";
         ctx.font = `bold ${Math.floor(CELL*0.28)}px 'Segoe UI'`;
@@ -419,7 +401,7 @@
                 const pos = p.tokens[idx];
                 if (pos === 59) continue;
                 const keyAnim = `${p.color}_${idx}`;
-                if (animatedTokens.has(keyAnim)) continue; 
+                if (animatedTokens.has(keyAnim)) continue;
 
                 const grid = getGridFromPos(p.color, pos, idx);
                 if (!grid) continue;
@@ -444,7 +426,6 @@
                 const off = OFFSETS[i % OFFSETS.length];
                 const movable = isTurnRolled && t.color === turnColor &&
                                 canMoveToken(t.pos, gameState.dice_value, t.color, t.tokens);
-                // ✅ FIX: (t.idx+1) की जगह सही इंडेक्स (t.idx) यूज़ करें
                 drawPawn(cx + off[0], cy + off[1], colorShort(t.color), (t.idx+1).toString(), movable);
             }
         }
@@ -480,6 +461,7 @@
     }
     animLoop();
 
+    // ── बैकएंड से जुड़ी कार्रवाइयाँ ──
     async function performMove(tokenIdx) {
         if (isMoving) { moveQueue.push(tokenIdx); return; }
         const currentPlayer = gameState.players[myPlayerIdx];
@@ -496,7 +478,7 @@
         startAnimation(currentPlayer.color, tokenIdx, fromPos, newPos);
         drawBoard();
         const steps = buildPath(currentPlayer.color, fromPos, newPos).length - 1;
-        await new Promise(r => setTimeout(r, steps * 130 + 50)); 
+        await new Promise(r => setTimeout(r, steps * 130 + 50));
 
         if (window.BOT_API && window.CHAT_ID && window.USER_ID) {
             try {
@@ -504,7 +486,7 @@
                 const res  = await fetch(url, { method:"POST" });
                 const data = await res.json();
                 if (res.ok) {
-                    await fetchGameState(); 
+                    await fetchGameState();
                     updateStatus("✅ गोटी चली! अगली चाल के लिए शब्द भेजें", "success");
                 } else {
                     updateStatus("⛔ " + (data.error || "चाल अस्वीकृत"), "error");
@@ -512,20 +494,7 @@
             } catch(e) {
                 updateStatus("❌ नेटवर्क त्रुटि", "error");
             }
-        } else {
-            currentPlayer.tokens[tokenIdx] = newPos;
-            gameState.rolled           = false;
-            gameState.dice_value       = null;
-            gameState.waiting_for_word = false;
-            if (currentPlayer.tokens.every(t => t >= 59)) {
-                gameState.winner = myPlayerIdx;
-                updateStatus(`🏆 ${currentPlayer.username} जीत गए!`, "success");
-            } else {
-                gameState.turn_index = (gameState.turn_index + 1) % gameState.players.length;
-                updateStatus(`↪ बारी: ${gameState.players[gameState.turn_index].username}`, "info");
-            }
         }
-
         drawBoard(); updateUI();
         isMoving = false;
         if (moveQueue.length) performMove(moveQueue.shift());
@@ -615,7 +584,7 @@
             const bx = gx*CELL + CELL/2, by = gy*CELL + CELL/2;
             for (let i = 0; i < list.length; i++) {
                 const item = list[i];
-                if (item.color !== myColor) continue; 
+                if (item.color !== myColor) continue;
                 const off  = OFFSETS[i % OFFSETS.length];
                 const dist = Math.hypot(cx - (bx+off[0]), cy - (by+off[1]));
                 if (dist < CELL * 0.48) {
@@ -630,21 +599,7 @@
         }
     }
 
-    function initDemoMode() {
-        gameState = {
-            players:[
-                {id:1,username:"लाल",   color:"🔴 Red",    tokens:[0,0,0,0]},
-                {id:2,username:"हरा",   color:"🟢 Green",  tokens:[0,0,0,0]},
-                {id:3,username:"पीला",  color:"🟡 Yellow", tokens:[0,0,0,0]},
-                {id:4,username:"नीला",  color:"🔵 Blue",   tokens:[0,0,0,0]}
-            ],
-            turn_index:0, dice_value:null, rolled:false,
-            waiting_for_word:false, winner:-1
-        };
-        myColor     = "🔴 Red";
-        myPlayerIdx = 0;
-    }
-
+    // ── URL से पैरामीटर निकालो (टेलीग्राम स्टार्ट पैराम सपोर्ट) ──
     function getQueryParam(name) {
         const url   = new URLSearchParams(window.location.search);
         const start = tg?.initDataUnsafe?.start_param || "";
@@ -660,80 +615,33 @@
     }
 
     async function init() {
-        const hasAPI = getQueryParam("api");
-        window.BOT_API = hasAPI || "";
+        window.BOT_API = getQueryParam("api")     || "";
         window.CHAT_ID = getQueryParam("chat_id") || null;
         window.USER_ID = getQueryParam("user_id") || null;
 
-        const isDemo = !hasAPI || !window.CHAT_ID || !window.USER_ID;
-
-        if (isDemo) {
-            // डेमो मोड में डाइस और नया गेम बटन दिखाएँ
-            document.getElementById("diceWidget").style.display = "flex";
-            document.getElementById("restartBtn").style.display = "inline-block";
-
-            initDemoMode();
-            updateUI(); drawBoard();
-            
-            document.getElementById("diceWidget").addEventListener("click", e => {
-                e.stopPropagation();
-                if (gameState.winner !== -1) return;
-                const cur = gameState.players[gameState.turn_index];
-                if (myColor !== cur?.color) {
-                    updateStatus("अभी आपकी बारी नहीं है","error"); return;
-                }
-                if (gameState.rolled) {
-                    updateStatus("पहले गोटी चुनें!","error"); return;
-                }
-                const val = Math.floor(Math.random()*6)+1;
-                gameState.dice_value = val;
-                gameState.rolled     = true;
-                updateUI(); drawBoard();
-                
-                const canAny = cur.tokens.some(t => canMoveToken(t, val, cur.color, cur.tokens));
-                if (!canAny) {
-                    updateStatus(`🎲 ${val} — कोई चाल संभव नहीं।`, "error");
-                    setTimeout(() => {
-                        gameState.rolled     = false;
-                        gameState.dice_value = null;
-                        gameState.turn_index = (gameState.turn_index+1) % gameState.players.length;
-                        updateUI(); drawBoard();
-                        updateStatus(`↪ बारी: ${gameState.players[gameState.turn_index].username}`, "info");
-                    }, 1200);
-                } else {
-                    updateStatus(`🎲 पासा: ${val} — गोटी चुनें!`, "success");
-                }
-            });
-            canvas.addEventListener("click",  handleCanvasClick);
-            canvas.addEventListener("touchstart", e => {
-                e.preventDefault();
-                handleCanvasClick({ clientX:e.changedTouches[0].clientX, clientY:e.changedTouches[0].clientY });
-            }, { passive:false });
-            document.getElementById("restartBtn").addEventListener("click", () => {
-                initDemoMode(); updateUI(); drawBoard();
-                updateStatus("🔄 नया डेमो गेम शुरू!", "info");
-            });
-            updateStatus("🎮 Demo Mode: गेम एक्टिव है", "info");
+        // अगर ज़रूरी पैरामीटर नहीं हैं तो एरर दिखाओ
+        if (!window.BOT_API || !window.CHAT_ID || !window.USER_ID) {
+            updateStatus("❌ गेम लिंक सही नहीं है। कृपया बॉट से दोबारा शुरू करें।", "error");
             return;
         }
 
-        // ── Real Web App Mode ──
-        // असली मोड में डाइस और नया गेम बटन छिपाएँ
-        document.getElementById("diceWidget").style.display = "none";
-        document.getElementById("restartBtn").style.display = "none";
-
         await fetchGameState();
+
         canvas.addEventListener("click", handleCanvasClick);
         canvas.addEventListener("touchstart", e => {
             e.preventDefault();
             handleCanvasClick({ clientX:e.changedTouches[0].clientX, clientY:e.changedTouches[0].clientY });
         }, { passive:false });
+
+        // New Game बटन सिर्फ़ ऐप बंद करेगा
+        document.getElementById("restartBtn").style.display = "none"; // पहले से छिपा है, फिर भी
         document.getElementById("restartBtn").addEventListener("click", () => {
             if (tg) tg.close();
-            else window.location.reload();
         });
+
+        // पोलिंग से गेम स्टेट अपडेट
         if (refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(fetchGameState, 3000); 
+        refreshTimer = setInterval(fetchGameState, 3000);
     }
 
     init();
