@@ -151,7 +151,7 @@
         "🔵 Blue":   [[10,10],[13,10],[10,13],[13,13]]
     };
 
-    // 100% matched starting positions with Python Backend
+    // Correctly synced starting positions with your Python Bot State
     const START_POS  = { "🔴 Red": 1, "🟢 Green": 21, "🟡 Yellow": 51, "🔵 Blue": 29 };
     const SAFE_SPOTS = new Set([1, 9, 14, 22, 27, 35, 40, 48]);
 
@@ -160,7 +160,7 @@
     const COLOR_LIGHT= { red:"#fff0f2", green:"#e6f7ef", yellow:"#fffae6", blue:"#eef2ff" };
     const OFFSETS    = [[-10,-10],[10,-10],[-10,10],[10,10]];
 
-    // Color Normalization Helper
+    // Color Normalization Safety Helper
     function normalizeColor(color) {
         if (!color) return "🔴 Red";
         const c = color.toString().toLowerCase();
@@ -224,8 +224,8 @@
         const newPos = getNewPosition(tokenPos, dice, normColor);
         if (newPos === tokenPos) return false;
         
-        // Python Backend Rule: यदि खिलाड़ी का स्वयं का दूसरा टोकन उस गंतव्य पर पहले से है, 
-        // और वह जगह सेफस्पॉट नहीं है, तो गोटी नहीं चल सकती।
+        // Python Rule: यदि खिलाड़ी का स्वयं का दूसरा टोकन उस स्थान पर पहले से है, 
+        // और वह सुरक्षित स्थान नहीं है, तो गोटी नहीं चल सकती।
         const isSafe = SAFE_SPOTS.has(newPos) || (newPos >= 53 && newPos <= 58);
         if (allMyTokens.includes(newPos) && newPos !== tokenPos && !isSafe) {
             return false;
@@ -266,7 +266,7 @@
         animatedTokens.set(`${normColor}_${tokenIdx}`, {
             colorFull: normColor, tokenIdx, path,
             stepIndex:0, progress:0,
-            startTime: performance.now(), stepDuration:130 // प्रत्येक बॉक्स चलने की स्पीड (ms)
+            startTime: performance.now(), stepDuration:130 // गति प्रति बॉक्स (ms)
         });
         return true;
     }
@@ -384,6 +384,7 @@
         ctx.textAlign = "left";
     }
 
+    // Pawn design
     function drawPawn(x, y, colorKey, label, glowing) {
         const r = CELL * 0.38;
         ctx.save();
@@ -479,7 +480,7 @@
     }
     animLoop();
 
-    // ── PLAY ACTION ROUTINES (strictly connected with backend API) ────
+    // ── WEB APP ONLINE MOVE CONTROLLERS ─────────────────────
     async function performMove(tokenIdx) {
         if (isMoving) { moveQueue.push(tokenIdx); return; }
         const currentPlayer = gameState.players[myPlayerIdx];
@@ -630,7 +631,7 @@
         window.USER_ID = getQueryParam("user_id") || null;
 
         if (!window.BOT_API || !window.CHAT_ID || !window.USER_ID) {
-            updateStatus("⚠️ Telegram WebApp context matches error. Open from bot chat.", "error");
+            updateStatus("⚠️ Telegram WebApp context is missing. Open from bot chat.", "error");
             return;
         }
 
