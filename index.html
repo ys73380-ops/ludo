@@ -19,8 +19,7 @@
         body {
             background: var(--bg-gradient);
             display: flex; justify-content: center; align-items: center;
-            min-height: 100vh;
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            min-height: 100vh; font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
             color: var(--text-primary); padding: 16px;
         }
         .main-wrapper { width:100%; max-width:530px; display:flex; flex-direction:column; gap:16px; }
@@ -59,8 +58,7 @@
         .player-meta { font-size:0.65rem; color:var(--text-muted); }
         .game-container {
             background:var(--panel-bg); backdrop-filter:blur(14px);
-            border-radius:1.8rem; padding:12px;
-            border:1px solid var(--border-color);
+            border-radius:1.8rem; padding:12px; border:1px solid var(--border-color);
         }
         canvas {
             display:block; margin:0 auto; border-radius:1.2rem;
@@ -74,15 +72,7 @@
             font-weight:700; font-size:0.85rem;
             display:flex; align-items:center; gap:8px; height:50px;
         }
-        
-        /* हमेशा छिपा रहेगा (टेलीग्राम मोड में पासा बैकएंड से आता है) */
-        .dice-widget {
-            display: none !important;
-        }
-        .restart-btn {
-            display: none !important;
-        }
-        
+        .dice-widget, .restart-btn { display: none !important; }  /* Telegram मोड में छिपा */
         .status-msg-banner {
             background:rgba(15,23,42,0.7); backdrop-filter:blur(8px);
             padding:10px 16px; border-radius:1rem;
@@ -91,27 +81,16 @@
         }
         .status-msg-banner.error { background:rgba(239,68,68,0.15); color:#fecaca; border-color: rgba(239,68,68,0.25); }
         .status-msg-banner.success { background:rgba(16,185,129,0.12); color:#a7f3d0; border-color: rgba(16,185,129,0.25); }
-        @media (max-width:550px) {
-            .player-name { font-size:0.7rem; }
-        }
     </style>
 </head>
 <body>
 <div class="main-wrapper">
-    <div class="header-bar">
-        <div class="brand-title">🎲 LUDO ROYALE</div>
-    </div>
+    <div class="header-bar"><div class="brand-title">🎲 LUDO ROYALE</div></div>
     <div class="player-dashboard" id="playerList"></div>
     <div class="game-container">
         <canvas id="ludoCanvas" width="750" height="750"></canvas>
         <div class="control-hub">
             <div class="turn-display" id="turnText"><span>⚡ Loading...</span></div>
-            <!-- सिर्फ डिस्प्ले के लिए, छिपा रहेगा -->
-            <div class="dice-widget" id="diceWidget">
-                <span>Dice</span>
-                <div class="dice-cube" id="diceValue">⚀</div>
-            </div>
-            <button class="restart-btn" id="restartBtn">🔄 New</button>
         </div>
         <div class="status-msg-banner" id="statusMsg">⏳ बैकएंड से कनेक्ट हो रहा है...</div>
     </div>
@@ -125,7 +104,7 @@
     const CANVAS_SIZE = 750;
     const CELL = CANVAS_SIZE / 15;
 
-    // ── 52 बाहरी ट्रैक सेल (बिलकुल बैकएंड के अनुसार) ──
+    // ✅ STANDARD 52 बाहरी ट्रैक सेल (बिलकुल तुम्हारे बैकएंड के पोज़ीशन नंबर के हिसाब से)
     const TRACK_CELLS = [
         [1,6],[2,6],[3,6],[4,6],[5,6],
         [6,5],[6,4],[6,3],[6,2],[6,1],[6,0],
@@ -156,6 +135,7 @@
         "🔵 Blue":   [[10,10],[13,10],[10,13],[13,13]]
     };
 
+    // ✅ बैकएंड से मैच करता START_POS (स्टैंडर्ड लूडो)
     const START_POS  = { "🔴 Red": 1, "🟢 Green": 14, "🟡 Yellow": 27, "🔵 Blue": 40 };
     const SAFE_SPOTS = new Set([1, 9, 14, 22, 27, 35, 40, 48]);
 
@@ -181,37 +161,23 @@
         return null;
     }
 
-    function getNextPosition(pos, colorFull) {
-        if (pos === 0) return START_POS[colorFull];
-        if (pos >= 58) return 59;
-        return pos + 1;
-    }
-
-    function addStepsFromPos(startPos, steps, colorFull) {
-        let cur = startPos;
-        for (let i = 0; i < steps; i++) {
-            const next = getNextPosition(cur, colorFull);
-            if (next === 59) return 59;
-            if (next === cur) return cur;
-            cur = next;
-        }
-        return cur;
-    }
-
+    // ✅ बैकएंड का मूवमेंट लॉजिक (होम स्ट्रेच एंट्री)
     function getNewPosition(tokenPos, dice, colorFull) {
         if (tokenPos === 0) return START_POS[colorFull];
-        const target = addStepsFromPos(tokenPos, dice, colorFull);
-        return target > 58 ? 59 : target;
+        let newPos = tokenPos + dice;
+        if (1 <= tokenPos && tokenPos <= 52 && newPos > 52) {
+            newPos = 52 + (newPos - 52);   // होम स्ट्रेच में घुसना
+        }
+        if (newPos > 58) newPos = 59;
+        return newPos;
     }
 
-    // ✅ फिक्स: गोटी केवल 6 आने पर ही घर से बाहर निकलेगी
+    // ✅ बैकएंड के can_move जैसा (पर यहाँ 6 का चेक जोड़ा – अगर बैकएंड में फिक्स करो तो मैच होगा)
     function canMoveToken(tokenPos, dice, colorFull, allMyTokens) {
         if (tokenPos >= 59 || dice === null || dice === undefined) return false;
-        if (tokenPos === 0 && dice !== 6) return false;
-
+        if (tokenPos === 0 && dice !== 6) return false;   // स्टैंडर्ड लूडो रूल
         const newPos = getNewPosition(tokenPos, dice, colorFull);
         if (newPos === tokenPos) return false;
-
         const isSafe = SAFE_SPOTS.has(newPos) || (newPos >= 53 && newPos <= 58);
         if (allMyTokens.includes(newPos) && newPos !== tokenPos && !isSafe) {
             return false;
@@ -219,431 +185,235 @@
         return true;
     }
 
-    // ── स्टेट ──
-    let gameState = {
-        players:[], turn_index:0,
-        dice_value:null, rolled:false,
-        waiting_for_word:false, winner:-1
-    };
-    let myColor      = null;
-    let myPlayerIdx  = -1;
-    let isMoving     = false;
-    let moveQueue    = [];
-    let refreshTimer = null;
+    let gameState = { players:[], turn_index:0, dice_value:null, rolled:false, waiting_for_word:false, winner:-1 };
+    let myColor = null, myPlayerIdx = -1, isMoving = false, moveQueue = [], refreshTimer = null;
     let animatedTokens = new Map();
 
-    // ── एनिमेशन ──
+    // एनिमेशन हेल्पर
     function buildPath(colorFull, fromPos, toPos) {
         if (fromPos === toPos) return [fromPos];
         let path = [fromPos], cur = fromPos, limit = 0;
         while (cur !== toPos && limit < 70) {
-            cur = getNextPosition(cur, colorFull);
+            cur = (cur === 0) ? START_POS[colorFull] : (cur >= 58 ? 59 : cur + 1);
             path.push(cur);
             limit++;
         }
         return path;
     }
-
     function startAnimation(colorFull, tokenIdx, fromPos, toPos) {
         const path = buildPath(colorFull, fromPos, toPos);
         if (path.length < 2) return false;
         animatedTokens.set(`${colorFull}_${tokenIdx}`, {
-            colorFull, tokenIdx, path,
-            stepIndex:0, progress:0,
+            colorFull, tokenIdx, path, stepIndex:0, progress:0,
             startTime: performance.now(), stepDuration:130
         });
         return true;
     }
-
     function updateAnimations() {
         let any = false;
         const now = performance.now();
         for (let [key, a] of animatedTokens.entries()) {
             const total = a.path.length - 1;
-            const elapsed = now - a.startTime;
-            const totalDuration = total * a.stepDuration;
-            const t = Math.min(1, elapsed / totalDuration);
-
-            const sf = t * total;
-            a.stepIndex = Math.min(Math.floor(sf), total - 1);
-            a.progress  = sf - Math.floor(sf);
-            if (t < 1) any = true;
-            else animatedTokens.delete(key);
+            const t = Math.min(1, (now - a.startTime) / (total * a.stepDuration));
+            a.stepIndex = Math.min(Math.floor(t * total), total - 1);
+            a.progress = t * total - a.stepIndex;
+            if (t < 1) any = true; else animatedTokens.delete(key);
         }
         return any;
     }
-
     function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
 
-    // ── कैनवस ड्राइंग ──
+    // कैनवस ड्राइंग फंक्शन्स (पिछले कोड जैसी ही – संक्षिप्त रखी हैं)
     const canvas = document.getElementById('ludoCanvas');
-    const ctx    = canvas.getContext('2d');
-
-    function pathRR(x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
-        ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-        ctx.lineTo(x+w,y+h-r);
-        ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-        ctx.lineTo(x+r,y+h);
-        ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-        ctx.lineTo(x,y+r);
-        ctx.quadraticCurveTo(x,y,x+r,y);
+    const ctx = canvas.getContext('2d');
+    function pathRR(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);}
+    function drawHomeAreas(){
+        const zones=[[0,0,"red"],[9,0,"green"],[0,9,"yellow"],[9,9,"blue"]];
+        zones.forEach(z=>{let x=z[0]*CELL,y=z[1]*CELL,col=z[2];pathRR(x+2,y+2,CELL*6-4,CELL*6-4,14);ctx.fillStyle=COLOR_HEX[col];ctx.fill();pathRR(x+CELL*.8,y+CELL*.8,CELL*4.4,CELL*4.4,10);ctx.fillStyle="#fff";ctx.fill();ctx.strokeStyle=COLOR_HEX[col];ctx.lineWidth=2.5;ctx.stroke();});
     }
-
-    function drawHomeAreas() {
-        const zones = [[0,0,"red"],[9,0,"green"],[0,9,"yellow"],[9,9,"blue"]];
-        zones.forEach((z) => {
-            const x = z[0]*CELL, y = z[1]*CELL;
-            const col = z[2];
-            pathRR(x+2,y+2,CELL*6-4,CELL*6-4,14);
-            ctx.fillStyle = COLOR_HEX[col]; ctx.fill();
-
-            pathRR(x+CELL*0.8,y+CELL*0.8,CELL*4.4,CELL*4.4,10);
-            ctx.fillStyle = "#fff"; ctx.fill();
-            ctx.strokeStyle = COLOR_HEX[col]; ctx.lineWidth = 2.5; ctx.stroke();
-        });
+    function drawTrack(){
+        const startCells=new Set(["1,6","8,1","13,8","6,13"]);
+        const startColors={"1,6":"red","8,1":"green","13,8":"yellow","6,13":"blue"};
+        for(let i=0;i<TRACK_CELLS.length;i++){let[gx,gy]=TRACK_CELLS[i];let x=gx*CELL,y=gy*CELL,key=`${gx},${gy}`;let isSafe=SAFE_SPOTS.has(i+1),isStart=startCells.has(key);
+        if(isStart)ctx.fillStyle=COLOR_HEX[startColors[key]];else if(isSafe)ctx.fillStyle="#f1f5f9";else ctx.fillStyle="#ffffff";
+        ctx.fillRect(x,y,CELL,CELL);ctx.strokeStyle="#e2e8f0";ctx.lineWidth=1;ctx.strokeRect(x,y,CELL,CELL);
+        if(isSafe&&!isStart){ctx.font=`${CELL*.48}px Arial`;ctx.fillStyle="#f59e0b";ctx.textAlign="center";ctx.fillText("⭐",x+CELL/2,y+CELL/2+5);ctx.textAlign="left";}}
     }
-
-    function drawTrack() {
-        const startCells = new Set(["1,6","8,1","13,8","6,13"]);
-        const startColors = {"1,6":"red","8,1":"green","13,8":"yellow","6,13":"blue"};
-        for (let i = 0; i < TRACK_CELLS.length; i++) {
-            const [gx,gy] = TRACK_CELLS[i];
-            const x = gx*CELL, y = gy*CELL;
-            const key = `${gx},${gy}`;
-            const isSafe  = SAFE_SPOTS.has(i+1);
-            const isStart = startCells.has(key);
-            if (isStart)     ctx.fillStyle = COLOR_HEX[startColors[key]];
-            else if (isSafe) ctx.fillStyle = "#f1f5f9";
-            else             ctx.fillStyle = "#ffffff";
-            ctx.fillRect(x,y,CELL,CELL);
-            ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
-            ctx.strokeRect(x,y,CELL,CELL);
-            if (isSafe && !isStart) {
-                ctx.font = `${CELL*0.48}px Arial`;
-                ctx.fillStyle = "#f59e0b";
-                ctx.textAlign = "center";
-                ctx.fillText("⭐", x+CELL/2, y+CELL/2+5);
-                ctx.textAlign = "left";
-            }
-        }
+    function drawHomeStretch(){
+        for(let[colorFull,cells]of Object.entries(HOME_STRETCH)){let short=colorShort(colorFull);
+        for(let j=0;j<cells.length;j++){let[gx,gy]=cells[j],x=gx*CELL,y=gy*CELL;ctx.fillStyle=(j===cells.length-1)?COLOR_HEX[short]:COLOR_LIGHT[short];ctx.fillRect(x,y,CELL,CELL);ctx.strokeStyle=COLOR_HEX[short];ctx.lineWidth=1.2;ctx.strokeRect(x,y,CELL,CELL);}}
     }
-
-    function drawHomeStretch() {
-        for (let [colorFull, cells] of Object.entries(HOME_STRETCH)) {
-            const short = colorShort(colorFull);
-            for (let j = 0; j < cells.length; j++) {
-                const [gx,gy] = cells[j];
-                const x = gx*CELL, y = gy*CELL;
-                ctx.fillStyle = (j === cells.length-1) ? COLOR_HEX[short] : COLOR_LIGHT[short];
-                ctx.fillRect(x,y,CELL,CELL);
-                ctx.strokeStyle = COLOR_HEX[short]; ctx.lineWidth = 1.2;
-                ctx.strokeRect(x,y,CELL,CELL);
-            }
-        }
+    function drawCenter(){
+        let cx=CELL*7.5,cy=CELL*7.5;ctx.fillStyle="#f1f5f9";ctx.fillRect(CELL*6,CELL*6,CELL*3,CELL*3);
+        let tris=[{c:"red",pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy-CELL*1.5],[cx,cy]]},{c:"green",pts:[[cx+CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},{c:"blue",pts:[[cx-CELL*1.5,cy+CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},{c:"yellow",pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx-CELL*1.5,cy+CELL*1.5],[cx,cy]]}];
+        for(let t of tris){ctx.beginPath();ctx.moveTo(t.pts[0][0],t.pts[0][1]);ctx.lineTo(t.pts[1][0],t.pts[1][1]);ctx.lineTo(t.pts[2][0],t.pts[2][1]);ctx.fillStyle=COLOR_HEX[t.c];ctx.fill();}
+        ctx.font=`bold ${CELL*.9}px Arial`;ctx.fillStyle="#1e293b";ctx.textAlign="center";ctx.fillText("🏆",cx,cy+8);ctx.textAlign="left";
     }
-
-    function drawCenter() {
-        const cx = CELL*7.5, cy = CELL*7.5;
-        ctx.fillStyle = "#f1f5f9";
-        ctx.fillRect(CELL*6,CELL*6,CELL*3,CELL*3);
-        const tris = [
-            {c:"red",    pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy-CELL*1.5],[cx,cy]]},
-            {c:"green",  pts:[[cx+CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-            {c:"blue",   pts:[[cx-CELL*1.5,cy+CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-            {c:"yellow", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx-CELL*1.5,cy+CELL*1.5],[cx,cy]]}
-        ];
-        for (let t of tris) {
-            ctx.beginPath();
-            ctx.moveTo(t.pts[0][0], t.pts[0][1]);
-            ctx.lineTo(t.pts[1][0], t.pts[1][1]);
-            ctx.lineTo(t.pts[2][0], t.pts[2][1]);
-            ctx.fillStyle = COLOR_HEX[t.c]; ctx.fill();
-        }
-        ctx.font = `bold ${CELL*0.9}px Arial`;
-        ctx.fillStyle = "#1e293b"; ctx.textAlign = "center";
-        ctx.fillText("🏆", cx, cy+8);
-        ctx.textAlign = "left";
+    function drawPawn(x,y,colorKey,label,glowing){
+        let r=CELL*.38;ctx.save();
+        if(glowing){ctx.shadowBlur=16;ctx.shadowColor="#facc15";}else{ctx.shadowBlur=4;ctx.shadowOffsetY=2;ctx.shadowColor="rgba(0,0,0,0.4)";}
+        ctx.beginPath();ctx.ellipse(x,y+r*.65,r*.85,r*.4,0,0,Math.PI*2);ctx.fillStyle=COLOR_DARK[colorKey];ctx.fill();
+        ctx.beginPath();ctx.ellipse(x,y+r*.3,r*.75,r*.5,0,0,Math.PI*2);ctx.fillStyle=COLOR_HEX[colorKey];ctx.fill();
+        ctx.beginPath();ctx.arc(x,y-r*.25,r*.65,0,Math.PI*2);ctx.fillStyle=COLOR_HEX[colorKey];ctx.fill();
+        ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.fillStyle="#fff";ctx.font=`bold ${Math.floor(CELL*.28)}px 'Segoe UI'`;ctx.textAlign="center";ctx.fillText(label,x,y-r*.18);ctx.textAlign="left";ctx.restore();
     }
-
-    function drawPawn(x, y, colorKey, label, glowing) {
-        const r = CELL * 0.38;
-        ctx.save();
-        if (glowing) { ctx.shadowBlur=16; ctx.shadowColor="#facc15"; }
-        else         { ctx.shadowBlur=4;  ctx.shadowOffsetY=2; ctx.shadowColor="rgba(0,0,0,0.4)"; }
-
-        ctx.beginPath();
-        ctx.ellipse(x, y+r*0.65, r*0.85, r*0.4, 0, 0, Math.PI*2);
-        ctx.fillStyle = COLOR_DARK[colorKey]; ctx.fill();
-
-        ctx.beginPath();
-        ctx.ellipse(x, y+r*0.3, r*0.75, r*0.5, 0, 0, Math.PI*2);
-        ctx.fillStyle = COLOR_HEX[colorKey]; ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(x, y-r*0.25, r*0.65, 0, Math.PI*2);
-        ctx.fillStyle = COLOR_HEX[colorKey]; ctx.fill();
-
-        ctx.shadowBlur=0; ctx.shadowOffsetY=0;
-        ctx.fillStyle = "#fff";
-        ctx.font = `bold ${Math.floor(CELL*0.28)}px 'Segoe UI'`;
-        ctx.textAlign = "center";
-        ctx.fillText(label, x, y-r*0.18);
-        ctx.textAlign = "left";
-        ctx.restore();
-    }
-
-    function buildCellMap() {
-        const map = new Map();
-        for (let p of gameState.players) {
-            for (let idx = 0; idx < p.tokens.length; idx++) {
-                const pos = p.tokens[idx];
-                if (pos === 59) continue;
-                const keyAnim = `${p.color}_${idx}`;
-                if (animatedTokens.has(keyAnim)) continue;
-
-                const grid = getGridFromPos(p.color, pos, idx);
-                if (!grid) continue;
-                const key = `${grid[0]},${grid[1]}`;
-                if (!map.has(key)) map.set(key, []);
-                map.get(key).push({ color:p.color, idx, pos, tokens:p.tokens });
+    function buildCellMap(){
+        let map=new Map();
+        for(let p of gameState.players){
+            for(let idx=0;idx<p.tokens.length;idx++){
+                let pos=p.tokens[idx];if(pos===59)continue;
+                if(animatedTokens.has(`${p.color}_${idx}`))continue;
+                let grid=getGridFromPos(p.color,pos,idx);if(!grid)continue;
+                let key=`${grid[0]},${grid[1]}`;
+                if(!map.has(key))map.set(key,[]);
+                map.get(key).push({color:p.color,idx,pos,tokens:p.tokens});
             }
         }
         return map;
     }
-
-    function drawAllTokens() {
-        const cellMap = buildCellMap();
-        const isTurnRolled = gameState.rolled && gameState.dice_value !== null;
-        const turnColor = gameState.players[gameState.turn_index]?.color;
-
-        for (let [gridKey, list] of cellMap.entries()) {
-            const [gx,gy] = gridKey.split(',').map(Number);
-            const cx = gx*CELL + CELL/2, cy = gy*CELL + CELL/2;
-            for (let i = 0; i < list.length; i++) {
-                const t = list[i];
-                const off = OFFSETS[i % OFFSETS.length];
-                const movable = isTurnRolled && t.color === turnColor &&
-                                canMoveToken(t.pos, gameState.dice_value, t.color, t.tokens);
-                drawPawn(cx + off[0], cy + off[1], colorShort(t.color), (t.idx+1).toString(), movable);
+    function drawAllTokens(){
+        let cellMap=buildCellMap();
+        let isTurnRolled=gameState.rolled&&gameState.dice_value!==null;
+        let turnColor=gameState.players[gameState.turn_index]?.color;
+        for(let[gridKey,list]of cellMap.entries()){
+            let[gx,gy]=gridKey.split(',').map(Number);
+            let cx=gx*CELL+CELL/2,cy=gy*CELL+CELL/2;
+            for(let i=0;i<list.length;i++){
+                let t=list[i],off=OFFSETS[i%OFFSETS.length];
+                let movable=isTurnRolled&&t.color===turnColor&&canMoveToken(t.pos,gameState.dice_value,t.color,t.tokens);
+                drawPawn(cx+off[0],cy+off[1],colorShort(t.color),(t.idx+1).toString(),movable);
             }
         }
-
-        for (let [_, a] of animatedTokens.entries()) {
-            const fromPos = a.path[a.stepIndex];
-            const toPos   = a.path[Math.min(a.stepIndex+1, a.path.length-1)];
-            const fg = getGridFromPos(a.colorFull, fromPos, a.tokenIdx);
-            const tg2= getGridFromPos(a.colorFull, toPos,   a.tokenIdx);
-            if (!fg || !tg2) continue;
-            const sx = fg[0]*CELL+CELL/2, sy = fg[1]*CELL+CELL/2;
-            const ex = tg2[0]*CELL+CELL/2, ey = tg2[1]*CELL+CELL/2;
-            const te = easeOut(a.progress);
-            drawPawn(sx+(ex-sx)*te, sy+(ey-sy)*te, colorShort(a.colorFull), (a.tokenIdx+1).toString(), false);
+        for(let[_,a]of animatedTokens.entries()){
+            let fromPos=a.path[a.stepIndex],toPos=a.path[Math.min(a.stepIndex+1,a.path.length-1)];
+            let fg=getGridFromPos(a.colorFull,fromPos,a.tokenIdx),tg2=getGridFromPos(a.colorFull,toPos,a.tokenIdx);
+            if(!fg||!tg2)continue;
+            let sx=fg[0]*CELL+CELL/2,sy=fg[1]*CELL+CELL/2,ex=tg2[0]*CELL+CELL/2,ey=tg2[1]*CELL+CELL/2;
+            let te=easeOut(a.progress);
+            drawPawn(sx+(ex-sx)*te,sy+(ey-sy)*te,colorShort(a.colorFull),(a.tokenIdx+1).toString(),false);
         }
     }
-
-    function drawBoard() {
-        ctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
-        ctx.fillStyle = "#fef9e3";
-        pathRR(0,0,CANVAS_SIZE,CANVAS_SIZE,20);
-        ctx.fill();
-        drawHomeAreas();
-        drawTrack();
-        drawHomeStretch();
-        drawCenter();
-        drawAllTokens();
+    function drawBoard(){
+        ctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE);ctx.fillStyle="#fef9e3";pathRR(0,0,CANVAS_SIZE,CANVAS_SIZE,20);ctx.fill();
+        drawHomeAreas();drawTrack();drawHomeStretch();drawCenter();drawAllTokens();
     }
-
-    function animLoop() {
-        if (updateAnimations()) drawBoard();
-        requestAnimationFrame(animLoop);
-    }
+    function animLoop(){if(updateAnimations())drawBoard();requestAnimationFrame(animLoop);}
     animLoop();
 
-    // ── बैकएंड से जुड़ी कार्रवाइयाँ ──
-    async function performMove(tokenIdx) {
-        if (isMoving) { moveQueue.push(tokenIdx); return; }
-        const currentPlayer = gameState.players[myPlayerIdx];
-        if (!currentPlayer) return;
-        const fromPos = currentPlayer.tokens[tokenIdx];
-        const dice    = gameState.dice_value;
-        if (!canMoveToken(fromPos, dice, currentPlayer.color, currentPlayer.tokens)) {
-            updateStatus("❌ यह गोटी नहीं चल सकती", "error"); return;
-        }
-        const newPos = getNewPosition(fromPos, dice, currentPlayer.color);
-        if (newPos === fromPos) { updateStatus("❌ चाल संभव नहीं","error"); return; }
-
-        isMoving = true;
-        startAnimation(currentPlayer.color, tokenIdx, fromPos, newPos);
+    // बैकएंड इंटरैक्शन
+    async function performMove(tokenIdx){
+        if(isMoving){moveQueue.push(tokenIdx);return;}
+        let player=gameState.players[myPlayerIdx];
+        if(!player)return;
+        let fromPos=player.tokens[tokenIdx],dice=gameState.dice_value;
+        if(!canMoveToken(fromPos,dice,player.color,player.tokens)){updateStatus("❌ यह गोटी नहीं चल सकती","error");return;}
+        let newPos=getNewPosition(fromPos,dice,player.color);
+        if(newPos===fromPos){updateStatus("❌ चाल संभव नहीं","error");return;}
+        isMoving=true;
+        startAnimation(player.color,tokenIdx,fromPos,newPos);
         drawBoard();
-        const steps = buildPath(currentPlayer.color, fromPos, newPos).length - 1;
-        await new Promise(r => setTimeout(r, steps * 130 + 50));
-
-        if (window.BOT_API && window.CHAT_ID && window.USER_ID) {
-            try {
-                const url = `${window.BOT_API}/move?chat_id=${window.CHAT_ID}&user_id=${window.USER_ID}&token_idx=${tokenIdx}`;
-                const res  = await fetch(url, { method:"POST" });
-                const data = await res.json();
-                if (res.ok) {
-                    await fetchGameState();
-                    updateStatus("✅ गोटी चली! अगली चाल के लिए शब्द भेजें", "success");
-                } else {
-                    updateStatus("⛔ " + (data.error || "चाल अस्वीकृत"), "error");
-                }
-            } catch(e) {
-                updateStatus("❌ नेटवर्क त्रुटि", "error");
-            }
-        }
-        drawBoard(); updateUI();
-        isMoving = false;
-        if (moveQueue.length) performMove(moveQueue.shift());
+        await new Promise(r=>setTimeout(r, (buildPath(player.color,fromPos,newPos).length-1)*130+50));
+        try{
+            let url=`${window.BOT_API}/move?chat_id=${window.CHAT_ID}&user_id=${window.USER_ID}&token_idx=${tokenIdx}`;
+            let res=await fetch(url,{method:"POST"});
+            let data=await res.json();
+            if(res.ok){await fetchGameState();updateStatus("✅ गोटी चली!","success");}
+            else updateStatus("⛔ "+(data.error||"चाल अस्वीकृत"),"error");
+        }catch(e){updateStatus("❌ नेटवर्क त्रुटि","error");}
+        isMoving=false;if(moveQueue.length)performMove(moveQueue.shift());
     }
 
-    async function fetchGameState() {
-        if (!window.BOT_API || !window.CHAT_ID) return;
-        try {
-            const res = await fetch(`${window.BOT_API}/game_state?chat_id=${window.CHAT_ID}`);
-            if (res.ok) {
-                const data = await res.json();
-                gameState = data;
-                if (window.USER_ID && gameState.players) {
-                    const idx = gameState.players.findIndex(p => p.id == window.USER_ID);
-                    if (idx !== -1) { myPlayerIdx = idx; myColor = gameState.players[idx].color; }
+    async function fetchGameState(){
+        if(!window.BOT_API||!window.CHAT_ID)return;
+        try{
+            let res=await fetch(`${window.BOT_API}/game_state?chat_id=${window.CHAT_ID}`);
+            if(res.ok){
+                let data=await res.json();
+                gameState=data;
+                if(window.USER_ID&&gameState.players){
+                    let idx=gameState.players.findIndex(p=>p.id==window.USER_ID);
+                    if(idx!==-1){myPlayerIdx=idx;myColor=gameState.players[idx].color;}
                 }
             }
-        } catch(e) { console.warn("fetchGameState failed:", e); }
-        updateUI(); drawBoard();
+        }catch(e){console.warn(e);}
+        updateUI();drawBoard();
     }
 
-    function updateStatus(msg, type="info") {
-        const b = document.getElementById("statusMsg");
-        b.innerText = msg;
-        b.className = `status-msg-banner ${type}`;
-        setTimeout(() => { if (b.innerText === msg) b.className = "status-msg-banner"; }, 2500);
+    function updateStatus(msg,type="info"){
+        let b=document.getElementById("statusMsg");
+        b.innerText=msg;b.className=`status-msg-banner ${type}`;
+        setTimeout(()=>{if(b.innerText===msg)b.className="status-msg-banner";},2500);
     }
 
-    function updateUI() {
-        const playerDiv = document.getElementById("playerList");
-        const turnSpan  = document.getElementById("turnText");
-        const diceEl    = document.getElementById("diceValue");
-
-        if (gameState.players?.length) {
-            playerDiv.innerHTML = "";
-            gameState.players.forEach((p, idx) => {
-                const isTurn = gameState.turn_index === idx;
-                const isMe   = myColor === p.color;
-                const sc     = colorShort(p.color);
-                let statusTxt = isTurn ? (gameState.rolled ? "🎲 गोटी चुनें" : "⏳ पासे का इंतज़ार") : "प्रतीक्षा";
-                if (isMe) statusTxt += " (आप)";
-                const card = document.createElement("div");
-                card.className = `player-card ${isTurn ? "active-turn" : ""}`;
-                card.style.setProperty("--player-color", COLOR_HEX[sc]);
-                card.innerHTML = `
-                  <div class="player-indicator"></div>
-                  <div>
-                    <div class="player-name">${p.username || sc}</div>
-                    <div class="player-meta">${statusTxt}</div>
-                  </div>`;
+    function updateUI(){
+        let playerDiv=document.getElementById("playerList");
+        let turnSpan=document.getElementById("turnText");
+        if(gameState.players?.length){
+            playerDiv.innerHTML="";
+            gameState.players.forEach((p,idx)=>{
+                let isTurn=gameState.turn_index===idx;
+                let isMe=myColor===p.color;
+                let sc=colorShort(p.color);
+                let txt=isTurn?(gameState.rolled?"🎲 गोटी चुनें":"⏳ पासे का इंतज़ार"):"प्रतीक्षा";
+                if(isMe)txt+=" (आप)";
+                let card=document.createElement("div");
+                card.className=`player-card ${isTurn?"active-turn":""}`;
+                card.style.setProperty("--player-color",COLOR_HEX[sc]);
+                card.innerHTML=`<div class="player-indicator"></div><div><div class="player-name">${p.username||sc}</div><div class="player-meta">${txt}</div></div>`;
                 playerDiv.appendChild(card);
             });
         }
-
-        if (gameState.winner !== -1) {
-            const winner = gameState.players[gameState.winner];
-            turnSpan.innerHTML = `<span>🏆 ${winner?.username || ''} जीते!</span>`;
-            diceEl.innerText = "🏆";
+        if(gameState.winner!==-1){
+            turnSpan.innerHTML=`<span>🏆 ${gameState.players[gameState.winner]?.username||''} जीते!</span>`;
             return;
         }
-        const cc = gameState.players[gameState.turn_index]?.color;
-        const sc = colorShort(cc);
-        turnSpan.innerHTML = `
-          <span style="background:${COLOR_HEX[sc]};width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:8px;flex-shrink:0"></span>
-          बारी: ${cc || '?'}`;
-        diceEl.innerText = (gameState.rolled && gameState.dice_value) ? gameState.dice_value : "⚀";
+        let cc=gameState.players[gameState.turn_index]?.color;
+        turnSpan.innerHTML=`<span style="background:${COLOR_HEX[colorShort(cc)]};width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:8px;"></span> बारी: ${cc||'?'}`;
     }
 
-    function handleCanvasClick(e) {
-        if (gameState.winner !== -1) return;
-        if (!gameState.rolled || gameState.dice_value === null) {
-            updateStatus("⏳ पासे का इंतज़ार करें", "error"); return;
-        }
-        const turnColor = gameState.players[gameState.turn_index]?.color;
-        if (myColor !== turnColor) {
-            updateStatus("⏳ अभी आपकी बारी नहीं है", "error"); return;
-        }
-        const rect   = canvas.getBoundingClientRect();
-        const scaleX = canvas.width  / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const cx = (e.clientX - rect.left) * scaleX;
-        const cy = (e.clientY - rect.top)  * scaleY;
-
-        const cellMap = buildCellMap();
-        for (let [gridKey, list] of cellMap.entries()) {
-            const [gx,gy] = gridKey.split(',').map(Number);
-            const bx = gx*CELL + CELL/2, by = gy*CELL + CELL/2;
-            for (let i = 0; i < list.length; i++) {
-                const item = list[i];
-                if (item.color !== myColor) continue;
-                const off  = OFFSETS[i % OFFSETS.length];
-                const dist = Math.hypot(cx - (bx+off[0]), cy - (by+off[1]));
-                if (dist < CELL * 0.48) {
-                    if (canMoveToken(item.pos, gameState.dice_value, myColor, item.tokens)) {
-                        performMove(item.idx);
-                    } else {
-                        updateStatus("❌ यह गोटी इस पासे से नहीं चल सकती", "error");
-                    }
+    function handleCanvasClick(e){
+        if(gameState.winner!==-1||!gameState.rolled||gameState.dice_value===null)return;
+        if(myColor!==gameState.players[gameState.turn_index]?.color){updateStatus("⏳ आपकी बारी नहीं","error");return;}
+        let rect=canvas.getBoundingClientRect();
+        let cx=(e.clientX-rect.left)*(canvas.width/rect.width);
+        let cy=(e.clientY-rect.top)*(canvas.height/rect.height);
+        let cellMap=buildCellMap();
+        for(let[gridKey,list]of cellMap.entries()){
+            let[gx,gy]=gridKey.split(',').map(Number);
+            let bx=gx*CELL+CELL/2,by=gy*CELL+CELL/2;
+            for(let i=0;i<list.length;i++){
+                let item=list[i];
+                if(item.color!==myColor)continue;
+                let off=OFFSETS[i%OFFSETS.length];
+                if(Math.hypot(cx-(bx+off[0]),cy-(by+off[1]))<CELL*.48){
+                    if(canMoveToken(item.pos,gameState.dice_value,myColor,item.tokens))performMove(item.idx);
+                    else updateStatus("❌ यह गोटी नहीं चल सकती","error");
                     return;
                 }
             }
         }
     }
 
-    // ── URL से पैरामीटर निकालो (टेलीग्राम स्टार्ट पैराम सपोर्ट) ──
-    function getQueryParam(name) {
-        const url   = new URLSearchParams(window.location.search);
-        const start = tg?.initDataUnsafe?.start_param || "";
-        if (name === "api" && start) {
-            const m = start.match(/api_([a-zA-Z0-9_\-.\/~]+)/);
-            if (m) return m[1];
-        }
-        if (name === "chat_id" && !url.get("chat_id") && start) {
-            const m = start.match(/chatid_(-?\d+)/);
-            if (m) return m[1];
-        }
+    function getQueryParam(name){
+        let url=new URLSearchParams(window.location.search);
+        let start=tg?.initDataUnsafe?.start_param||"";
+        if(name==="api"&&start){let m=start.match(/api_([a-zA-Z0-9_\-.\/~]+)/);if(m)return m[1];}
+        if(name==="chat_id"&&!url.get("chat_id")&&start){let m=start.match(/chatid_(-?\d+)/);if(m)return m[1];}
         return url.get(name);
     }
 
-    async function init() {
-        window.BOT_API = getQueryParam("api")     || "";
-        window.CHAT_ID = getQueryParam("chat_id") || null;
-        window.USER_ID = getQueryParam("user_id") || null;
-
-        // अगर ज़रूरी पैरामीटर नहीं हैं तो एरर दिखाओ
-        if (!window.BOT_API || !window.CHAT_ID || !window.USER_ID) {
-            updateStatus("❌ गेम लिंक सही नहीं है। कृपया बॉट से दोबारा शुरू करें।", "error");
-            return;
+    async function init(){
+        window.BOT_API=getQueryParam("api")||"";
+        window.CHAT_ID=getQueryParam("chat_id")||null;
+        window.USER_ID=getQueryParam("user_id")||null;
+        if(!window.BOT_API||!window.CHAT_ID||!window.USER_ID){
+            updateStatus("❌ लिंक सही नहीं है। बॉट से दोबारा शुरू करें।","error");return;
         }
-
         await fetchGameState();
-
-        canvas.addEventListener("click", handleCanvasClick);
-        canvas.addEventListener("touchstart", e => {
-            e.preventDefault();
-            handleCanvasClick({ clientX:e.changedTouches[0].clientX, clientY:e.changedTouches[0].clientY });
-        }, { passive:false });
-
-        // New Game बटन सिर्फ़ ऐप बंद करेगा
-        document.getElementById("restartBtn").style.display = "none"; // पहले से छिपा है, फिर भी
-        document.getElementById("restartBtn").addEventListener("click", () => {
-            if (tg) tg.close();
-        });
-
-        // पोलिंग से गेम स्टेट अपडेट
-        if (refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(fetchGameState, 3000);
+        canvas.addEventListener("click",handleCanvasClick);
+        canvas.addEventListener("touchstart",e=>{e.preventDefault();handleCanvasClick({clientX:e.changedTouches[0].clientX,clientY:e.changedTouches[0].clientY});},{passive:false});
+        refreshTimer=setInterval(fetchGameState,3000);
     }
-
     init();
 })();
 </script>
