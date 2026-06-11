@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ludo Royale - Purple Point Start</title>
+    <title>Ludo Royale - हर रंग अपने Purple Square से (हार्डकोर)</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { user-select: none; touch-action: manipulation; box-sizing: border-box; margin: 0; padding: 0; }
@@ -123,7 +123,7 @@
 <body>
 <div class="main-wrapper">
     <div class="header-bar">
-        <div class="brand-title">🎲 LUDO ROYALE (Purple Point)</div>
+        <div class="brand-title">🎲 LUDO ROYALE (हार्डकोर – हर रंग अपने Purple से)</div>
     </div>
     <div class="player-dashboard" id="playerList"></div>
     <div class="game-container">
@@ -131,7 +131,7 @@
         <div class="control-hub">
             <div class="turn-display" id="turnText"><span>⚡ Loading...</span></div>
         </div>
-        <div class="status-msg-banner" id="statusMsg">✨ अपनी गोटी पर टैप करें | Purple Point से शुरू</div>
+        <div class="status-msg-banner" id="statusMsg">✨ टैप करें | हर गोटी अपने Purple Circle से शुरू (हार्डकोर)</div>
     </div>
 </div>
 
@@ -143,29 +143,27 @@
     const CANVAS_SIZE = 750;
     const CELL = CANVAS_SIZE / 15;
 
-    // =================== CORRECT TRACK WITH STARTING SQUARES ===================
-    // सभी 52 मुख्य सेल (सही क्रम में)
+    // ============== 52 सेल सही क्रम में ==============
     const TRACK_CELLS = [
         [1,6],[2,6],[3,6],[4,6],[5,6],      // Red zone
         [6,5],[6,4],[6,3],[6,2],[6,1],[6,0], // left side
-        [7,0],[8,0],                         // top corner
+        [7,0],[8,0],                         // top-left corner
         [8,1],[8,2],[8,3],[8,4],[8,5],      // towards Green start
         [8,6],                               // 🟢 GREEN START (Purple Point)
         [9,6],[10,6],[11,6],[12,6],[13,6],[14,6], // top edge
-        [14,7],                              // corner
+        [14,7],                              // top-right corner
         [14,8],[13,8],[12,8],[11,8],[10,8],[9,8], // right side
         [8,8],                               // 🟡 YELLOW START (Purple Point)
         [8,9],[8,10],[8,11],[8,12],[8,13],[8,14], // down
-        [7,14],                              // corner
+        [7,14],                              // bottom-right corner
         [6,14],[6,13],[6,12],[6,11],[6,10],[6,9], // bottom edge
         [6,8],                               // 🔵 BLUE START (Purple Point)
         [5,8],[4,8],[3,8],[2,8],[1,8],[0,8], // left side
-        [0,7],                               // corner
+        [0,7],                               // bottom-left corner
         [0,6]                                // back to Red start's previous
     ];
-    console.assert(TRACK_CELLS.length === 52, "Track length error");
+    console.assert(TRACK_CELLS.length === 52, "Track length mismatch");
 
-    // Home stretch for each color (path to center)
     const HOME_STRETCH = {
         "🔴 Red":    [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
         "🟢 Green":  [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
@@ -180,32 +178,12 @@
         "🔵 Blue":   [[10,10],[13,10],[10,13],[13,13]]
     };
 
-    // स्टार्टिंग पोजीशन (Purple Point) – 1-बेस्ड इंडेक्स
-    function getStartPos(colorFull) {
-        if (colorFull === "🔴 Red") return 1;   // [1,6]
-        if (colorFull === "🟢 Green") {
-            for (let i=0; i<TRACK_CELLS.length; i++)
-                if (TRACK_CELLS[i][0]===8 && TRACK_CELLS[i][1]===6) return i+1;
-            return 18;
-        }
-        if (colorFull === "🟡 Yellow") {
-            for (let i=0; i<TRACK_CELLS.length; i++)
-                if (TRACK_CELLS[i][0]===8 && TRACK_CELLS[i][1]===8) return i+1;
-            return 32;
-        }
-        if (colorFull === "🔵 Blue") {
-            for (let i=0; i<TRACK_CELLS.length; i++)
-                if (TRACK_CELLS[i][0]===6 && TRACK_CELLS[i][1]===8) return i+1;
-            return 46;
-        }
-        return 1;
-    }
-
+    // हर रंग का अपना Purple Point – हार्डकोडेड (फिर से जाँच कर ली)
     const START_POS = {
-        "🔴 Red": getStartPos("🔴 Red"),
-        "🟢 Green": getStartPos("🟢 Green"),
-        "🟡 Yellow": getStartPos("🟡 Yellow"),
-        "🔵 Blue": getStartPos("🔵 Blue")
+        "🔴 Red": 1,        // [1,6]
+        "🟢 Green": (() => { for(let i=0;i<TRACK_CELLS.length;i++) if(TRACK_CELLS[i][0]===8 && TRACK_CELLS[i][1]===6) return i+1; return 18; })(),
+        "🟡 Yellow": (() => { for(let i=0;i<TRACK_CELLS.length;i++) if(TRACK_CELLS[i][0]===8 && TRACK_CELLS[i][1]===8) return i+1; return 32; })(),
+        "🔵 Blue": (() => { for(let i=0;i<TRACK_CELLS.length;i++) if(TRACK_CELLS[i][0]===6 && TRACK_CELLS[i][1]===8) return i+1; return 46; })()
     };
 
     const SAFE_SPOTS = new Set([1, 9, 14, 22, 27, 35, 40, 48]);
@@ -245,6 +223,7 @@
         return null;
     }
 
+    // 🔥 हार्डकोर: घर (0) से सीधा अपने Purple Point पर
     function getNextPosition(pos, colorFull) {
         const normColor = normalizeColor(colorFull);
         if (pos === 0) return START_POS[normColor];
@@ -281,7 +260,7 @@
         return true;
     }
 
-    // Game state (backend)
+    // Game state (backend से आएगा)
     let gameState = {
         players:[], turn_index:0,
         dice_value:null, rolled:false,
@@ -334,7 +313,7 @@
 
     function easeOut(x) { return 1 - Math.pow(1-x, 3); }
 
-    // Canvas drawing
+    // ========== ड्राइंग ==========
     const canvas = document.getElementById('ludoCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -365,22 +344,20 @@
     }
 
     function drawTrack() {
-        // Purple points: Red [1,6], Green [8,6], Yellow [8,8], Blue [6,8]
+        // सभी 4 Purple Points – हार्डकोडेड
         const purplePoints = new Set(["1,6","8,6","8,8","6,8"]);
+
         for (let i=0; i<TRACK_CELLS.length; i++) {
             const [gx,gy] = TRACK_CELLS[i];
             const x = gx*CELL, y = gy*CELL;
             const key = `${gx},${gy}`;
             const isSafe = SAFE_SPOTS.has(i+1);
             const isPurple = purplePoints.has(key);
-            
-            // fill color
+
             if (isPurple) {
-                // पहले सफेद या हल्का बैकग्राउंड, फिर पर्पल ग्लो
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = "#9c27b0";
                 ctx.fillRect(x,y,CELL,CELL);
-                // Purple overlay with glow
-                ctx.fillStyle = "rgba(156, 39, 176, 0.6)";
+                ctx.fillStyle = "rgba(206, 147, 216, 0.5)";
                 ctx.fillRect(x,y,CELL,CELL);
             } else if (isSafe) {
                 ctx.fillStyle = "#f1f5f9";
@@ -389,19 +366,18 @@
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(x,y,CELL,CELL);
             }
-            
+
             ctx.strokeStyle = "#e2e8f0";
             ctx.lineWidth = 1;
             ctx.strokeRect(x,y,CELL,CELL);
-            
-            // Purple point special marker
+
             if (isPurple) {
                 ctx.beginPath();
-                ctx.arc(x+CELL/2, y+CELL/2, CELL*0.2, 0, 2*Math.PI);
-                ctx.fillStyle = "#9c27b0";
+                ctx.arc(x+CELL/2, y+CELL/2, CELL*0.22, 0, 2*Math.PI);
+                ctx.fillStyle = "#ffd966";
                 ctx.fill();
-                ctx.fillStyle = "white";
-                ctx.font = `${CELL*0.35}px Arial`;
+                ctx.fillStyle = "#000";
+                ctx.font = `${CELL*0.45}px Arial`;
                 ctx.textAlign = "center";
                 ctx.fillText("⭐", x+CELL/2, y+CELL/2+5);
                 ctx.textAlign = "left";
@@ -543,7 +519,7 @@
     }
     animLoop();
 
-    // Backend API calls (same as before)
+    // ========== बैकएंड कॉल ==========
     async function performMove(tokenIdx) {
         if (isMoving) { moveQueue.push(tokenIdx); return; }
         const currentPlayer = gameState.players[myPlayerIdx];
@@ -569,7 +545,7 @@
             const data = await res.json();
             if (res.ok) {
                 await fetchGameState();
-                updateStatus("✅ गोटी चली! Purple Point से शुरू की गई", "success");
+                updateStatus("✅ गोटी चली! (अपने Purple Square पर)", "success");
             } else {
                 updateStatus("⛔ " + (data.error || "चाल अस्वीकृत"), "error");
             }
