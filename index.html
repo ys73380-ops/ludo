@@ -115,17 +115,17 @@
 
         // ---------- STANDARD TRACK (52 cells) ----------
         const TRACK = [
-            [1,6],[2,6],[3,6],[4,6],[5,6], //1-5
+            [1,6],[2,6],[3,6],[4,6],[5,6], //1-5 (Red Start area)
             [6,5],[6,4],[6,3],[6,2],[6,1],[6,0], //6-11
             [7,0],[8,0], //12-13
-            [8,1],[8,2],[8,3],[8,4],[8,5], //14-18
+            [8,1],[8,2],[8,3],[8,4],[8,5], //14-18 (Green Start area)
             [8,6],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6], //19-25
             [14,7], //26
-            [14,8],[13,8],[12,8],[11,8],[10,8],[9,8], //27-32
+            [14,8],[13,8],[12,8],[11,8],[10,8],[9,8], //27-32 (Blue Start area)
             [8,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14], //33-39
             [7,14], //40
-            [6,14],[6,13],[6,12],[6,11],[6,10],[6,9], //41-46
-            [6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6] //47-55
+            [6,14],[6,13],[6,12],[6,11],[6,10],[6,9], //41-46 (Yellow Start area)
+            [6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6] //47-52
         ].slice(0,52);
 
         const SAFE_SPOTS = new Set([1,9,14,22,27,35,40,48]);
@@ -149,12 +149,12 @@
             yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
         };
 
-        // Aligning with Bot Python Start Positions
+        // Standard Ludo starting positions aligned with fixed backend
         const START_POS = {
             red: 1,
-            green: 21,
-            yellow: 51,
-            blue: 29
+            green: 14,
+            blue: 27,
+            yellow: 40
         };
 
         const COLOR_ORDER = ["red", "green", "blue", "yellow"];
@@ -199,13 +199,12 @@
                 return stretch[pos-53];
             }
             if(pos === 59) {
-                // Return center coordinates
                 return [7.5, 7.5];
             }
             return null;
         }
 
-        // Build box-by-box track step array
+        // Build box-by-box path step array
         function getPath(fromPos, toPos, color) {
             let path = [fromPos];
             if (fromPos === 0) {
@@ -429,7 +428,7 @@
             else {
                 newPos = tokenPos + dice;
                 if (1 <= tokenPos && tokenPos <= 52 && newPos > 52) {
-                    newPos = 52 + (newPos - 52); // align with backend formula
+                    newPos = 52 + (newPos - 52);
                 }
                 if (newPos > 58) newPos = 59;
             }
@@ -443,7 +442,7 @@
         function animateTokenPath(color, tokenIdx, path) {
             return new Promise((resolve) => {
                 if (path.length < 2) { resolve(); return; }
-                let stepDuration = 220; // Hop time in milliseconds
+                let stepDuration = 220; 
                 let totalSteps = path.length - 1;
                 let startTime = performance.now();
 
@@ -472,7 +471,6 @@
                             let toX = toGrid[0]*CELL + CELL/2;
                             let toY = toGrid[1]*CELL + CELL/2;
 
-                            // Linear coordinate transition
                             let curX = fromX + (toX - fromX) * stepProgress;
                             let curY = fromY + (toY - fromY) * stepProgress;
 
@@ -491,7 +489,7 @@
 
         async function handleTokenClick(tokenIdx) {
             if (gameState.isMoving) return;
-            isPolling = false; // Pause polling during movement animation
+            isPolling = false; 
             gameState.isMoving = true;
 
             const color = currentTurnColor;
@@ -528,7 +526,6 @@
                     pollState();
                 } else {
                     isPolling = true;
-                    // Trigger immediate refresh after backend state update
                     const stateRes = await fetch(`${apiBase}/game_state?chat_id=${chatId}`);
                     if (stateRes.ok) {
                         const stateData = await stateRes.json();
@@ -547,7 +544,6 @@
 
         // ---------- SERVER SYNC IMPLEMENTATION ----------
         function syncWithBackendState(data) {
-            // Reset player map
             gameState.players = {};
             for (let col of ["red", "green", "blue", "yellow"]) {
                 gameState.players[col] = { tokens: [0, 0, 0, 0], finished: 0, username: "Empty", id: null };
@@ -701,7 +697,6 @@
             handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY });
         }, { passive: false });
 
-        // Initialize Webapp Sync Polling
         pollState();
     })();
 </script>
