@@ -104,6 +104,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const chatId = urlParams.get('chat_id');
         const userId = parseInt(urlParams.get('user_id'), 10);
+        const token = urlParams.get('token'); // टोकन को पढ़ना
         let apiBase = urlParams.get('api') || window.location.origin;
 
         if (apiBase && !apiBase.startsWith("http")) {
@@ -149,7 +150,6 @@
             yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
         };
 
-        // Standard Ludo starting positions aligned with fixed backend
         const START_POS = {
             red: 1,
             green: 14,
@@ -204,7 +204,6 @@
             return null;
         }
 
-        // Build box-by-box path step array
         function getPath(fromPos, toPos, color) {
             let path = [fromPos];
             if (fromPos === 0) {
@@ -241,7 +240,6 @@
             ctx.fillStyle = "#fef9e3";
             ctx.fillRect(0,0,canvas.width,canvas.height);
 
-            // Base Squares
             const zones = [[0,0,"red"],[9,0,"green"],[0,9,"yellow"],[9,9,"blue"]];
             for(let [x,y,col] of zones) {
                 ctx.fillStyle = COLORS[col];
@@ -253,7 +251,6 @@
                 ctx.strokeRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
             }
 
-            // Path Tiles
             for(let i=0; i<TRACK.length; i++) {
                 let [gx,gy] = TRACK[i];
                 let x = gx*CELL, y = gy*CELL;
@@ -287,7 +284,6 @@
                 }
             }
 
-            // Home Stretch Roads
             for(let [col, cells] of Object.entries(HOME_STRETCH)) {
                 for(let j=0; j<cells.length; j++) {
                     let [gx,gy] = cells[j];
@@ -299,7 +295,6 @@
                 }
             }
 
-            // Center Triangle
             let cx = CELL*7.5, cy = CELL*7.5;
             ctx.fillStyle = "#f1f5f9";
             ctx.fillRect(CELL*6, CELL*6, CELL*3, CELL*3);
@@ -438,7 +433,6 @@
             return true;
         }
 
-        // Box by Box hopping animation
         function animateTokenPath(color, tokenIdx, path) {
             return new Promise((resolve) => {
                 if (path.length < 2) { resolve(); return; }
@@ -474,7 +468,6 @@
                             let curX = fromX + (toX - fromX) * stepProgress;
                             let curY = fromY + (toY - fromY) * stepProgress;
 
-                            // Parabolic bounce curve (visual hopping effect)
                             let hopHeight = CELL * 0.45 * Math.sin(stepProgress * Math.PI);
                             curY -= hopHeight;
 
@@ -513,10 +506,13 @@
 
             await animateTokenPath(color, tokenIdx, path);
 
-            // API Server update
             try {
+                // Header में Token भेजकर ऑथेंटिकेट करना
                 const response = await fetch(`${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'X-API-Token': token
+                    }
                 });
                 const result = await response.json();
 
@@ -526,7 +522,11 @@
                     pollState();
                 } else {
                     isPolling = true;
-                    const stateRes = await fetch(`${apiBase}/game_state?chat_id=${chatId}`);
+                    const stateRes = await fetch(`${apiBase}/game_state?chat_id=${chatId}`, {
+                        headers: {
+                            'X-API-Token': token
+                        }
+                    });
                     if (stateRes.ok) {
                         const stateData = await stateRes.json();
                         globalGameState = stateData;
@@ -604,7 +604,12 @@
                 return;
             }
             try {
-                const res = await fetch(`${apiBase}/game_state?chat_id=${chatId}`);
+                // Header में Token भेजकर ऑथेंटिकेट करना
+                const res = await fetch(`${apiBase}/game_state?chat_id=${chatId}`, {
+                    headers: {
+                        'X-API-Token': token
+                    }
+                });
                 if (!res.ok) {
                     if (res.status === 404) {
                         updateStatus("⚠️ इस ग्रुप में कोई एक्टिव गेम नहीं है।");
