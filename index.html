@@ -5,25 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Ludo Royale - Sync Mode</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #05060f;
-            --surface: rgba(12,14,28,0.85);
-            --border: rgba(255,255,255,0.07);
-            --gold: #f0c040;
-            --gold-dim: #9a7a20;
-            --red: #ff3e5e;
-            --green: #00e676;
-            --blue: #3d9dff;
-            --yellow: #ffd32a;
-            --red-glow: rgba(255,62,94,0.35);
-            --green-glow: rgba(0,230,118,0.35);
-            --blue-glow: rgba(61,157,255,0.35);
-            --yellow-glow: rgba(255,211,42,0.35);
-            --text: #e2e8f0;
-            --muted: #64748b;
-        }
         * {
             user-select: none;
             touch-action: manipulation;
@@ -32,297 +14,81 @@
             padding: 0;
         }
         body {
-            background: var(--bg);
-            background-image:
-                radial-gradient(ellipse 80% 40% at 50% 0%, rgba(61,157,255,0.06) 0%, transparent 70%),
-                radial-gradient(ellipse 60% 30% at 50% 100%, rgba(240,192,64,0.05) 0%, transparent 70%);
+            background: radial-gradient(circle at top, #1e2030, #0c0d14);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            font-family: 'Inter', system-ui, sans-serif;
-            padding: 12px 10px 20px;
-            overflow-x: hidden;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            padding: 16px;
         }
-
-        /* ── Header ── */
-        .header {
+        .main {
+            max-width: 550px;
             width: 100%;
-            max-width: 520px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 4px 10px;
-        }
-        .header-logo {
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 1.35rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            color: var(--gold);
-            text-shadow: 0 0 18px rgba(240,192,64,0.5);
-        }
-        .header-logo span { color: var(--text); opacity: 0.7; }
-        .connection-dot {
-            width: 9px; height: 9px; border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 8px #22c55e;
-            transition: background 0.4s, box-shadow 0.4s;
-        }
-        .connection-dot.offline { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-        .connection-dot.syncing { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
-
-        /* ── Player Cards ── */
-        .players-row {
-            width: 100%;
-            max-width: 520px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .player-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 8px 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: border-color 0.3s, box-shadow 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        .player-card.active {
-            box-shadow: 0 0 0 1.5px var(--active-color), 0 0 20px var(--active-glow);
-            border-color: var(--active-color);
-        }
-        .pc-color-dot {
-            width: 28px; height: 28px; border-radius: 8px;
-            flex-shrink: 0; display: flex; align-items: center;
-            justify-content: center; font-size: 0.8rem; font-weight: 700; color: #000;
-        }
-        .pc-info { flex: 1; min-width: 0; }
-        .pc-name { font-size: 0.75rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .pc-name.empty { color: var(--muted); font-weight: 400; }
-        .pc-tokens { font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
-        .pc-done { font-size: 0.7rem; color: var(--gold); font-weight: 600; margin-left: auto; flex-shrink: 0; }
-
-        /* ── Board ── */
-        .board-wrap {
-            width: 100%;
-            max-width: 520px;
-            position: relative;
-        }
-        .board-glow {
-            position: absolute;
-            inset: -2px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, rgba(61,157,255,0.15), rgba(240,192,64,0.1), rgba(255,62,94,0.1), rgba(0,230,118,0.1));
-            filter: blur(8px);
-            pointer-events: none;
-            z-index: 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 2rem;
+            padding: 12px;
         }
         canvas {
             display: block;
+            margin: 0 auto;
+            border-radius: 1.5rem;
             width: 100%;
             height: auto;
-            border-radius: 16px;
+            background: white;
             cursor: pointer;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+            box-shadow: 0 12px 25px rgba(0,0,0,0.5);
         }
-
-        /* ── Bottom Panel ── */
-        .bottom-panel {
-            width: 100%;
-            max-width: 520px;
-            margin-top: 10px;
+        .info-panel {
+            background: rgba(30,34,56,0.8);
+            border-radius: 2rem;
+            padding: 12px;
+            margin-top: 12px;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .dice-status-row {
-            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            flex-wrap: wrap;
         }
-        .dice-display {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            width: 64px;
-            height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 2.4rem;
-            position: relative;
-            overflow: hidden;
-            transition: box-shadow 0.3s;
-        }
-        .dice-display.has-value {
-            box-shadow: 0 0 0 1.5px var(--gold), 0 0 20px rgba(240,192,64,0.25);
-            border-color: var(--gold-dim);
-        }
-        .dice-display .dice-inner {
-            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), opacity 0.15s;
-        }
-        .turn-info {
+        .turn-indicator {
+            background: #00000066;
+            padding: 6px 12px;
+            border-radius: 2rem;
+            font-weight: bold;
+            color: white;
             flex: 1;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 10px 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-height: 64px;
-            justify-content: center;
-        }
-        .turn-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-        .turn-name {
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--text);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .status-bar {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 9px 14px;
-            font-size: 0.78rem;
-            color: var(--text);
-            min-height: 38px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: border-color 0.3s;
-            line-height: 1.4;
-        }
-        .status-bar .s-icon { font-size: 1rem; flex-shrink: 0; }
-        .status-bar.warn  { border-color: rgba(250,204,21,0.3); }
-        .status-bar.error { border-color: rgba(239,68,68,0.3); }
-        .status-bar.ok    { border-color: rgba(34,197,94,0.3); }
-
-        /* ── Toast ── */
-        .toast {
-            position: fixed;
-            top: 16px; left: 50%;
-            transform: translateX(-50%) translateY(-80px);
-            background: rgba(15,17,35,0.97);
-            border: 1px solid var(--border);
-            border-radius: 50px;
-            padding: 10px 20px;
-            font-size: 0.82rem;
-            color: var(--text);
-            z-index: 999;
-            pointer-events: none;
-            transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
-            opacity: 0;
-            white-space: nowrap;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-        }
-        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-
-        /* ── Winner overlay ── */
-        .winner-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.85);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 200;
-            backdrop-filter: blur(6px);
-        }
-        .winner-overlay.show { display: flex; }
-        .winner-card {
-            background: linear-gradient(135deg, #0c0e1c, #131629);
-            border: 1px solid var(--gold-dim);
-            border-radius: 24px;
-            padding: 40px 36px;
             text-align: center;
-            box-shadow: 0 0 60px rgba(240,192,64,0.2), 0 30px 80px rgba(0,0,0,0.6);
-            max-width: 300px;
         }
-        .winner-trophy { font-size: 4rem; display: block; margin-bottom: 12px; }
-        .winner-title {
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 2rem; font-weight: 700;
-            color: var(--gold);
-            text-shadow: 0 0 20px rgba(240,192,64,0.5);
-            margin-bottom: 6px;
+        .dice-badge {
+            background: #2d2f42;
+            padding: 6px 16px;
+            border-radius: 2rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            min-width: 70px;
+            box-shadow: 0 2px 8px black;
+            color: #facc15;
         }
-        .winner-name { font-size: 1rem; color: var(--text); opacity: 0.8; }
+        .status {
+            background: #1e1f2e;
+            border-radius: 2rem;
+            padding: 6px 12px;
+            margin-top: 8px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #a0aec0;
+        }
     </style>
 </head>
 <body>
-
-<div class="toast" id="toast"></div>
-
-<div class="winner-overlay" id="winnerOverlay">
-    <div class="winner-card">
-        <span class="winner-trophy">🏆</span>
-        <div class="winner-title">Victory!</div>
-        <div class="winner-name" id="winnerName"></div>
-    </div>
-</div>
-
-<div class="header">
-    <div class="header-logo">LUDO <span>ROYALE</span></div>
-    <div class="connection-dot syncing" id="connDot"></div>
-</div>
-
-<div class="players-row">
-    <div class="player-card" id="card-red"    style="--active-color:var(--red);--active-glow:var(--red-glow)">
-        <div class="pc-color-dot" style="background:var(--red);color:#fff">R</div>
-        <div class="pc-info"><div class="pc-name empty" id="name-red">Waiting...</div><div class="pc-tokens" id="tok-red">0/4 done</div></div>
-        <div class="pc-done" id="done-red"></div>
-    </div>
-    <div class="player-card" id="card-green"  style="--active-color:var(--green);--active-glow:var(--green-glow)">
-        <div class="pc-color-dot" style="background:var(--green);color:#000">G</div>
-        <div class="pc-info"><div class="pc-name empty" id="name-green">Waiting...</div><div class="pc-tokens" id="tok-green">0/4 done</div></div>
-        <div class="pc-done" id="done-green"></div>
-    </div>
-    <div class="player-card" id="card-blue"   style="--active-color:var(--blue);--active-glow:var(--blue-glow)">
-        <div class="pc-color-dot" style="background:var(--blue);color:#fff">B</div>
-        <div class="pc-info"><div class="pc-name empty" id="name-blue">Waiting...</div><div class="pc-tokens" id="tok-blue">0/4 done</div></div>
-        <div class="pc-done" id="done-blue"></div>
-    </div>
-    <div class="player-card" id="card-yellow" style="--active-color:var(--yellow);--active-glow:var(--yellow-glow)">
-        <div class="pc-color-dot" style="background:var(--yellow);color:#000">Y</div>
-        <div class="pc-info"><div class="pc-name empty" id="name-yellow">Waiting...</div><div class="pc-tokens" id="tok-yellow">0/4 done</div></div>
-        <div class="pc-done" id="done-yellow"></div>
-    </div>
-</div>
-
-<div class="board-wrap">
-    <div class="board-glow"></div>
+<div class="main">
     <canvas id="ludoCanvas" width="750" height="750"></canvas>
-</div>
-
-<div class="bottom-panel">
-    <div class="dice-status-row">
-        <div class="dice-display" id="diceDisplay">
-            <span class="dice-inner" id="diceInner">🎲</span>
-        </div>
-        <div class="turn-info">
-            <div class="turn-label">Current Turn</div>
-            <div class="turn-name" id="turnName">Connecting...</div>
-        </div>
+    <div class="info-panel">
+        <div class="turn-indicator" id="turnText">⚡ सर्वर से कनेक्ट हो रहा है...</div>
+        <div class="dice-badge" id="diceValue">🎲 -</div>
     </div>
-    <div class="status-bar" id="statusBar">
-        <span class="s-icon">⏳</span>
-        <span id="statusText">Connecting to server...</span>
-    </div>
+    <div class="status" id="statusMsg">🔄 गेम लोड हो रहा है...</div>
 </div>
 
 <script>
@@ -338,7 +104,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         const chatId = urlParams.get('chat_id');
         const userId = parseInt(urlParams.get('user_id'), 10);
-        const token = urlParams.get('token'); // Secure Token Integration
         let apiBase = urlParams.get('api') || window.location.origin;
 
         if (apiBase && !apiBase.startsWith("http")) {
@@ -350,306 +115,246 @@
 
         // ---------- STANDARD TRACK (52 cells) ----------
         const TRACK = [
-            [1,6],[2,6],[3,6],[4,6],[5,6],
-            [6,5],[6,4],[6,3],[6,2],[6,1],[6,0],
-            [7,0],[8,0],
-            [8,1],[8,2],[8,3],[8,4],[8,5],
-            [8,6],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6],
-            [14,7],
-            [14,8],[13,8],[12,8],[11,8],[10,8],[9,8],
-            [8,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],
-            [7,14],
-            [6,14],[6,13],[6,12],[6,11],[6,10],[6,9],
-            [6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6]
+            [1,6],[2,6],[3,6],[4,6],[5,6], //1-5 (Red Start area)
+            [6,5],[6,4],[6,3],[6,2],[6,1],[6,0], //6-11
+            [7,0],[8,0], //12-13
+            [8,1],[8,2],[8,3],[8,4],[8,5], //14-18 (Green Start area)
+            [8,6],[9,6],[10,6],[11,6],[12,6],[13,6],[14,6], //19-25
+            [14,7], //26
+            [14,8],[13,8],[12,8],[11,8],[10,8],[9,8], //27-32 (Blue Start area)
+            [8,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14], //33-39
+            [7,14], //40
+            [6,14],[6,13],[6,12],[6,11],[6,10],[6,9], //41-46 (Yellow Start area)
+            [6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8],[0,7],[0,6] //47-52
         ].slice(0,52);
 
         const SAFE_SPOTS = new Set([1,9,14,22,27,35,40,48]);
 
-        // Token draw colors
-        const TOKEN_COLORS = {
-            red:    { fill:'#ff3e5e', dark:'#a81237', glow:'rgba(255,62,94,0.7)',  text:'#fff' },
-            green:  { fill:'#00e676', dark:'#00843d', glow:'rgba(0,230,118,0.7)', text:'#000' },
-            blue:   { fill:'#3d9dff', dark:'#1053a8', glow:'rgba(61,157,255,0.7)',text:'#fff' },
-            yellow: { fill:'#ffd32a', dark:'#a87e00', glow:'rgba(255,211,42,0.7)',text:'#000' }
+        const COLORS = {
+            red: "#ff4b5c", green: "#00e676", yellow: "#ffd600", blue: "#2979ff",
+            dark_red: "#b91c2c", dark_green: "#15803d", dark_yellow: "#ca8a04", dark_blue: "#1e3a8a"
         };
 
         const HOME_BASES = {
-            red:    [[1,1],[1,4],[4,1],[4,4]],
-            green:  [[10,1],[13,1],[10,4],[13,4]],
-            blue:   [[10,10],[13,10],[10,13],[13,13]],
+            red: [[1,1],[1,4],[4,1],[4,4]],
+            green: [[10,1],[13,1],[10,4],[13,4]],
+            blue: [[10,10],[13,10],[10,13],[13,13]],
             yellow: [[1,10],[4,10],[1,13],[4,13]]
         };
 
         const HOME_STRETCH = {
-            red:    [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
-            green:  [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
-            blue:   [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]],
+            red: [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
+            green: [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
+            blue: [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]],
             yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]]
         };
 
-        const START_POS = { red:1, green:14, blue:27, yellow:40 };
-        const COLOR_ORDER = ["red","green","blue","yellow"];
+        // Standard Ludo starting positions aligned with fixed backend
+        const START_POS = {
+            red: 1,
+            green: 14,
+            blue: 27,
+            yellow: 40
+        };
+
+        const COLOR_ORDER = ["red", "green", "blue", "yellow"];
         const COLOR_NAMES = { red:"🔴 Red", green:"🟢 Green", blue:"🔵 Blue", yellow:"🟡 Yellow" };
-        const DICE_FACES  = ['','⚀','⚁','⚂','⚃','⚄','⚅'];
-        const TOKEN_OFFSETS = [[-13,-13],[13,-13],[-13,13],[13,13]];
 
         // ---------- GAME STATE ----------
         let gameState = {
             players: {
-                red:    { tokens:[0,0,0,0], finished:0, username:"", id:null },
-                green:  { tokens:[0,0,0,0], finished:0, username:"", id:null },
-                blue:   { tokens:[0,0,0,0], finished:0, username:"", id:null },
-                yellow: { tokens:[0,0,0,0], finished:0, username:"", id:null }
+                red: { tokens: [0,0,0,0], finished: 0, username: "", id: null },
+                green: { tokens: [0,0,0,0], finished: 0, username: "", id: null },
+                blue: { tokens: [0,0,0,0], finished: 0, username: "", id: null },
+                yellow: { tokens: [0,0,0,0], finished: 0, username: "", id: null }
             },
-            turnIndex:0, diceValue:null, rolled:false,
-            winner:null, isMoving:false, waiting_for_word:false
+            turnIndex: 0,
+            diceValue: null,
+            rolled: false,
+            winner: null,
+            isMoving: false
         };
 
         let currentTurnColor = "red";
         let isPolling = true;
         let globalGameState = null;
-        let pulseRafId = null;
 
         function getFrontendColorKey(backendColor) {
-            if(backendColor.includes("Red"))    return "red";
-            if(backendColor.includes("Green"))  return "green";
-            if(backendColor.includes("Blue"))   return "blue";
-            if(backendColor.includes("Yellow")) return "yellow";
+            if (backendColor.includes("Red")) return "red";
+            if (backendColor.includes("Green")) return "green";
+            if (backendColor.includes("Blue")) return "blue";
+            if (backendColor.includes("Yellow")) return "yellow";
             return "red";
         }
 
         // ---------- COORDINATE MAPS ----------
         function getGridFromPos(color, pos, tokenIdx) {
-            if(pos === 0)              return HOME_BASES[color][tokenIdx % HOME_BASES[color].length];
-            if(pos >= 1 && pos <= 52)  return TRACK[pos-1];
-            if(pos >= 53 && pos <= 58) return HOME_STRETCH[color][pos-53];
-            if(pos === 59)             return [7.5, 7.5];
+            if(pos === 0) {
+                let base = HOME_BASES[color];
+                return base[tokenIdx % base.length];
+            }
+            if(pos >= 1 && pos <= 52) return TRACK[pos-1];
+            if(pos >= 53 && pos <= 58) {
+                let stretch = HOME_STRETCH[color];
+                return stretch[pos-53];
+            }
+            if(pos === 59) {
+                return [7.5, 7.5];
+            }
             return null;
         }
 
+        // Build box-by-box path step array
         function getPath(fromPos, toPos, color) {
             let path = [fromPos];
-            if(fromPos === 0) {
+            if (fromPos === 0) {
                 let start = START_POS[color];
                 path.push(start);
                 let current = start;
-                while(current < toPos) {
+                while (current < toPos) {
                     current++;
-                    if(current > 58) { path.push(59); break; }
-                    else path.push(current);
+                    if (current > 58) {
+                        path.push(59);
+                        break;
+                    } else {
+                        path.push(current);
+                    }
                 }
             } else {
                 let current = fromPos;
-                while(current < toPos) {
+                while (current < toPos) {
                     current++;
-                    if(current > 58) { path.push(59); break; }
-                    else path.push(current);
+                    if (current > 58) {
+                        path.push(59);
+                        break;
+                    } else {
+                        path.push(current);
+                    }
                 }
             }
             return path;
         }
 
-        // ---------- BOARD DRAWING ----------
+        // ---------- DRAWING SYSTEM ----------
         function drawBoardStatic() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#fef9e3";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
 
-            // Board background
-            ctx.fillStyle = '#080912';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Color zone bases
-            const zoneData = [
-                [0, 0,'red',   '#1a0810','#ff3e5e'],
-                [9, 0,'green', '#071a0d','#00e676'],
-                [0, 9,'yellow','#1a1500','#ffd32a'],
-                [9, 9,'blue',  '#071020','#3d9dff']
-            ];
-            for(let [x,y,col,bg,accent] of zoneData) {
-                ctx.fillStyle = bg;
-                ctx.fillRect(x*CELL, y*CELL, CELL*6, CELL*6);
-                ctx.strokeStyle = accent + '30';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x*CELL+1, y*CELL+1, CELL*6-2, CELL*6-2);
-
-                let inset = CELL*0.7;
-                ctx.fillStyle = '#0c0e1c';
-                ctx.fillRect(x*CELL+inset, y*CELL+inset, CELL*6-inset*2, CELL*6-inset*2);
-                ctx.strokeStyle = accent + '50';
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(x*CELL+inset, y*CELL+inset, CELL*6-inset*2, CELL*6-inset*2);
-
-                // Home peg circles
-                for(let [bx,by] of HOME_BASES[col]) {
-                    let cx2 = bx*CELL + CELL/2, cy2 = by*CELL + CELL/2;
-                    ctx.beginPath();
-                    ctx.arc(cx2, cy2, CELL*0.38, 0, Math.PI*2);
-                    ctx.fillStyle = accent + '22';
-                    ctx.fill();
-                    ctx.strokeStyle = accent + '55';
-                    ctx.lineWidth = 1.5;
-                    ctx.stroke();
-                }
+            // Base Squares
+            const zones = [[0,0,"red"],[9,0,"green"],[0,9,"yellow"],[9,9,"blue"]];
+            for(let [x,y,col] of zones) {
+                ctx.fillStyle = COLORS[col];
+                ctx.fillRect(x*CELL+2, y*CELL+2, CELL*6-4, CELL*6-4);
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
+                ctx.strokeStyle = COLORS[col];
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(x*CELL+CELL*0.8, y*CELL+CELL*0.8, CELL*4.4, CELL*4.4);
             }
 
-            // Path tiles
+            // Path Tiles
             for(let i=0; i<TRACK.length; i++) {
                 let [gx,gy] = TRACK[i];
                 let x = gx*CELL, y = gy*CELL;
                 let pos = i+1;
+                let isSafe = SAFE_SPOTS.has(pos);
+                let isStart = (pos === START_POS.red || pos === START_POS.green || pos === START_POS.blue || pos === START_POS.yellow);
                 let startColor = null;
-                if(pos === START_POS.red)    startColor = 'red';
-                else if(pos === START_POS.green)  startColor = 'green';
-                else if(pos === START_POS.blue)   startColor = 'blue';
-                else if(pos === START_POS.yellow) startColor = 'yellow';
+                if(pos === START_POS.red) startColor = "red";
+                else if(pos === START_POS.green) startColor = "green";
+                else if(pos === START_POS.blue) startColor = "blue";
+                else if(pos === START_POS.yellow) startColor = "yellow";
 
-                if(startColor) {
-                    let tc = TOKEN_COLORS[startColor];
-                    ctx.fillStyle = tc.fill + '28';
+                if(isStart) {
+                    ctx.fillStyle = COLORS[startColor];
                     ctx.fillRect(x,y,CELL,CELL);
-                    ctx.strokeStyle = tc.fill + '60';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x,y,CELL,CELL);
-                    ctx.font = `${Math.floor(CELL*0.42)}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = tc.fill + 'cc';
-                    ctx.fillText('★', x+CELL/2, y+CELL/2+5);
-                    ctx.textAlign = 'left';
-                } else if(SAFE_SPOTS.has(pos)) {
-                    ctx.fillStyle = '#131526';
+                } else if(isSafe) {
+                    ctx.fillStyle = "#f1f5f9";
                     ctx.fillRect(x,y,CELL,CELL);
-                    ctx.strokeStyle = 'rgba(255,255,255,0.09)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x,y,CELL,CELL);
-                    ctx.font = `${Math.floor(CELL*0.38)}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = 'rgba(240,192,64,0.55)';
-                    ctx.fillText('✦', x+CELL/2, y+CELL/2+4);
-                    ctx.textAlign = 'left';
                 } else {
-                    ctx.fillStyle = '#0d0f1e';
+                    ctx.fillStyle = "#ffffff";
                     ctx.fillRect(x,y,CELL,CELL);
-                    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x,y,CELL,CELL);
+                }
+                ctx.strokeStyle = "#cbd5e0";
+                ctx.strokeRect(x,y,CELL,CELL);
+                if(isSafe || isStart) {
+                    ctx.font = `${CELL*0.45}px Arial`;
+                    ctx.fillStyle = "#f59e0b";
+                    ctx.textAlign = "center";
+                    ctx.fillText("⭐", x+CELL/2, y+CELL/2+5);
+                    ctx.textAlign = "left";
                 }
             }
 
-            // Home stretch lanes
+            // Home Stretch Roads
             for(let [col, cells] of Object.entries(HOME_STRETCH)) {
-                let tc = TOKEN_COLORS[col];
                 for(let j=0; j<cells.length; j++) {
                     let [gx,gy] = cells[j];
                     let x = gx*CELL, y = gy*CELL;
-                    let alpha = j === cells.length-1 ? 0.5 : 0.05 + (j/(cells.length-1))*0.18;
-                    ctx.fillStyle = tc.fill + Math.round(alpha*255).toString(16).padStart(2,'0');
+                    ctx.fillStyle = (j===cells.length-1) ? COLORS[col] : "#eef2ff";
                     ctx.fillRect(x,y,CELL,CELL);
-                    ctx.strokeStyle = tc.fill + '30';
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = COLORS[col];
                     ctx.strokeRect(x,y,CELL,CELL);
                 }
             }
 
-            // Center triangles
+            // Center Triangle
             let cx = CELL*7.5, cy = CELL*7.5;
-            ctx.fillStyle = '#0a0b18';
+            ctx.fillStyle = "#f1f5f9";
             ctx.fillRect(CELL*6, CELL*6, CELL*3, CELL*3);
-            const triData = [
-                {c:'red',    pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy-CELL*1.5],[cx,cy]]},
-                {c:'green',  pts:[[cx+CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-                {c:'blue',   pts:[[cx-CELL*1.5,cy+CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
-                {c:'yellow', pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx-CELL*1.5,cy+CELL*1.5],[cx,cy]]}
+            let tris = [
+                {c:"red", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy-CELL*1.5],[cx,cy]]},
+                {c:"green", pts:[[cx+CELL*1.5,cy-CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
+                {c:"blue", pts:[[cx-CELL*1.5,cy+CELL*1.5],[cx+CELL*1.5,cy+CELL*1.5],[cx,cy]]},
+                {c:"yellow", pts:[[cx-CELL*1.5,cy-CELL*1.5],[cx-CELL*1.5,cy+CELL*1.5],[cx,cy]]}
             ];
-            for(let t of triData) {
+            for(let t of tris) {
                 ctx.beginPath();
                 ctx.moveTo(t.pts[0][0], t.pts[0][1]);
                 ctx.lineTo(t.pts[1][0], t.pts[1][1]);
                 ctx.lineTo(t.pts[2][0], t.pts[2][1]);
-                ctx.closePath();
-                ctx.fillStyle = TOKEN_COLORS[t.c].fill + '30';
+                ctx.fillStyle = COLORS[t.c];
                 ctx.fill();
-                ctx.strokeStyle = TOKEN_COLORS[t.c].fill + '55';
-                ctx.lineWidth = 0.5;
-                ctx.stroke();
             }
-            ctx.font = `bold ${Math.floor(CELL*0.85)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.shadowColor = 'rgba(240,192,64,0.4)';
-            ctx.shadowBlur = 12;
-            ctx.fillStyle = 'rgba(240,192,64,0.9)';
-            ctx.fillText('🏆', cx, cy + CELL*0.32);
-            ctx.shadowBlur = 0;
-            ctx.textAlign = 'left';
+            ctx.font = `bold ${CELL*0.9}px Arial`;
+            ctx.fillStyle = "#1e293b";
+            ctx.fillText("🏆", cx, cy+8);
         }
 
-        function drawPawn(x, y, colorKey, label, selectable, scale) {
-            const s = scale || 1;
-            const tc = TOKEN_COLORS[colorKey];
-            const r = CELL * 0.36 * s;
-
+        function drawPawn(x, y, colorKey, label, selectable) {
+            const r = CELL * 0.38;
             ctx.save();
-            ctx.translate(x, y);
-
             if(selectable) {
-                ctx.beginPath();
-                ctx.arc(0, 0, r*1.55, 0, Math.PI*2);
-                ctx.strokeStyle = tc.fill;
-                ctx.lineWidth = 1.8;
-                ctx.globalAlpha = 0.5 + 0.3*Math.sin(Date.now()/300);
-                ctx.stroke();
-                ctx.globalAlpha = 1;
-                ctx.shadowBlur = 18;
-                ctx.shadowColor = tc.glow;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#eab308";
             } else {
-                ctx.shadowBlur = 6;
-                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 4;
                 ctx.shadowOffsetY = 2;
+                ctx.shadowColor = "rgba(0,0,0,0.3)";
             }
-
-            // Base shadow
             ctx.beginPath();
-            ctx.ellipse(0, r*0.7, r*0.8, r*0.35, 0, 0, Math.PI*2);
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+            ctx.ellipse(x, y+r*0.65, r*0.85, r*0.4, 0, 0, Math.PI*2);
+            ctx.fillStyle = COLORS[`dark_${colorKey}`];
             ctx.fill();
-
-            // Gradient sphere
-            let grad = ctx.createRadialGradient(-r*0.2, r*0.2, r*0.1, 0, 0, r);
-            grad.addColorStop(0, tc.fill);
-            grad.addColorStop(0.6, tc.fill);
-            grad.addColorStop(1, tc.dark);
-
-            ctx.shadowBlur = selectable ? 18 : 6;
-            ctx.shadowColor = selectable ? tc.glow : 'rgba(0,0,0,0.5)';
-            ctx.shadowOffsetY = selectable ? 0 : 2;
-
-            // Skirt
             ctx.beginPath();
-            ctx.ellipse(0, r*0.3, r*0.72, r*0.42, 0, 0, Math.PI*2);
-            ctx.fillStyle = tc.dark;
+            ctx.ellipse(x, y+r*0.3, r*0.75, r*0.5, 0, 0, Math.PI*2);
+            ctx.fillStyle = COLORS[colorKey];
             ctx.fill();
-
-            // Body
             ctx.beginPath();
-            ctx.arc(0, -r*0.15, r*0.68, 0, Math.PI*2);
-            ctx.fillStyle = grad;
+            ctx.arc(x, y-r*0.25, r*0.65, 0, Math.PI*2);
+            ctx.fillStyle = COLORS[colorKey];
             ctx.fill();
-
-            // Specular
-            ctx.beginPath();
-            ctx.arc(-r*0.22, -r*0.4, r*0.28, 0, Math.PI*2);
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
-            ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-            ctx.fill();
-
-            // Label
-            ctx.fillStyle = tc.text === '#fff' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
-            ctx.font = `bold ${Math.floor(CELL*0.26*s)}px "Segoe UI", Inter, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.fillText(label, 0, -r*0.1+4);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#fff";
+            ctx.font = `bold ${Math.floor(CELL*0.28)}px "Segoe UI"`;
+            ctx.textAlign = "center";
+            ctx.fillText(label, x, y-r*0.18);
             ctx.restore();
         }
 
         function drawAllStaticTokens(excludeColor, excludeIdx) {
+            const offsets = [[-12,-12],[12,-12],[-12,12],[12,12]];
             let positions = [];
             for(let col of COLOR_ORDER) {
                 let player = gameState.players[col];
@@ -668,18 +373,20 @@
                 cellMap.get(key).push(p);
             }
             for(let [_, list] of cellMap.entries()) {
-                let [gx,gy] = list[0].grid;
-                let basex = gx*CELL + CELL/2, basey = gy*CELL + CELL/2;
+                let [gx, gy] = list[0].grid;
+                let cx = gx*CELL + CELL/2;
+                let cy = gy*CELL + CELL/2;
                 for(let i=0; i<list.length; i++) {
                     let item = list[i];
-                    let off = TOKEN_OFFSETS[i % TOKEN_OFFSETS.length];
-                    drawPawn(basex+off[0], basey+off[1], item.color, (item.idx+1).toString(), false, 1);
+                    let off = offsets[i % offsets.length];
+                    drawPawn(cx+off[0], cy+off[1], item.color, (item.idx+1).toString(), false);
                 }
             }
         }
 
         function drawBoard() {
             drawBoardStatic();
+            const offsets = [[-12,-12],[12,-12],[-12,12],[12,12]];
             let positions = [];
             for(let col of COLOR_ORDER) {
                 let player = gameState.players[col];
@@ -699,35 +406,20 @@
 
             let isTurnRolled = gameState.rolled && !gameState.winner && !gameState.isMoving;
             for(let [_, list] of cellMap.entries()) {
-                let [gx,gy] = list[0].grid;
-                let basex = gx*CELL + CELL/2, basey = gy*CELL + CELL/2;
+                let [gx, gy] = list[0].grid;
+                let cx = gx*CELL + CELL/2;
+                let cy = gy*CELL + CELL/2;
                 for(let i=0; i<list.length; i++) {
                     let item = list[i];
-                    let off = TOKEN_OFFSETS[i % TOKEN_OFFSETS.length];
+                    let off = offsets[i % offsets.length];
                     let isMyToken = (gameState.players[item.color].id === userId);
-                    let selectable = isTurnRolled && isMyToken && item.color === currentTurnColor
-                        && canMove(item.pos, gameState.diceValue, item.color, gameState.players[item.color].tokens);
-                    drawPawn(basex+off[0], basey+off[1], item.color, (item.idx+1).toString(), selectable, 1);
+                    let selectable = isTurnRolled && isMyToken && item.color === currentTurnColor && canMove(item.pos, gameState.diceValue, item.color, gameState.players[item.color].tokens);
+                    drawPawn(cx+off[0], cy+off[1], item.color, (item.idx+1).toString(), selectable);
                 }
             }
         }
 
-        // Pulse loop for selectable tokens
-        function startPulseLoop() {
-            if(pulseRafId) cancelAnimationFrame(pulseRafId);
-            function loop() {
-                if(!gameState.isMoving && gameState.rolled && !gameState.winner) {
-                    drawBoard();
-                    pulseRafId = requestAnimationFrame(loop);
-                }
-            }
-            pulseRafId = requestAnimationFrame(loop);
-        }
-        function stopPulseLoop() {
-            if(pulseRafId){ cancelAnimationFrame(pulseRafId); pulseRafId = null; }
-        }
-
-        // ---------- GAME LOGIC ----------
+        // ---------- GAME LOGIC INTEGRATION ----------
         function canMove(tokenPos, dice, color, allTokens) {
             if(tokenPos >= 59) return false;
             if(!dice) return false;
@@ -735,10 +427,10 @@
             if(tokenPos === 0) newPos = START_POS[color];
             else {
                 newPos = tokenPos + dice;
-                if(1 <= tokenPos && tokenPos <= 52 && newPos > 52) {
+                if (1 <= tokenPos && tokenPos <= 52 && newPos > 52) {
                     newPos = 52 + (newPos - 52);
                 }
-                if(newPos > 58) newPos = 59;
+                if (newPos > 58) newPos = 59;
             }
             if(newPos === tokenPos) return false;
             let isSafe = SAFE_SPOTS.has(newPos) || (newPos>=53 && newPos<=58);
@@ -746,295 +438,222 @@
             return true;
         }
 
-        // ---------- SMOOTH ANIMATION ----------
-        function easeInOut(t) { return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
-
+        // Box by Box hopping animation
         function animateTokenPath(color, tokenIdx, path) {
             return new Promise((resolve) => {
-                if(path.length < 2) { resolve(); return; }
-                stopPulseLoop();
+                if (path.length < 2) { resolve(); return; }
+                let stepDuration = 220; 
+                let totalSteps = path.length - 1;
+                let startTime = performance.now();
 
-                const stepMs     = 190;
-                const totalSteps = path.length - 1;
-                const totalMs    = totalSteps * stepMs;
-                const startTime  = performance.now();
-
-                function frame(now) {
-                    let elapsed   = now - startTime;
-                    let rawT      = Math.min(1, elapsed / totalMs);
-                    let stepFloat = rawT * totalSteps;
+                function animate(currentTime) {
+                    let elapsed = currentTime - startTime;
+                    let totalDuration = totalSteps * stepDuration;
+                    let progress = Math.min(1, elapsed / totalDuration);
+                    let stepFloat = progress * totalSteps;
                     let stepIndex = Math.floor(stepFloat);
-                    if(stepIndex >= totalSteps) stepIndex = totalSteps - 1;
-                    let localT = easeInOut(stepFloat - stepIndex);
+                    let stepProgress = stepFloat - stepIndex;
 
-                    drawBoardStatic();
-                    drawAllStaticTokens(color, tokenIdx);
-
-                    let fromGrid = getGridFromPos(color, path[stepIndex], tokenIdx);
-                    let toGrid   = getGridFromPos(color, path[Math.min(stepIndex+1, path.length-1)], tokenIdx);
-
-                    if(fromGrid && toGrid) {
-                        let fx = fromGrid[0]*CELL + CELL/2, fy = fromGrid[1]*CELL + CELL/2;
-                        let tx = toGrid[0]*CELL   + CELL/2, ty = toGrid[1]*CELL   + CELL/2;
-                        let curX = fx + (tx-fx)*localT;
-                        let curY = fy + (ty-fy)*localT;
-                        let hop  = CELL * 0.55 * Math.sin(localT * Math.PI);
-                        curY -= hop;
-                        let scaleFactor = 1 + 0.12 * Math.sin(localT * Math.PI);
-
-                        // Motion trail
-                        if(hop > 6) {
-                            let tc2 = TOKEN_COLORS[color];
-                            for(let t=1; t<=3; t++) {
-                                let trailT = Math.max(0, localT - t*0.08);
-                                let trailX = fx + (tx-fx)*trailT;
-                                let trailY = fy + (ty-fy)*trailT - CELL*0.55*Math.sin(trailT*Math.PI);
-                                ctx.beginPath();
-                                ctx.arc(trailX, trailY, (CELL*0.08)*(4-t)/3, 0, Math.PI*2);
-                                ctx.fillStyle = tc2.fill + Math.round(Math.max(0,0.35-t*0.1)*255).toString(16).padStart(2,'0');
-                                ctx.fill();
-                            }
-                        }
-                        drawPawn(curX, curY, color, (tokenIdx+1).toString(), false, scaleFactor);
-                    }
-
-                    if(rawT < 1) {
-                        requestAnimationFrame(frame);
-                    } else {
-                        gameState.players[color].tokens[tokenIdx] = path[path.length-1];
+                    if (stepIndex >= totalSteps) {
+                        gameState.players[color].tokens[tokenIdx] = path[path.length - 1];
                         drawBoard();
                         resolve();
+                    } else {
+                        drawBoardStatic();
+                        drawAllStaticTokens(color, tokenIdx);
+
+                        let fromGrid = getGridFromPos(color, path[stepIndex], tokenIdx);
+                        let toGrid = getGridFromPos(color, path[stepIndex+1], tokenIdx);
+
+                        if(fromGrid && toGrid) {
+                            let fromX = fromGrid[0]*CELL + CELL/2;
+                            let fromY = fromGrid[1]*CELL + CELL/2;
+                            let toX = toGrid[0]*CELL + CELL/2;
+                            let toY = toGrid[1]*CELL + CELL/2;
+
+                            let curX = fromX + (toX - fromX) * stepProgress;
+                            let curY = fromY + (toY - fromY) * stepProgress;
+
+                            // Parabolic bounce curve (visual hopping effect)
+                            let hopHeight = CELL * 0.45 * Math.sin(stepProgress * Math.PI);
+                            curY -= hopHeight;
+
+                            drawPawn(curX, curY, color, (tokenIdx+1).toString(), false);
+                        }
+                        requestAnimationFrame(animate);
                     }
                 }
-                requestAnimationFrame(frame);
+                requestAnimationFrame(animate);
             });
         }
 
-        // ---------- MOVE HANDLER ----------
         async function handleTokenClick(tokenIdx) {
-            if(gameState.isMoving) return;
-            isPolling = false;
+            if (gameState.isMoving) return;
+            isPolling = false; 
             gameState.isMoving = true;
-            stopPulseLoop();
 
-            const color   = currentTurnColor;
-            const player  = gameState.players[color];
+            const color = currentTurnColor;
+            const player = gameState.players[color];
             const fromPos = player.tokens[tokenIdx];
-            const dice    = gameState.diceValue;
+            const dice = gameState.diceValue;
 
             let toPos;
-            if(fromPos === 0) {
+            if (fromPos === 0) {
                 toPos = START_POS[color];
             } else {
                 toPos = fromPos + dice;
-                if(1 <= fromPos && fromPos <= 52 && toPos > 52) {
+                if (1 <= fromPos && fromPos <= 52 && toPos > 52) {
                     toPos = 52 + (toPos - 52);
                 }
-                if(toPos > 58) toPos = 59;
+                if (toPos > 58) toPos = 59;
             }
 
             let path = getPath(fromPos, toPos, color);
-            setStatus('🚀', 'Token is moving...', '');
+            updateStatus("🚀 गोटी आगे बढ़ रही है...");
 
             await animateTokenPath(color, tokenIdx, path);
 
+            // API Server update
             try {
-                // Secure API validation using state token injection
-                const response = await fetch(`${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}` + (token ? `&token=${token}` : ''), {
+                const response = await fetch(`${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}`, {
                     method: 'POST'
                 });
                 const result = await response.json();
 
-                if(result.error) {
-                    setStatus('❌', result.error, 'error');
+                if (result.error) {
+                    updateStatus(`❌ त्रुटि: ${result.error}`);
                     isPolling = true;
                     pollState();
                 } else {
                     isPolling = true;
-                    const stateRes = await fetch(`${apiBase}/game_state?chat_id=${chatId}` + (token ? `&token=${token}` : ''));
-                    if(stateRes.ok) {
+                    const stateRes = await fetch(`${apiBase}/game_state?chat_id=${chatId}`);
+                    if (stateRes.ok) {
                         const stateData = await stateRes.json();
                         globalGameState = stateData;
                         syncWithBackendState(stateData);
                     }
                 }
-            } catch(err) {
+            } catch (err) {
                 console.error("Committing move failed:", err);
-                setStatus('❌', 'Connection lost! No response from server.', 'error');
+                updateStatus("❌ कनेक्शन टूट गया! सर्वर से रिस्पॉन्स नहीं मिला।");
                 isPolling = true;
             } finally {
                 gameState.isMoving = false;
             }
         }
 
-        // ---------- UI HELPERS ----------
-        function setConnDot(state) {
-            const el = document.getElementById('connDot');
-            el.className = 'connection-dot' + (state ? ' '+state : '');
-        }
-
-        function updateDice(val) {
-            const el   = document.getElementById('diceInner');
-            const wrap = document.getElementById('diceDisplay');
-            el.style.transform = 'scale(0.3)';
-            el.style.opacity   = '0';
-            setTimeout(() => {
-                el.textContent = val ? (DICE_FACES[val] || '🎲') : '🎲';
-                el.style.transform = 'scale(1)';
-                el.style.opacity   = '1';
-                wrap.classList.toggle('has-value', !!val);
-            }, 120);
-        }
-
-        function setStatus(icon, text, type) {
-            const bar = document.getElementById('statusBar');
-            bar.querySelector('.s-icon').textContent = icon;
-            document.getElementById('statusText').textContent = text;
-            bar.className = 'status-bar' + (type ? ' '+type : '');
-        }
-
-        let toastTimerRef = null;
-        function showToast(msg) {
-            const el = document.getElementById('toast');
-            el.textContent = msg;
-            el.classList.add('show');
-            if(toastTimerRef) clearTimeout(toastTimerRef);
-            toastTimerRef = setTimeout(() => el.classList.remove('show'), 2500);
-        }
-
-        function updatePlayerCards() {
-            for(let col of COLOR_ORDER) {
-                const p    = gameState.players[col];
-                const card = document.getElementById('card-'+col);
-                const nameEl = document.getElementById('name-'+col);
-                const tokEl  = document.getElementById('tok-'+col);
-                const doneEl = document.getElementById('done-'+col);
-
-                if(p.username) {
-                    nameEl.textContent = p.username;
-                    nameEl.className = 'pc-name';
-                } else {
-                    nameEl.textContent = 'Waiting...';
-                    nameEl.className = 'pc-name empty';
-                }
-                let done    = p.tokens.filter(t => t >= 59).length;
-                let stretch = p.tokens.filter(t => t >= 53 && t < 59).length;
-                tokEl.textContent  = `${done}/4 done · ${stretch} on stretch`;
-                doneEl.textContent = done > 0 ? '✓'.repeat(done) : '';
-
-                card.classList.remove('active');
-            }
-            document.getElementById('card-'+currentTurnColor).classList.add('active');
-        }
-
-        // ---------- SERVER SYNC ----------
+        // ---------- SERVER SYNC IMPLEMENTATION ----------
         function syncWithBackendState(data) {
             gameState.players = {};
-            for(let col of COLOR_ORDER) {
-                gameState.players[col] = { tokens:[0,0,0,0], finished:0, username:"Empty", id:null };
+            for (let col of ["red", "green", "blue", "yellow"]) {
+                gameState.players[col] = { tokens: [0, 0, 0, 0], finished: 0, username: "Empty", id: null };
             }
 
             data.players.forEach(p => {
                 const colKey = getFrontendColorKey(p.color);
+                let finishedCount = p.tokens.filter(pos => pos >= 59).length;
                 gameState.players[colKey] = {
-                    tokens:   [...p.tokens],
-                    finished: p.tokens.filter(pos => pos >= 59).length,
+                    tokens: [...p.tokens],
+                    finished: finishedCount,
                     username: p.username,
-                    id:       p.id
+                    id: p.id
                 };
             });
 
-            gameState.turnIndex       = data.turn_index;
-            gameState.diceValue       = data.dice_value;
-            gameState.rolled          = data.rolled;
-            gameState.winner          = data.winner;
+            gameState.turnIndex = data.turn_index;
+            gameState.diceValue = data.dice_value;
+            gameState.rolled = data.rolled;
+            gameState.winner = data.winner;
             gameState.waiting_for_word = data.waiting_for_word;
 
-            if(data.players && data.players[data.turn_index]) {
+            if (data.players && data.players[data.turn_index]) {
                 const curPlayer = data.players[data.turn_index];
                 currentTurnColor = getFrontendColorKey(curPlayer.color);
 
-                const colorEmoji = { red:'🔴', green:'🟢', blue:'🔵', yellow:'🟡' };
-                document.getElementById('turnName').textContent =
-                    `${colorEmoji[currentTurnColor]} ${curPlayer.username}`;
+                let statusText = "";
+                document.getElementById("turnText").innerHTML = `🎲 बारी: ${curPlayer.username} (${COLOR_NAMES[currentTurnColor]})`;
+                document.getElementById("diceValue").innerText = data.dice_value ? `🎲 ${data.dice_value}` : "🎲";
 
-                updateDice(data.dice_value);
-
-                // Winner check (winner !== -1 means someone won)
-                if(gameState.winner !== null && gameState.winner !== -1) {
+                if (gameState.winner !== -1) {
                     const winnerPlayer = data.players[gameState.winner];
-                    document.getElementById('winnerName').textContent =
-                        `${winnerPlayer.username} wins with ${winnerPlayer.color}!`;
-                    document.getElementById('winnerOverlay').classList.add('show');
-                    setStatus('🏆', `${winnerPlayer.username} has won the game!`, 'ok');
-                    stopPulseLoop();
-                    drawBoard();
-                } else if(gameState.waiting_for_word) {
-                    setStatus('⏳', `${curPlayer.username} is typing a word in Telegram to roll...`, 'warn');
-                    stopPulseLoop(); drawBoard();
-                } else if(gameState.rolled) {
-                    if(curPlayer.id === userId) {
-                        setStatus('🎯', `Your turn! Dice: ${gameState.diceValue} — tap your token to move.`, 'ok');
-                        startPulseLoop();
+                    statusText = `🏆 ${winnerPlayer.username} (${winnerPlayer.color}) जीत गए! 🏆`;
+                    document.getElementById("turnText").innerHTML = "🏁 खेल समाप्त!";
+                } else if (gameState.waiting_for_word) {
+                    statusText = `⏳ ${curPlayer.username} Telegram में शब्द भेजकर पासा फेंक रहे हैं...`;
+                } else if (gameState.rolled) {
+                    if (curPlayer.id === userId) {
+                        statusText = `🎲 आपकी बारी है! पासा: ${gameState.diceValue} | अपनी गोटी पर क्लिक करें।`;
                     } else {
-                        setStatus('👁️', `${curPlayer.username} rolled ${gameState.diceValue} — waiting for their move...`, '');
-                        stopPulseLoop(); drawBoard();
+                        statusText = `🎲 ${curPlayer.username} का पासा: ${gameState.diceValue} आया है। गोटी चलने की प्रतीक्षा है...`;
                     }
                 } else {
-                    setStatus('⏳', `Waiting for ${curPlayer.username} to roll the dice...`, '');
-                    stopPulseLoop(); drawBoard();
+                    statusText = `⏳ ${curPlayer.username} के पासे की प्रतीक्षा है...`;
                 }
+                updateStatus(statusText);
             }
-
-            updatePlayerCards();
-            setConnDot('');
+            drawBoard();
         }
 
         async function pollState() {
-            if(!chatId) {
-                setStatus('❌', 'URL error: chat_id missing!', 'error');
+            if (!chatId) {
+                updateStatus("❌ यूआरएल त्रुटि: chat_id अनुपस्थित है!");
                 return;
             }
-            if(gameState.isMoving) {
+            if (gameState.isMoving) {
                 setTimeout(pollState, 2000);
                 return;
             }
             try {
-                setConnDot('syncing');
-                const res = await fetch(`${apiBase}/game_state?chat_id=${chatId}` + (token ? `&token=${token}` : ''));
-                if(!res.ok) {
-                    setConnDot('offline');
-                    if(res.status === 404) setStatus('⚠️', 'No active game in this group.', 'warn');
-                    else setStatus('⚠️', 'Server connection error.', 'warn');
+                const res = await fetch(`${apiBase}/game_state?chat_id=${chatId}`);
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        updateStatus("⚠️ इस ग्रुप में कोई एक्टिव गेम नहीं है।");
+                    } else {
+                        updateStatus("⚠️ सर्वर से कनेक्ट करने में त्रुटि आ रही है।");
+                    }
                     setTimeout(pollState, 3000);
                     return;
                 }
                 const data = await res.json();
-                setConnDot('');
-                if(JSON.stringify(data) !== JSON.stringify(globalGameState)) {
+                if (JSON.stringify(data) !== JSON.stringify(globalGameState)) {
                     globalGameState = data;
                     syncWithBackendState(data);
                 }
-            } catch(err) {
+            } catch (err) {
                 console.error("Fetch API connection error:", err);
-                setConnDot('offline');
-                setStatus('⚠️', 'Reconnecting...', 'warn');
+                updateStatus("⚠️ कनेक्शन स्थापित किया जा रहा है...");
             }
-            if(isPolling) {
+            if (isPolling) {
                 setTimeout(pollState, 2000);
             }
         }
 
+        function updateStatus(msg) {
+            document.getElementById("statusMsg").innerText = "✨ " + msg;
+        }
+
         // ---------- CANVAS EVENT HANDLERS ----------
         function handleCanvasClick(e) {
-            if(gameState.winner !== null && gameState.winner !== -1) return;
-            if(!gameState.rolled || gameState.isMoving) return;
+            if (gameState.winner !== -1 || !gameState.rolled || gameState.isMoving) return;
 
-            const rect   = canvas.getBoundingClientRect();
-            const scaleX = canvas.width  / rect.width;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            const mx = (e.clientX - rect.left) * scaleX;
-            const my = (e.clientY - rect.top)  * scaleY;
+            let clientX, clientY;
+
+            if(e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+                e.preventDefault();
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const mx = (clientX - rect.left) * scaleX;
+            const my = (clientY - rect.top) * scaleY;
+
+            const offsets = [[-12,-12],[12,-12],[-12,12],[12,12]];
 
             for(let color of COLOR_ORDER) {
                 let player = gameState.players[color];
@@ -1043,24 +662,27 @@
                     if(pos === 59) continue;
                     let grid = getGridFromPos(color, pos, idx);
                     if(!grid) continue;
-                    let off  = TOKEN_OFFSETS[idx % TOKEN_OFFSETS.length];
-                    let pawnX = grid[0]*CELL + CELL/2 + off[0];
-                    let pawnY = grid[1]*CELL + CELL/2 + off[1];
-                    let dist  = Math.hypot(mx - pawnX, my - pawnY);
+                    let cx = grid[0]*CELL + CELL/2;
+                    let cy = grid[1]*CELL + CELL/2;
+                    let off = offsets[idx % offsets.length];
+                    let pawnX = cx + off[0];
+                    let pawnY = cy + off[1];
+                    let dist = Math.hypot(mx - pawnX, my - pawnY);
 
-                    if(dist < CELL * 0.46) {
-                        if(player.id !== userId) {
-                            showToast('⏳ Not your token!');
+                    if(dist < CELL * 0.45) {
+                        if (player.id !== userId) {
+                            updateStatus("⏳ यह आपकी गोटी नहीं है!");
                             return;
                         }
                         if(color !== currentTurnColor) {
-                            showToast('⏳ Not your turn!');
+                            updateStatus("⏳ अभी आपकी बारी नहीं है!");
                             return;
                         }
-                        if(canMove(pos, gameState.diceValue, color, player.tokens)) {
+                        let dice = gameState.diceValue;
+                        if(canMove(pos, dice, color, player.tokens)) {
                             handleTokenClick(idx);
                         } else {
-                            showToast("❌ This token can't move!");
+                            updateStatus("❌ यह गोटी आगे नहीं बढ़ सकती!");
                         }
                         return;
                     }
@@ -1075,8 +697,6 @@
             handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY });
         }, { passive: false });
 
-        // Start
-        drawBoardStatic();
         pollState();
     })();
 </script>
