@@ -118,7 +118,7 @@
         .blue-home-stretch { background: #90cdf4 !important; }
         .yellow-home-stretch { background: #faf089 !important; }
 
-        /* ----- TOKENS / GOTIS (IMPROVED SIZE & HITBOX) ----- */
+        /* ----- TOKENS / GOTIS (REALISTIC 3D PAWN DESIGN) ----- */
         .token-layer {
             position: absolute;
             top: 0;
@@ -130,66 +130,118 @@
 
         .token {
             pointer-events: auto; /* Enable touch/click only on tokens */
-            width: 8%; /* Bigger responsive size relative to board */
-            aspect-ratio: 1;
-            border-radius: 50%;
+            width: 7.5%; /* Fits perfectly in board cells */
+            height: 11%; /* Taller profile for standard pawn shape */
             position: absolute;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -75%); /* Align goti base centered on cell */
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+            justify-content: flex-end;
             cursor: pointer;
             touch-action: manipulation;
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 10;
-            border: 2px solid #ffffff;
         }
 
-        /* INVISIBLE HITBOX (Fat-Finger Fix): 
-           भले ही गोटी छोटी दिखे, छूने का एरिया बहुत बड़ा (50px से ज़्यादा) होगा! */
+        /* INVISIBLE HITBOX (Fat-Finger Fix): Large touch target centered */
         .token::after {
             content: '';
             position: absolute;
-            top: -15px;
-            left: -15px;
-            right: -15px;
-            bottom: -15px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
         }
 
-        /* Token Colors */
-        .token-red { background: radial-gradient(circle at 35% 35%, #fc8181, #c53030); }
-        .token-green { background: radial-gradient(circle at 35% 35%, #68d391, #22543d); }
-        .token-yellow { background: radial-gradient(circle at 35% 35%, #f6e05e, #b7791f); }
-        .token-blue { background: radial-gradient(circle at 35% 35%, #63b3ed, #2b6cb0); }
-
-        /* Inner Ring to look premium */
-        .token-inner {
-            width: 45%;
-            height: 45%;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.35);
-            border: 1px solid rgba(255, 255, 255, 0.6);
+        /* Goti Palette Variables using CSS custom properties for 3D realism */
+        .token-red {
+            --goti-color-light: #ff8787;
+            --goti-color-main: #e53e3e;
+            --goti-color-dark: #9b2c2c;
+            --goti-shadow: rgba(155, 44, 44, 0.5);
+        }
+        .token-green {
+            --goti-color-light: #86efac;
+            --goti-color-main: #38a169;
+            --goti-color-dark: #14532d;
+            --goti-shadow: rgba(20, 83, 45, 0.5);
+        }
+        .token-yellow {
+            --goti-color-light: #fef08a;
+            --goti-color-main: #ecc94b;
+            --goti-color-dark: #a16207;
+            --goti-shadow: rgba(161, 98, 7, 0.5);
+        }
+        .token-blue {
+            --goti-color-light: #93c5fd;
+            --goti-color-main: #3182ce;
+            --goti-color-dark: #1e3a8a;
+            --goti-shadow: rgba(30, 58, 138, 0.5);
         }
 
-        /* Pulse Highlight for movable tokens */
+        /* Goti Top Sphere Head */
+        .goti-head {
+            width: 50%;
+            height: 33%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, var(--goti-color-light), var(--goti-color-main) 70%, var(--goti-color-dark));
+            box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.6), 0 2px 3px rgba(0, 0, 0, 0.3);
+            z-index: 4;
+            margin-bottom: -5%; /* Overlap with neck */
+        }
+
+        /* Goti Collar/Neck Ring */
+        .goti-neck {
+            width: 35%;
+            height: 10%;
+            background: linear-gradient(to right, var(--goti-color-dark), var(--goti-color-light), var(--goti-color-dark));
+            border-radius: 2px;
+            z-index: 3;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            margin-bottom: -5%; /* Overlap with body */
+        }
+
+        /* Goti Body Cone */
+        .goti-body {
+            width: 75%;
+            height: 47%;
+            background: linear-gradient(to right, var(--goti-color-dark) 0%, var(--goti-color-main) 30%, var(--goti-color-light) 50%, var(--goti-color-main) 70%, var(--goti-color-dark) 100%);
+            border-radius: 40% 40% 15% 15% / 100% 100% 20% 20%;
+            z-index: 2;
+            box-shadow: inset 0 2px 3px rgba(255,255,255,0.4);
+            margin-bottom: -5%; /* Overlap with base */
+        }
+
+        /* Goti Base Plate */
+        .goti-base {
+            width: 95%;
+            height: 18%;
+            background: radial-gradient(ellipse at 50% 30%, var(--goti-color-light), var(--goti-color-main) 60%, var(--goti-color-dark));
+            border-radius: 50% 50% 40% 40% / 80% 80% 40% 40%;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+            z-index: 1;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4), 0 1px 2px var(--goti-shadow);
+        }
+
+        /* Pulse Highlight for movable gotis */
         .token.movable {
-            animation: pulseHighlight 1.2s infinite;
-            border: 3px solid #ffffff;
+            animation: pulseHighlightPawn 1.2s infinite;
             z-index: 20;
-            scale: 1.15;
+            transform: translate(-50%, -75%) scale(1.15); /* Keep base position intact while scaling */
         }
 
-        @keyframes pulseHighlight {
+        @keyframes pulseHighlightPawn {
             0% {
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8), 0 4px 8px rgba(0,0,0,0.4);
+                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
             }
-            70% {
-                box-shadow: 0 0 0 10px rgba(255, 255, 255, 0), 0 4px 8px rgba(0,0,0,0.4);
+            50% {
+                filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
             }
             100% {
-                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0), 0 4px 8px rgba(0,0,0,0.4);
+                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
             }
         }
 
@@ -377,7 +429,7 @@
 
             if (gameState.winner !== -1) {
                 const winnerName = gameState.players[gameState.winner].username;
-                turn_indicator.innerHTML = `🏆 Winner: ${winnerName}!`;
+                turnIndicator.innerHTML = `🏆 Winner: ${winnerName}!`;
                 diceStatus.innerHTML = `The game has finished.`;
                 return;
             }
@@ -419,10 +471,23 @@
                     const token = document.createElement('div');
                     token.className = `token token-${info.colorCode}`;
                     
-                    // Add modern premium inner ring
-                    const innerRing = document.createElement('div');
-                    innerRing.className = 'token-inner';
-                    token.appendChild(innerRing);
+                    // Injecting 3D Pawn sub-components instead of basic inner rings
+                    const head = document.createElement('div');
+                    head.className = 'goti-head';
+                    
+                    const neck = document.createElement('div');
+                    neck.className = 'goti-neck';
+
+                    const body = document.createElement('div');
+                    body.className = 'goti-body';
+
+                    const base = document.createElement('div');
+                    base.className = 'goti-base';
+
+                    token.appendChild(head);
+                    token.appendChild(neck);
+                    token.appendChild(body);
+                    token.appendChild(base);
 
                     // Overlap Jitter (offset) logic so stacked tokens remain individually touchable
                     let offsetPercentX = 0;
