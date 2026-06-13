@@ -86,14 +86,14 @@
   }
 
   /* Playable Pawns Pulsing Animation */
-  @keyframes pawnPulse {
-    0% { filter: drop-shadow(0px 0px 3px #fff); }
-    50% { filter: drop-shadow(0px 0px 10px #ffd700); }
-    100% { filter: drop-shadow(0px 0px 3px #fff); }
+  @keyframes locationPulse {
+    0% { filter: drop-shadow(0px 0px 3px rgba(255, 215, 0, 0.4)); }
+    50% { filter: drop-shadow(0px 0px 12px rgba(255, 215, 0, 0.95)); }
+    100% { filter: drop-shadow(0px 0px 3px rgba(255, 215, 0, 0.4)); }
   }
 
   .playable-pawn {
-    animation: pawnPulse 1.2s infinite ease-in-out;
+    animation: locationPulse 1.4s infinite ease-in-out;
     cursor: pointer;
   }
 
@@ -130,6 +130,38 @@
   <!-- Ludo Board Frame with SVG -->
   <div class="board-frame">
     <svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" id="ludo-svg">
+      <defs>
+        <!-- Metallic Silver Gradient for Location Pin Body -->
+        <linearGradient id="pin-silver" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="30%" stop-color="#f0f0f0"/>
+          <stop offset="70%" stop-color="#bebebe"/>
+          <stop offset="100%" stop-color="#808080"/>
+        </linearGradient>
+
+        <!-- Dynamic Radial Gradients for Inner Dot Colors -->
+        <radialGradient id="grad-red" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#ff7676"/>
+          <stop offset="60%" stop-color="#d93434"/>
+          <stop offset="100%" stop-color="#801010"/>
+        </radialGradient>
+        <radialGradient id="grad-green" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#56c268"/>
+          <stop offset="60%" stop-color="#2e8b3d"/>
+          <stop offset="100%" stop-color="#11451a"/>
+        </radialGradient>
+        <radialGradient id="grad-blue" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#5da6ed"/>
+          <stop offset="60%" stop-color="#1f6fc1"/>
+          <stop offset="100%" stop-color="#0a335c"/>
+        </radialGradient>
+        <radialGradient id="grad-yellow" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#ffe169"/>
+          <stop offset="60%" stop-color="#f4c20d"/>
+          <stop offset="100%" stop-color="#8a6900"/>
+        </radialGradient>
+      </defs>
+
       <rect x="0" y="0" width="480" height="480" fill="#ffffff"/>
       <rect x="0" y="0" width="192" height="192" fill="#f4c20d"/>
       <rect x="22" y="22" width="148" height="148" fill="#ffffff" rx="14"/>
@@ -228,95 +260,102 @@
       <polygon points="272.00,389.12 274.69,396.30 282.35,396.64 276.35,401.41 278.40,408.80 272.00,404.57 265.60,408.80 267.65,401.41 261.65,396.64 269.31,396.30" fill="#ffffff" stroke="#cfcfcf" stroke-width="1.5"/>
       <polygon points="80.00,261.12 82.69,268.30 90.35,268.64 84.35,273.41 86.40,280.80 80.00,276.57 73.60,280.80 75.65,273.41 69.65,268.64 77.31,268.30" fill="#ffffff" stroke="#cfcfcf" stroke-width="1.5"/>
       
-      <!-- UPDATED: Moved Top Blue Entrance arrow 1 box to the right (x=240.0) -->
+      <!-- Moved Top Blue Entrance arrow 1 box to the right (x=240.0) -->
       <g transform="translate(240.0,16.0) rotate(0)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
       
       <g transform="translate(464.0,240.0) rotate(90)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
       <g transform="translate(240.0,464.0) rotate(180)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
       <g transform="translate(16.0,240.0) rotate(-90)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
 
-      <!-- Static Pawns inside a group (will be hidden automatically when live game begins) -->
+      <!-- Static Location Pin Pawns (Matching Uploaded Image) -->
       <g id="static-pawns">
-        <ellipse cx="70.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 58.0 85.0 C 58.0 76.0, 63.0 73.0, 65.5 69.0 C 67.0 67.0, 67.0 65.0, 67.0 63.0 L 73.0 63.0 C 73.0 65.0, 73.0 67.0, 74.5 69.0 C 77.0 73.0, 82.0 76.0, 82.0 85.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <circle cx="70.0" cy="60.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <ellipse cx="67.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="67.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="70.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 58.0 137.0 C 58.0 128.0, 63.0 125.0, 65.5 121.0 C 67.0 119.0, 67.0 117.0, 67.0 115.0 L 73.0 115.0 C 73.0 117.0, 73.0 119.0, 74.5 121.0 C 77.0 125.0, 82.0 128.0, 82.0 137.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <circle cx="70.0" cy="112.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <ellipse cx="67.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="67.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="122.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 110.0 85.0 C 110.0 76.0, 115.0 73.0, 117.5 69.0 C 119.0 67.0, 119.0 65.0, 119.0 63.0 L 125.0 63.0 C 125.0 65.0, 125.0 67.0, 126.5 69.0 C 129.0 73.0, 134.0 76.0, 134.0 85.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <circle cx="122.0" cy="60.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <ellipse cx="119.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="119.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="122.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 110.0 137.0 C 110.0 128.0, 115.0 125.0, 117.5 121.0 C 119.0 119.0, 119.0 117.0, 119.0 115.0 L 125.0 115.0 C 125.0 117.0, 125.0 119.0, 126.5 121.0 C 129.0 125.0, 134.0 128.0, 134.0 137.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <circle cx="122.0" cy="112.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
-        <ellipse cx="119.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="119.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="358.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 346.0 85.0 C 346.0 76.0, 351.0 73.0, 353.5 69.0 C 355.0 67.0, 355.0 65.0, 355.0 63.0 L 361.0 63.0 C 361.0 65.0, 361.0 67.0, 362.5 69.0 C 365.0 73.0, 370.0 76.0, 370.0 85.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <circle cx="358.0" cy="60.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <ellipse cx="355.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="355.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="358.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 346.0 137.0 C 346.0 128.0, 351.0 125.0, 353.5 121.0 C 355.0 119.0, 355.0 117.0, 355.0 115.0 L 361.0 115.0 C 361.0 117.0, 361.0 119.0, 362.5 121.0 C 365.0 125.0, 370.0 128.0, 370.0 137.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <circle cx="358.0" cy="112.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <ellipse cx="355.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="355.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="410.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 398.0 85.0 C 398.0 76.0, 403.0 73.0, 405.5 69.0 C 407.0 67.0, 407.0 65.0, 407.0 63.0 L 413.0 63.0 C 413.0 65.0, 413.0 67.0, 414.5 69.0 C 417.0 73.0, 422.0 76.0, 422.0 85.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <circle cx="410.0" cy="60.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <ellipse cx="407.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="407.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="410.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 398.0 137.0 C 398.0 128.0, 403.0 125.0, 405.5 121.0 C 407.0 119.0, 407.0 117.0, 407.0 115.0 L 413.0 115.0 C 413.0 117.0, 413.0 119.0, 414.5 121.0 C 417.0 125.0, 422.0 128.0, 422.0 137.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <circle cx="410.0" cy="112.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
-        <ellipse cx="407.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="407.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="70.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 58.0 373.0 C 58.0 364.0, 63.0 361.0, 65.5 357.0 C 67.0 355.0, 67.0 353.0, 67.0 351.0 L 73.0 351.0 C 73.0 353.0, 73.0 355.0, 74.5 357.0 C 77.0 361.0, 82.0 364.0, 82.0 373.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <circle cx="70.0" cy="348.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <ellipse cx="67.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="67.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="70.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 58.0 425.0 C 58.0 416.0, 63.0 413.0, 65.5 409.0 C 67.0 407.0, 67.0 405.0, 67.0 403.0 L 73.0 403.0 C 73.0 405.0, 73.0 407.0, 74.5 409.0 C 77.0 413.0, 82.0 416.0, 82.0 425.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <circle cx="70.0" cy="400.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <ellipse cx="67.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="67.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="122.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 110.0 373.0 C 110.0 364.0, 115.0 361.0, 117.5 357.0 C 119.0 355.0, 119.0 353.0, 119.0 351.0 L 125.0 351.0 C 125.0 353.0, 125.0 355.0, 126.5 357.0 C 129.0 361.0, 134.0 364.0, 134.0 373.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <circle cx="122.0" cy="348.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <ellipse cx="119.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="119.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="122.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 110.0 425.0 C 110.0 416.0, 115.0 413.0, 117.5 409.0 C 119.0 407.0, 119.0 405.0, 119.0 403.0 L 125.0 403.0 C 125.0 405.0, 125.0 407.0, 126.5 409.0 C 129.0 413.0, 134.0 416.0, 134.0 425.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <circle cx="122.0" cy="400.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
-        <ellipse cx="119.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="119.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="358.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 346.0 373.0 C 346.0 364.0, 351.0 361.0, 353.5 357.0 C 355.0 355.0, 355.0 353.0, 355.0 351.0 L 361.0 351.0 C 361.0 353.0, 361.0 355.0, 362.5 357.0 C 365.0 361.0, 370.0 364.0, 370.0 373.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <circle cx="358.0" cy="348.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <ellipse cx="355.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="355.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="358.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 346.0 425.0 C 346.0 416.0, 351.0 413.0, 353.5 409.0 C 355.0 407.0, 355.0 405.0, 355.0 403.0 L 361.0 403.0 C 361.0 405.0, 361.0 407.0, 362.5 409.0 C 365.0 413.0, 370.0 416.0, 370.0 425.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <circle cx="358.0" cy="400.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <ellipse cx="355.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="355.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="410.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 398.0 373.0 C 398.0 364.0, 403.0 361.0, 405.5 357.0 C 407.0 355.0, 407.0 353.0, 407.0 351.0 L 413.0 351.0 C 413.0 353.0, 413.0 355.0, 414.5 357.0 C 417.0 361.0, 422.0 364.0, 422.0 373.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <circle cx="410.0" cy="348.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <ellipse cx="407.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="407.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
-        <ellipse cx="410.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-        <path d="M 398.0 425.0 C 398.0 416.0, 403.0 413.0, 405.5 409.0 C 407.0 407.0, 407.0 405.0, 407.0 403.0 L 413.0 403.0 C 413.0 405.0, 413.0 407.0, 414.5 409.0 C 417.0 413.0, 422.0 416.0, 422.0 425.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <circle cx="410.0" cy="400.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
-        <ellipse cx="407.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-        <ellipse cx="407.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <!-- Static Yellow Pawns -->
+        <g class="pawn-unit">
+          <circle cx="70" cy="85" r="14" fill="#f4c20d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 70 84 C 60 75, 60 63, 70 60 C 80 63, 80 75, 70 84" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="70" cy="69" r="4.5" fill="url(#grad-yellow)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="70" cy="137" r="14" fill="#f4c20d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 70 136 C 60 127, 60 115, 70 112 C 80 115, 80 127, 70 136" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="70" cy="121" r="4.5" fill="url(#grad-yellow)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="122" cy="85" r="14" fill="#f4c20d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 122 84 C 112 75, 112 63, 122 60 C 132 63, 132 75, 122 84" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="122" cy="69" r="4.5" fill="url(#grad-yellow)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="122" cy="137" r="14" fill="#f4c20d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 122 136 C 112 127, 112 115, 122 112 C 132 115, 132 127, 122 136" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="122" cy="121" r="4.5" fill="url(#grad-yellow)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+
+        <!-- Static Blue Pawns -->
+        <g class="pawn-unit">
+          <circle cx="358" cy="85" r="14" fill="#1f6fc1" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 358 84 C 348 75, 348 63, 358 60 C 368 63, 368 75, 358 84" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="358" cy="69" r="4.5" fill="url(#grad-blue)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="358" cy="137" r="14" fill="#1f6fc1" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 358 136 C 348 127, 348 115, 358 112 C 368 115, 368 127, 358 136" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="358" cy="121" r="4.5" fill="url(#grad-blue)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="410" cy="85" r="14" fill="#1f6fc1" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 410 84 C 400 75, 400 63, 410 60 C 420 63, 420 75, 410 84" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="410" cy="69" r="4.5" fill="url(#grad-blue)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="410" cy="137" r="14" fill="#1f6fc1" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 410 136 C 400 127, 400 115, 410 112 C 420 115, 420 127, 410 136" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="410" cy="121" r="4.5" fill="url(#grad-blue)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+
+        <!-- Static Green Pawns -->
+        <g class="pawn-unit">
+          <circle cx="70" cy="373" r="14" fill="#2e8b3d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 70 372 C 60 363, 60 351, 70 348 C 80 351, 80 363, 70 372" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="70" cy="357" r="4.5" fill="url(#grad-green)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="70" cy="425" r="14" fill="#2e8b3d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 70 424 C 60 415, 60 403, 70 400 C 80 415, 80 415, 70 424" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="70" cy="409" r="4.5" fill="url(#grad-green)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="122" cy="373" r="14" fill="#2e8b3d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 122 372 C 112 363, 112 351, 122 348 C 132 351, 132 363, 122 372" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="122" cy="357" r="4.5" fill="url(#grad-green)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="122" cy="425" r="14" fill="#2e8b3d" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 122 424 C 112 415, 112 403, 122 400 C 132 415, 132 415, 122 424" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="122" cy="409" r="4.5" fill="url(#grad-green)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+
+        <!-- Static Red Pawns -->
+        <g class="pawn-unit">
+          <circle cx="358" cy="373" r="14" fill="#d93434" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 358 372 C 348 363, 348 351, 358 348 C 368 351, 368 363, 358 372" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="358" cy="357" r="4.5" fill="url(#grad-red)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="358" cy="425" r="14" fill="#d93434" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 358 424 C 348 415, 348 403, 358 400 C 368 415, 368 415, 358 424" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="358" cy="409" r="4.5" fill="url(#grad-red)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="410" cy="373" r="14" fill="#d93434" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 410 372 C 400 363, 400 351, 410 348 C 420 351, 420 363, 410 372" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="410" cy="357" r="4.5" fill="url(#grad-red)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
+        <g class="pawn-unit">
+          <circle cx="410" cy="425" r="14" fill="#d93434" stroke="#15243b" stroke-width="1.5"/>
+          <path d="M 410 424 C 400 415, 400 403, 410 400 C 420 415, 420 415, 410 424" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <circle cx="410" cy="409" r="4.5" fill="url(#grad-red)" stroke="#15243b" stroke-width="0.8"/>
+        </g>
       </g>
       
       <!-- Dynamic live pawns rendering layer -->
@@ -367,20 +406,20 @@
     {x: 464, y: 240}, {x: 464, y: 272}
   ];
 
-  // Helper functions for custom mapping and coordinates
+  // Helper functions for matching exact board colors with pin assets
   function getVisualConfig(colorStr) {
     if (colorStr.includes("Red")) {
-      return { name: "Red", hex: "#d93434", stroke: "#9c2424" };
+      return { name: "Red", hex: "url(#grad-red)", solidColor: "#d93434" };
     } else if (colorStr.includes("Green")) {
-      return { name: "Green", hex: "#2e8b3d", stroke: "#1f5e2a" };
+      return { name: "Green", hex: "url(#grad-green)", solidColor: "#2e8b3d" };
     } else if (colorStr.includes("Yellow")) {
       // Starts at 40 (represented by top-right quadrant which is Blue in original layout)
-      return { name: "Blue", hex: "#1f6fc1", stroke: "#13497f" };
+      return { name: "Blue", hex: "url(#grad-blue)", solidColor: "#1f6fc1" };
     } else if (colorStr.includes("Blue")) {
       // Starts at 27 (represented by top-left quadrant which is Yellow in original layout)
-      return { name: "Yellow", hex: "#f4c20d", stroke: "#c79a00" };
+      return { name: "Yellow", hex: "url(#grad-yellow)", solidColor: "#f4c20d" };
     }
-    return { name: "Red", hex: "#d93434", stroke: "#9c2424" };
+    return { name: "Red", hex: "url(#grad-red)", solidColor: "#d93434" };
   }
 
   function getHomePathCoords(colorName, pos) {
@@ -471,7 +510,7 @@
     }
   }
 
-  // Real-Time Dynamically Drawing the Pawns
+  // Real-Time Dynamically Drawing the Pawns matching User Uploaded Image Layout
   function renderGame(state) {
     // Hide default static board pawns as live state exists
     document.getElementById("static-pawns").style.display = "none";
@@ -543,27 +582,32 @@
         // Interactive validation
         const isPlayable = isOurTurn && state.rolled && !state.waiting_for_word && canMove(item.pos, state.dice_value);
         
-        const bodyD = `M ${cx - 12} ${cy} C ${cx - 12} ${cy - 9}, ${cx - 7} ${cy - 12}, ${cx - 4.5} ${cy - 16} C ${cx - 3} ${cy - 18}, ${cx - 3} ${cy - 20}, ${cx - 3} ${cy - 22} L ${cx + 3} ${cy - 22} C ${cx + 3} ${cy - 20}, ${cx + 3} ${cy - 18}, ${cx + 4.5} ${cy - 16} C ${cx + 7} ${cy - 12}, ${cx + 12} ${cy - 9}, ${cx + 12} ${cy}`;
-
         const pawnGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
         if (isPlayable) {
           pawnGroup.setAttribute("class", "playable-pawn");
           pawnGroup.onclick = () => executeMove(item.tIdx);
+        } else {
+          pawnGroup.setAttribute("class", "pawn-unit");
         }
 
+        // Calculations for perfect pin teardrop path pointing down inside circle
+        const pinD = `M ${cx} ${cy - 1} C ${cx - 10} ${cy - 10}, ${cx - 10} ${cy - 22}, ${cx} ${cy - 25} C ${cx + 10} ${cy - 22}, ${cx + 10} ${cy - 10}, ${cx} ${cy - 1}`;
+        const innerY = cy - 16;
+
         pawnGroup.innerHTML = `
-          <ellipse cx="${cx}" cy="${cy}" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
-          <path d="${bodyD}" fill="${item.config.hex}" stroke="${item.config.stroke}" stroke-width="1"/>
-          <circle cx="${cx}" cy="${cy - 25}" r="7.5" fill="${item.config.hex}" stroke="${item.config.stroke}" stroke-width="1"/>
-          <ellipse cx="${cx - 2.3}" cy="${cy - 27.5}" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
-          <ellipse cx="${cx - 3}" cy="${cy - 11}" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+          <!-- Bottom Base Circle with Player Color -->
+          <circle cx="${cx}" cy="${cy}" r="14" fill="${item.config.solidColor}" stroke="#15243b" stroke-width="1.5"/>
+          <!-- Metallic Silver Gradient Map Pin over circle -->
+          <path d="${pinD}" fill="url(#pin-silver)" stroke="#15243b" stroke-width="1.5"/>
+          <!-- Inside pin colored hole (inner dot matching base circle gradient) -->
+          <circle cx="${cx}" cy="${innerY}" r="4.5" fill="${item.config.hex}" stroke="#15243b" stroke-width="0.8"/>
         `;
         layer.appendChild(pawnGroup);
       });
     }
   }
 
-  // Periodic polling mechanism
+  // Periodic polling mechanism (every 2 seconds)
   setInterval(fetchGameState, 2000);
   fetchGameState();
 </script>
