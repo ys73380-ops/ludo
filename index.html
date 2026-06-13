@@ -118,7 +118,7 @@
         .blue-home-stretch { background: #90cdf4 !important; }
         .yellow-home-stretch { background: #faf089 !important; }
 
-        /* ----- TOKENS / GOTIS (REALISTIC 3D PAWN DESIGN FROM IMAGE) ----- */
+        /* ----- TOKENS / GOTIS (SMALLER DESIGN FOR BETTER FIT) ----- */
         .token-layer {
             position: absolute;
             top: 0;
@@ -130,8 +130,8 @@
 
         .token {
             pointer-events: auto; /* Enable touch/click only on tokens */
-            width: 7.5%; /* Fits in board cells */
-            height: 11%; /* Taller profile for standard pawn shape */
+            width: 6.0%; /* Slightly smaller for cleaner look (Down from 7.5%) */
+            height: 9.0%; /* Slightly smaller for cleaner look (Down from 11%) */
             position: absolute;
             transform: translate(-50%, -75%); /* Align goti base centered on cell */
             display: flex;
@@ -140,7 +140,7 @@
             justify-content: flex-end;
             cursor: pointer;
             touch-action: manipulation;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: left 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3), top 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3); /* Custom jumping bounce */
             z-index: 10;
         }
 
@@ -151,8 +151,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 50px;
-            height: 50px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
         }
 
@@ -182,7 +182,7 @@
             --goti-shadow: rgba(30, 58, 138, 0.5);
         }
 
-        /* Goti Top Sphere Head (Matches the round bulbous top in image) */
+        /* Goti Top Sphere Head */
         .goti-head {
             width: 52%;
             height: 38%;
@@ -204,7 +204,7 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.15);
         }
 
-        /* Goti Body (Pear/Teardrop shape sitting directly on board - matches image exactly) */
+        /* Goti Body */
         .goti-body {
             width: 82%;
             height: 56%;
@@ -291,9 +291,11 @@
         let gameState = null;
         let lastUpdated = 0;
 
+        // ----- ANIMATION & VISUAL STATE TRACKING -----
+        // Tracks visual positions of tokens step-by-step to prevent instant teleportation
+        const visualPositions = {}; // Format: { "Color_TokenIndex": { pos: current_rendered_pos, target: current_server_pos, animating: bool } }
+
         // ----- COORDINATES MAP (15x15 CSS Grid to visual absolute position %) -----
-        // Grid contains 15 columns (0 to 14) and 15 rows (0 to 14).
-        // Each grid step is (100 / 15) = 6.666% wide and tall.
         function getPercentPos(r, c) {
             return {
                 x: (c * 6.666) + 3.333,
@@ -405,6 +407,105 @@
             }
         }
 
+        // ----- STEP-BY-STEP HOVER ANIMATION LOOP -----
+        // Moves token visually one square at a time towards target server position
+        function stepAnimateToken(key) {
+            const vis = visualPositions[key];
+            if (!vis) return;
+
+            if (vis.pos < vis.target) {
+                vis.pos++;
+                renderTokens(); // Redraw UI at intermediate position
+                
+                // Triggers next square jump after 240ms for rhythmic hopping look
+                setTimeout(() => {
+                    stepAnimateToken(key);
+                }, 240);
+            } else {
+                vis.animating = false;
+                renderTokens(); // Clean up final position
+            }
+        }
+
+        // ----- RENDER TOKENS (USING VISUAL INTERMEDIATE STATE) -----
+        function renderTokens() {
+            if (!gameState) return;
+            const layer = document.getElementById('token-layer');
+            layer.innerHTML = '';
+
+            // Map and identify overlapping tokens to apply jitter offset dynamically
+            const positionTracker = {};
+
+            Object.keys(visualPositions).forEach(key => {
+                const vis = visualPositions[key];
+                const player = vis.player;
+                const pidx = gameState.players.findIndex(p => p.id === player.id);
+                if (pidx === -1) return;
+
+                const colorCode = player.color.split(' ')[1].toLowerCase(); // "red", "green" etc.
+                const absPos = resolvePosition(player.color, vis.tidx, vis.pos);
+                
+                // Track overlaps based on current active visual coordinates
+                const coordKey = `${Math.round(absPos.x)}_${Math.round(absPos.y)}`;
+                if (!positionTracker[coordKey]) {
+                    positionTracker[coordKey] = [];
+                }
+                positionTracker[coordKey].push({ key, vis, pidx, colorCode, player, absPos });
+            });
+
+            // Draw stacked tokens with spatial adjustments
+            Object.keys(positionTracker).forEach(coordKey => {
+                const stacked = positionTracker[coordKey];
+                stacked.forEach((info, index) => {
+                    const token = document.createElement('div');
+                    token.className = `token token-${info.colorCode}`;
+                    
+                    // Pawn parts
+                    const head = document.createElement('div');
+                    head.className = 'goti-head';
+                    
+                    const neck = document.createElement('div');
+                    neck.className = 'goti-neck';
+
+                    const body = document.createElement('div');
+                    body.className = 'goti-body';
+
+                    token.appendChild(head);
+                    token.appendChild(neck);
+                    token.appendChild(body);
+
+                    // Overlap Offset logic (Goti stacking adjusters)
+                    let offsetPercentX = 0;
+                    let offsetPercentY = 0;
+                    if (stacked.length > 1) {
+                        offsetPercentX = (index * 1.6) - (stacked.length - 1) * 0.8;
+                        offsetPercentY = (index * -1.6) + (stacked.length - 1) * 0.8;
+                    }
+
+                    token.style.left = `${info.absPos.x + offsetPercentX}%`;
+                    token.style.top = `${info.absPos.y + offsetPercentY}%`;
+
+                    // Touch interactions checker
+                    const isMyTurn = (gameState.turn_index === info.pidx) && (info.player.id === userId);
+                    // Enable move click only if it's the player's turn, dice is rolled, path is valid, and the pawn is not already mid-animation
+                    const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(info.vis.pos, gameState.dice_value) && !info.vis.animating;
+
+                    if (canMoveThisToken) {
+                        token.classList.add('movable');
+                        
+                        // Pointer down event
+                        token.addEventListener('pointerdown', (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            performMove(info.vis.tidx);
+                        });
+                    }
+
+                    layer.appendChild(token);
+                });
+            });
+        }
+
         // ----- UPDATE GAME ENGINE DISPLAY -----
         function updateUI() {
             if (!gameState) return;
@@ -430,79 +531,46 @@
                 diceStatus.innerHTML = `⏳ Awaiting word submission/roll in Telegram chat.`;
             }
 
-            // Draw players' tokens
-            const layer = document.getElementById('token-layer');
-            layer.innerHTML = '';
-
-            // Map and identify overlapping tokens to apply jitter offset
-            const positionTracker = {};
-
-            gameState.players.forEach((player, pidx) => {
-                const colorCode = player.color.split(' ')[1].toLowerCase(); // "red", "green" etc.
-                
-                player.tokens.forEach((pos, tidx) => {
-                    const absPos = resolvePosition(player.color, tidx, pos);
+            // Sync visual path targets with the network server positions
+            gameState.players.forEach((player) => {
+                player.tokens.forEach((serverPos, tidx) => {
+                    const key = `${player.color}_${tidx}`;
                     
-                    // Overlap tracker key
-                    const key = `${Math.round(absPos.x)}_${Math.round(absPos.y)}`;
-                    if (!positionTracker[key]) {
-                        positionTracker[key] = [];
+                    if (visualPositions[key] === undefined) {
+                        // Init new token coordinate
+                        visualPositions[key] = {
+                            pos: serverPos,
+                            target: serverPos,
+                            animating: false,
+                            player: player,
+                            tidx: tidx
+                        };
+                    } else {
+                        // Refresh data attributes
+                        visualPositions[key].player = player;
                     }
-                    positionTracker[key].push({ pidx, tidx, colorCode, player, pos });
+
+                    const vis = visualPositions[key];
+
+                    // If token got captured or reset, snap instantly back to base
+                    if (serverPos < vis.pos || serverPos === 0) {
+                        vis.pos = serverPos;
+                        vis.target = serverPos;
+                        vis.animating = false;
+                    } 
+                    // Trigger dynamic box-by-box progression if target updated forward
+                    else if (serverPos > vis.target) {
+                        vis.target = serverPos;
+                        if (!vis.animating) {
+                            vis.animating = true;
+                            stepAnimateToken(key);
+                        }
+                    }
                 });
             });
 
-            // Loop and render tokens with subtle coordinate offsets if they sit on the same space
-            Object.keys(positionTracker).forEach(key => {
-                const stacked = positionTracker[key];
-                stacked.forEach((info, index) => {
-                    const token = document.createElement('div');
-                    token.className = `token token-${info.colorCode}`;
-                    
-                    // Classic pawn components (Matching your uploaded image structure)
-                    const head = document.createElement('div');
-                    head.className = 'goti-head';
-                    
-                    const neck = document.createElement('div');
-                    neck.className = 'goti-neck';
-
-                    const body = document.createElement('div');
-                    body.className = 'goti-body';
-
-                    token.appendChild(head);
-                    token.appendChild(neck);
-                    token.appendChild(body);
-
-                    // Overlap Jitter (offset) logic so stacked tokens remain individually touchable
-                    let offsetPercentX = 0;
-                    let offsetPercentY = 0;
-                    if (stacked.length > 1) {
-                        offsetPercentX = (index * 2) - (stacked.length - 1);
-                        offsetPercentY = (index * -2) + (stacked.length - 1);
-                    }
-
-                    const originalCoords = resolvePosition(info.player.color, info.tidx, info.pos);
-                    token.style.left = `${originalCoords.x + offsetPercentX}%`;
-                    token.style.top = `${originalCoords.y + offsetPercentY}%`;
-
-                    // Check if current token belongs to the player whose turn it is, and if they can move
-                    const isMyTurn = (gameState.turn_index === info.pidx) && (info.player.id === userId);
-                    const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(info.pos, gameState.dice_value);
-
-                    if (canMoveThisToken) {
-                        token.classList.add('movable');
-                        
-                        // Optimized instantaneous touch interaction (PointerDown)
-                        token.addEventListener('pointerdown', (e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            performMove(info.tidx);
-                        });
-                    }
-
-                    layer.appendChild(token);
-                });
-            });
+            // Draw visual states
+            renderTokens();
         }
 
         // Safe helper for matching color strings to solid CSS hex codes
@@ -535,7 +603,7 @@
                     updateUI();
                 } else {
                     const errData = await response.json();
-                    logger("Error", errData.error);
+                    console.error("Error fetching state:", errData.error);
                 }
             } catch (err) {
                 console.error("Network error during fetchGameState:", err);
@@ -552,8 +620,7 @@
                 
                 if (response.ok) {
                     showToast("Move executed successfully!");
-                    // Refresh data immediately
-                    fetchGameState();
+                    fetchGameState(); // Refetch board values
                 } else {
                     showToast(`⚠️ ${resData.error || "Movement rejected"}`);
                 }
@@ -577,7 +644,7 @@
         createBoard();
         fetchGameState();
 
-        // Safe polling every 2.0 seconds to keep board synchronised with telegram backend activity
+        // Safe polling every 2.0 seconds to keep board synchronized
         setInterval(fetchGameState, 2000);
     </script>
 </body>
