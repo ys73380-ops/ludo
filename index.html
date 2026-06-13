@@ -1,623 +1,571 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Premium Ludo Companion</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            margin: 0;
-            padding: 0;
-        }
+<meta charset="UTF-8">
+<title>Ludo Board Companion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Telegram WebApp JS Library -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #e9eef3;
+    font-family: system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+  
+  .game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    width: 440px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #121824, #1a2333);
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            overflow: hidden;
-            touch-action: manipulation;
-        }
+  /* Game Status Dashboard */
+  .status-panel {
+    width: 100%;
+    background: #15243b;
+    color: #fff;
+    padding: 12px 15px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    box-sizing: border-box;
+    text-align: center;
+  }
+  
+  .status-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #8fa0dd;
+    margin-bottom: 4px;
+  }
 
-        #app-container {
-            width: 100%;
-            max-width: 450px;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
+  .status-value {
+    font-size: 18px;
+    font-weight: bold;
+  }
 
-        /* ----- GAME HEADER & STATUS ----- */
-        #game-header {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 12px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-        }
+  .dice-indicator {
+    display: inline-block;
+    background: #ffffff;
+    color: #15243b;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    margin-top: 5px;
+    font-size: 14px;
+  }
 
-        #turn-indicator {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+  /* Board Frame */
+  .board-frame {
+    background: #15243b;
+    padding: 10px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    max-width: 100%;
+  }
+  
+  .board-frame svg {
+    display: block;
+    width: 400px;
+    height: 400px;
+    border-radius: 8px;
+    background: #fff;
+  }
 
-        #dice-status {
-            font-size: 0.9rem;
-            color: #a0aec0;
-        }
+  /* Playable Pawns Pulsing Animation */
+  @keyframes pawnPulse {
+    0% { filter: drop-shadow(0px 0px 3px #fff); }
+    50% { filter: drop-shadow(0px 0px 10px #ffd700); }
+    100% { filter: drop-shadow(0px 0px 3px #fff); }
+  }
 
-        /* ----- LUDO BOARD CONTAINER ----- */
-        #board-wrapper {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 1;
-            background: #ffffff;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border: 4px solid #1a2333;
-        }
+  .playable-pawn {
+    animation: pawnPulse 1.2s infinite ease-in-out;
+    cursor: pointer;
+  }
 
-        #ludo-board {
-            display: grid;
-            grid-template-columns: repeat(15, 1fr);
-            grid-template-rows: repeat(15, 1fr);
-            width: 100%;
-            height: 100%;
-        }
-
-        /* ----- BOARD CELL STYLING ----- */
-        .cell {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            position: relative;
-        }
-
-        .red-bg    { background-color: #f56565 !important; }
-        .green-bg  { background-color: #48bb78 !important; }
-        .yellow-bg { background-color: #ecc94b !important; }
-        .blue-bg   { background-color: #4299e1 !important; }
-
-        .red-start    { background-color: #fc8181 !important; border-radius: 5px; }
-        .green-start  { background-color: #68d391 !important; border-radius: 5px; }
-        .blue-start   { background-color: #63b3ed !important; border-radius: 5px; }
-        .yellow-start { background-color: #f6e05e !important; border-radius: 5px; }
-
-        .safe-spot::before {
-            content: "★";
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #718096;
-            font-size: 1.2rem;
-        }
-
-        .center-core        { background: #2d3748 !important; }
-        .red-home-stretch   { background: #feb2b2 !important; }
-        .green-home-stretch { background: #9ae6b4 !important; }
-        .blue-home-stretch  { background: #90cdf4 !important; }
-        .yellow-home-stretch{ background: #faf089 !important; }
-
-        /* ----- TOKEN LAYER ----- */
-        .token-layer {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-        }
-
-        /* ----- TOKENS / GOTIS ----- */
-        .token {
-            pointer-events: auto;
-            width: 7.5%;
-            height: 11%;
-            position: absolute;
-            transform: translate(-50%, -75%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            cursor: pointer;
-            touch-action: manipulation;
-            /*
-             * CHANGED: Split 'transition: all' into separate properties.
-             * left/top drive step animation; transform drives landing pulse.
-             * Using cubic-bezier for a satisfying "hop" feel on each cell.
-             */
-            transition:
-                left      0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-                top       0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-                transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-                filter    0.2s  ease;
-            z-index: 10;
-        }
-
-        /* Fat-finger invisible hitbox */
-        .token::after {
-            content: '';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 50px; height: 50px;
-            border-radius: 50%;
-        }
-
-        /* Color palettes */
-        .token-red    { --gc-l:#ff8787; --gc-m:#e53e3e; --gc-d:#9b2c2c; --gc-s:rgba(155,44,44,0.5); }
-        .token-green  { --gc-l:#86efac; --gc-m:#38a169; --gc-d:#14532d; --gc-s:rgba(20,83,45,0.5); }
-        .token-yellow { --gc-l:#fef08a; --gc-m:#ecc94b; --gc-d:#a16207; --gc-s:rgba(161,98,7,0.5); }
-        .token-blue   { --gc-l:#93c5fd; --gc-m:#3182ce; --gc-d:#1e3a8a; --gc-s:rgba(30,58,138,0.5); }
-
-        .goti-head {
-            width: 50%; height: 33%;
-            border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, var(--gc-l), var(--gc-m) 70%, var(--gc-d));
-            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.6), 0 2px 3px rgba(0,0,0,0.3);
-            z-index: 4;
-            margin-bottom: -5%;
-        }
-        .goti-neck {
-            width: 35%; height: 10%;
-            background: linear-gradient(to right, var(--gc-d), var(--gc-l), var(--gc-d));
-            border-radius: 2px;
-            z-index: 3;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            margin-bottom: -5%;
-        }
-        .goti-body {
-            width: 75%; height: 47%;
-            background: linear-gradient(to right, var(--gc-d) 0%, var(--gc-m) 30%, var(--gc-l) 50%, var(--gc-m) 70%, var(--gc-d) 100%);
-            border-radius: 40% 40% 15% 15% / 100% 100% 20% 20%;
-            z-index: 2;
-            box-shadow: inset 0 2px 3px rgba(255,255,255,0.4);
-            margin-bottom: -5%;
-        }
-        .goti-base {
-            width: 95%; height: 18%;
-            background: radial-gradient(ellipse at 50% 30%, var(--gc-l), var(--gc-m) 60%, var(--gc-d));
-            border-radius: 50% 50% 40% 40% / 80% 80% 40% 40%;
-            border-bottom: 1px solid rgba(0,0,0,0.5);
-            z-index: 1;
-            box-shadow: 0 3px 5px rgba(0,0,0,0.4), 0 1px 2px var(--gc-s);
-        }
-
-        /* Movable pulse animation */
-        .token.movable {
-            animation: pulseHighlightPawn 1.2s infinite;
-            z-index: 20;
-            transform: translate(-50%, -75%) scale(1.15);
-        }
-
-        @keyframes pulseHighlightPawn {
-            0%   { filter: drop-shadow(0 0 0px  rgba(255,255,255,0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
-            50%  { filter: drop-shadow(0 0 8px  rgba(255,255,255,1)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
-            100% { filter: drop-shadow(0 0 0px  rgba(255,255,255,0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
-        }
-
-        /* NEW: Animating token — no pulse, floats above all others */
-        .token.animating {
-            animation: none !important;
-            z-index: 50 !important;
-            pointer-events: none !important;
-        }
-
-        /* ----- TOAST ----- */
-        #toast {
-            position: fixed;
-            bottom: 30px;
-            background: rgba(0,0,0,0.85);
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s ease;
-            pointer-events: none;
-            z-index: 1000;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-        #toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    </style>
+  /* Toast Notification */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.20);
+  }
+</style>
 </head>
 <body>
 
-<div id="app-container">
-    <div id="game-header">
-        <div id="turn-indicator">Loading game session...</div>
-        <div id="dice-status">Waiting for network sync</div>
+<div class="game-container">
+  <!-- Interactive Header Panel -->
+  <div class="status-panel">
+    <div class="status-title" id="status-title">Ludo Companion</div>
+    <div class="status-value" id="status-message">Loading Game Room...</div>
+    <div id="dice-container" style="display: none;">
+      <span class="dice-indicator" id="dice-val">🎲 Dice: -</span>
     </div>
+  </div>
 
-    <div id="board-wrapper">
-        <div id="ludo-board"></div>
-        <div id="token-layer" class="token-layer"></div>
-    </div>
+  <!-- Ludo Board Frame with SVG -->
+  <div class="board-frame">
+    <svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" id="ludo-svg">
+      <rect x="0" y="0" width="480" height="480" fill="#ffffff"/>
+      <rect x="0" y="0" width="192" height="192" fill="#f4c20d"/>
+      <rect x="22" y="22" width="148" height="148" fill="#ffffff" rx="14"/>
+      <rect x="288" y="0" width="192" height="192" fill="#1f6fc1"/>
+      <rect x="310" y="22" width="148" height="148" fill="#ffffff" rx="14"/>
+      <rect x="0" y="288" width="192" height="192" fill="#2e8b3d"/>
+      <rect x="22" y="310" width="148" height="148" fill="#ffffff" rx="14"/>
+      <rect x="288" y="288" width="192" height="192" fill="#d93434"/>
+      <rect x="310" y="310" width="148" height="148" fill="#ffffff" rx="14"/>
+      <rect x="224" y="32" width="32" height="160" fill="#1f6fc1"/>
+      <rect x="288" y="224" width="160" height="32" fill="#d93434"/>
+      <rect x="224" y="288" width="32" height="160" fill="#2e8b3d"/>
+      <rect x="32" y="224" width="160" height="32" fill="#f4c20d"/>
+      <rect x="192" y="0" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="32" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="64" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="96" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="128" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="160" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="0" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="32" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="64" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="96" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="128" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="160" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="0" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="32" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="64" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="96" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="128" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="160" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="288" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="288" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="288" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="320" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="320" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="320" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="352" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="352" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="352" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="384" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="384" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="384" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="416" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="416" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="416" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="448" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="448" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="448" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="288" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="320" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="352" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="384" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="416" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="192" y="448" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="288" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="320" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="352" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="384" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="416" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="224" y="448" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="288" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="320" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="352" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="384" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="416" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="256" y="448" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="0" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="0" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="0" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="32" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="32" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="32" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="64" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="64" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="64" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="96" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="96" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="96" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="128" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="128" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="128" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="160" y="192" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="160" y="224" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <rect x="160" y="256" width="32" height="32" fill="none" stroke="#cfcfcf" stroke-width="1"/>
+      <polygon points="192,192 288,192 240.0,240.0" fill="#1f6fc1"/>
+      <polygon points="288,192 288,288 240.0,240.0" fill="#d93434"/>
+      <polygon points="288,288 192,288 240.0,240.0" fill="#2e8b3d"/>
+      <polygon points="192,288 192,192 240.0,240.0" fill="#f4c20d"/>
+      <polygon points="272.00,36.48 274.84,44.09 282.96,44.44 276.60,49.50 278.77,57.32 272.00,52.84 265.23,57.32 267.40,49.50 261.04,44.44 269.16,44.09" fill="#1f6fc1"/>
+      <polygon points="432.00,260.48 434.84,268.09 442.96,268.44 436.60,273.50 438.77,281.32 432.00,276.84 425.23,281.32 427.40,273.50 421.04,268.44 429.16,268.09" fill="#d93434"/>
+      <polygon points="208.00,420.48 210.84,428.09 218.96,428.44 212.60,433.50 214.77,441.32 208.00,436.84 201.23,441.32 203.40,433.50 197.04,428.44 205.16,428.09" fill="#2e8b3d"/>
+      <polygon points="48.00,196.48 50.84,204.09 58.96,204.44 52.60,209.50 54.77,217.32 48.00,212.84 41.23,217.32 43.40,209.50 37.04,204.44 45.16,204.09" fill="#f4c20d"/>
+      <polygon points="208.00,69.12 210.69,76.30 218.35,76.64 212.35,81.41 214.40,88.80 208.00,84.57 201.60,88.80 203.65,81.41 197.65,76.64 205.31,76.30" fill="#ffffff" stroke="#cfcfcf" stroke-width="1.5"/>
+      <polygon points="432.00,197.12 434.69,204.30 442.35,204.64 436.35,209.41 438.40,216.80 432.00,212.57 425.60,216.80 427.65,209.41 421.65,204.64 429.31,204.30" fill="#ffffff" stroke="#cfcfcf" stroke-width="1.5"/>
+      <polygon points="272.00,389.12 274.69,396.30 282.35,396.64 276.35,401.41 278.40,408.80 272.00,404.57 265.60,408.80 267.65,401.41 261.65,396.64 269.31,396.30" fill="#ffffff" stroke="#cfcfcf" stroke-width="1.5"/>
+      <polygon points="80.00,261.12 82.69,268.30 90.35,268.64 84.35,273.41 86.40,280.80 80.00,276.57 73.60,280.80 75.65,273.41 69.65,268.64 77.31,268.30" fill="#ffffff" stroke="#cfcfcf" stroke-width="1.5"/>
+      
+      <!-- UPDATED: Moved Top Blue Entrance arrow 1 box to the right (x=240.0) -->
+      <g transform="translate(240.0,16.0) rotate(0)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
+      
+      <g transform="translate(464.0,240.0) rotate(90)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
+      <g transform="translate(240.0,464.0) rotate(180)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
+      <g transform="translate(16.0,240.0) rotate(-90)"><path d="M -10 0 A 12 12 0 0 1 2 12" fill="none" stroke="#555" stroke-width="2.4" stroke-linecap="round"/><path d="M -3 9 L 4 14 L 7 5 Z" fill="#555"/></g>
+
+      <!-- Static Pawns inside a group (will be hidden automatically when live game begins) -->
+      <g id="static-pawns">
+        <ellipse cx="70.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 58.0 85.0 C 58.0 76.0, 63.0 73.0, 65.5 69.0 C 67.0 67.0, 67.0 65.0, 67.0 63.0 L 73.0 63.0 C 73.0 65.0, 73.0 67.0, 74.5 69.0 C 77.0 73.0, 82.0 76.0, 82.0 85.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <circle cx="70.0" cy="60.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <ellipse cx="67.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="67.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="70.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 58.0 137.0 C 58.0 128.0, 63.0 125.0, 65.5 121.0 C 67.0 119.0, 67.0 117.0, 67.0 115.0 L 73.0 115.0 C 73.0 117.0, 73.0 119.0, 74.5 121.0 C 77.0 125.0, 82.0 128.0, 82.0 137.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <circle cx="70.0" cy="112.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <ellipse cx="67.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="67.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="122.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 110.0 85.0 C 110.0 76.0, 115.0 73.0, 117.5 69.0 C 119.0 67.0, 119.0 65.0, 119.0 63.0 L 125.0 63.0 C 125.0 65.0, 125.0 67.0, 126.5 69.0 C 129.0 73.0, 134.0 76.0, 134.0 85.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <circle cx="122.0" cy="60.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <ellipse cx="119.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="119.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="122.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 110.0 137.0 C 110.0 128.0, 115.0 125.0, 117.5 121.0 C 119.0 119.0, 119.0 117.0, 119.0 115.0 L 125.0 115.0 C 125.0 117.0, 125.0 119.0, 126.5 121.0 C 129.0 125.0, 134.0 128.0, 134.0 137.0 Z" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <circle cx="122.0" cy="112.0" r="7.5" fill="#f4c20d" stroke="#c79a00" stroke-width="1"/>
+        <ellipse cx="119.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="119.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="358.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 346.0 85.0 C 346.0 76.0, 351.0 73.0, 353.5 69.0 C 355.0 67.0, 355.0 65.0, 355.0 63.0 L 361.0 63.0 C 361.0 65.0, 361.0 67.0, 362.5 69.0 C 365.0 73.0, 370.0 76.0, 370.0 85.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <circle cx="358.0" cy="60.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <ellipse cx="355.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="355.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="358.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 346.0 137.0 C 346.0 128.0, 351.0 125.0, 353.5 121.0 C 355.0 119.0, 355.0 117.0, 355.0 115.0 L 361.0 115.0 C 361.0 117.0, 361.0 119.0, 362.5 121.0 C 365.0 125.0, 370.0 128.0, 370.0 137.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <circle cx="358.0" cy="112.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <ellipse cx="355.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="355.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="410.0" cy="85.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 398.0 85.0 C 398.0 76.0, 403.0 73.0, 405.5 69.0 C 407.0 67.0, 407.0 65.0, 407.0 63.0 L 413.0 63.0 C 413.0 65.0, 413.0 67.0, 414.5 69.0 C 417.0 73.0, 422.0 76.0, 422.0 85.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <circle cx="410.0" cy="60.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <ellipse cx="407.7" cy="57.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="407.0" cy="74.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="410.0" cy="137.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 398.0 137.0 C 398.0 128.0, 403.0 125.0, 405.5 121.0 C 407.0 119.0, 407.0 117.0, 407.0 115.0 L 413.0 115.0 C 413.0 117.0, 413.0 119.0, 414.5 121.0 C 417.0 125.0, 422.0 128.0, 422.0 137.0 Z" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <circle cx="410.0" cy="112.0" r="7.5" fill="#1f6fc1" stroke="#13497f" stroke-width="1"/>
+        <ellipse cx="407.7" cy="109.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="407.0" cy="126.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="70.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 58.0 373.0 C 58.0 364.0, 63.0 361.0, 65.5 357.0 C 67.0 355.0, 67.0 353.0, 67.0 351.0 L 73.0 351.0 C 73.0 353.0, 73.0 355.0, 74.5 357.0 C 77.0 361.0, 82.0 364.0, 82.0 373.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <circle cx="70.0" cy="348.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <ellipse cx="67.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="67.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="70.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 58.0 425.0 C 58.0 416.0, 63.0 413.0, 65.5 409.0 C 67.0 407.0, 67.0 405.0, 67.0 403.0 L 73.0 403.0 C 73.0 405.0, 73.0 407.0, 74.5 409.0 C 77.0 413.0, 82.0 416.0, 82.0 425.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <circle cx="70.0" cy="400.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <ellipse cx="67.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="67.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="122.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 110.0 373.0 C 110.0 364.0, 115.0 361.0, 117.5 357.0 C 119.0 355.0, 119.0 353.0, 119.0 351.0 L 125.0 351.0 C 125.0 353.0, 125.0 355.0, 126.5 357.0 C 129.0 361.0, 134.0 364.0, 134.0 373.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <circle cx="122.0" cy="348.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <ellipse cx="119.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="119.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="122.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 110.0 425.0 C 110.0 416.0, 115.0 413.0, 117.5 409.0 C 119.0 407.0, 119.0 405.0, 119.0 403.0 L 125.0 403.0 C 125.0 405.0, 125.0 407.0, 126.5 409.0 C 129.0 413.0, 134.0 416.0, 134.0 425.0 Z" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <circle cx="122.0" cy="400.0" r="7.5" fill="#2e8b3d" stroke="#1f5e2a" stroke-width="1"/>
+        <ellipse cx="119.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="119.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="358.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 346.0 373.0 C 346.0 364.0, 351.0 361.0, 353.5 357.0 C 355.0 355.0, 355.0 353.0, 355.0 351.0 L 361.0 351.0 C 361.0 353.0, 361.0 355.0, 362.5 357.0 C 365.0 361.0, 370.0 364.0, 370.0 373.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <circle cx="358.0" cy="348.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <ellipse cx="355.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="355.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="358.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 346.0 425.0 C 346.0 416.0, 351.0 413.0, 353.5 409.0 C 355.0 407.0, 355.0 405.0, 355.0 403.0 L 361.0 403.0 C 361.0 405.0, 361.0 407.0, 362.5 409.0 C 365.0 413.0, 370.0 416.0, 370.0 425.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <circle cx="358.0" cy="400.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <ellipse cx="355.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="355.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="410.0" cy="373.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 398.0 373.0 C 398.0 364.0, 403.0 361.0, 405.5 357.0 C 407.0 355.0, 407.0 353.0, 407.0 351.0 L 413.0 351.0 C 413.0 353.0, 413.0 355.0, 414.5 357.0 C 417.0 361.0, 422.0 364.0, 422.0 373.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <circle cx="410.0" cy="348.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <ellipse cx="407.7" cy="345.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="407.0" cy="362.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        <ellipse cx="410.0" cy="425.0" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+        <path d="M 398.0 425.0 C 398.0 416.0, 403.0 413.0, 405.5 409.0 C 407.0 407.0, 407.0 405.0, 407.0 403.0 L 413.0 403.0 C 413.0 405.0, 413.0 407.0, 414.5 409.0 C 417.0 413.0, 422.0 416.0, 422.0 425.0 Z" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <circle cx="410.0" cy="400.0" r="7.5" fill="#d93434" stroke="#9c2424" stroke-width="1"/>
+        <ellipse cx="407.7" cy="397.5" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+        <ellipse cx="407.0" cy="414.0" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+      </g>
+      
+      <!-- Dynamic live pawns rendering layer -->
+      <g id="live-pawns-layer"></g>
+    </svg>
+  </div>
 </div>
 
-<div id="toast">Message</div>
+<div class="toast" id="toast">Message Toast</div>
 
 <script>
-    // ----- PARSE URL PARAMS -----
-    const urlParams = new URLSearchParams(window.location.search);
-    const chatId   = parseInt(urlParams.get('chat_id'))  || 0;
-    const userId   = parseInt(urlParams.get('user_id'))  || 0;
-    const apiToken = urlParams.get('token') || "super_secret_ludo_token_123";
-    const apiBase  = urlParams.get('api')   || window.location.origin;
+  // Initializing Telegram WebApp
+  const WebApp = window.Telegram?.WebApp;
+  if (WebApp) {
+    WebApp.ready();
+    WebApp.expand();
+  }
 
-    let gameState  = null;
-    let lastUpdated = 0;
+  // Parsing API Configuration from Query Parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const chat_id = parseInt(urlParams.get('chat_id')) || 0;
+  const user_id = parseInt(urlParams.get('user_id')) || 0;
+  const token = urlParams.get('token') || "super_secret_ludo_token_123";
+  const api_base = urlParams.get('api') || window.location.origin;
 
-    // ── NEW: animation lock prevents polling & double-moves during movement ──
-    let isAnimating = false;
+  // Ludo Yard (Base Room) Coordinates Map
+  const YARDS = {
+    "Red":    [{x:358, y:373}, {x:358, y:425}, {x:410, y:373}, {x:410, y:425}],
+    "Green":  [{x:70, y:373}, {x:70, y:425}, {x:122, y:373}, {x:122, y:425}],
+    "Blue":   [{x:358, y:85}, {x:358, y:137}, {x:410, y:85}, {x:410, y:137}], // Starts at 40 (visually Blue)
+    "Yellow": [{x:70, y:85}, {x:70, y:137}, {x:122, y:85}, {x:122, y:137}]    // Starts at 27 (visually Yellow)
+  };
 
+  // Clockwise Loop Board Path Map (Indices 1 to 52)
+  const TRACK = [
+    null, // 1-based index padding
+    {x: 432, y: 272}, {x: 400, y: 272}, {x: 368, y: 272}, {x: 336, y: 272}, {x: 304, y: 272},
+    {x: 272, y: 304}, {x: 272, y: 336}, {x: 272, y: 368}, {x: 272, y: 400}, {x: 272, y: 432}, {x: 272, y: 464},
+    {x: 240, y: 464},
+    {x: 208, y: 464}, {x: 208, y: 432}, {x: 208, y: 400}, {x: 208, y: 368}, {x: 208, y: 336}, {x: 208, y: 304},
+    {x: 176, y: 272}, {x: 144, y: 272}, {x: 112, y: 272}, {x: 80, y: 272},  {x: 48, y: 272},  {x: 16, y: 272},
+    {x: 16, y: 240},
+    {x: 16, y: 208},  {x: 48, y: 208},  {x: 80, y: 208},  {x: 112, y: 208}, {x: 144, y: 208}, {x: 176, y: 208},
+    {x: 208, y: 176}, {x: 208, y: 144}, {x: 208, y: 112}, {x: 208, y: 80},  {x: 208, y: 48},  {x: 208, y: 16},
+    {x: 240, y: 16},
+    {x: 272, y: 16},  {x: 272, y: 48},  {x: 272, y: 80},  {x: 272, y: 112}, {x: 272, y: 144}, {x: 272, y: 176},
+    {x: 304, y: 208}, {x: 336, y: 208}, {x: 368, y: 208}, {x: 400, y: 208}, {x: 432, y: 208}, {x: 464, y: 208},
+    {x: 464, y: 240}, {x: 464, y: 272}
+  ];
 
-    // ============================================================
-    //  COORDINATE HELPERS
-    // ============================================================
-    function getPercentPos(r, c) {
-        return { x: (c * 6.666) + 3.333, y: (r * 6.666) + 3.333 };
+  // Helper functions for custom mapping and coordinates
+  function getVisualConfig(colorStr) {
+    if (colorStr.includes("Red")) {
+      return { name: "Red", hex: "#d93434", stroke: "#9c2424" };
+    } else if (colorStr.includes("Green")) {
+      return { name: "Green", hex: "#2e8b3d", stroke: "#1f5e2a" };
+    } else if (colorStr.includes("Yellow")) {
+      // Starts at 40 (represented by top-right quadrant which is Blue in original layout)
+      return { name: "Blue", hex: "#1f6fc1", stroke: "#13497f" };
+    } else if (colorStr.includes("Blue")) {
+      // Starts at 27 (represented by top-left quadrant which is Yellow in original layout)
+      return { name: "Yellow", hex: "#f4c20d", stroke: "#c79a00" };
     }
+    return { name: "Red", hex: "#d93434", stroke: "#9c2424" };
+  }
 
-    // Common 52-cell path (row, col on the 15×15 grid)
-    const trackCoords = [
-        {r:6,c:1},{r:6,c:2},{r:6,c:3},{r:6,c:4},{r:6,c:5},
-        {r:5,c:6},{r:4,c:6},{r:3,c:6},{r:2,c:6},{r:1,c:6},{r:0,c:6},
-        {r:0,c:7},
-        {r:0,c:8},{r:1,c:8},{r:2,c:8},{r:3,c:8},{r:4,c:8},{r:5,c:8},
-        {r:6,c:9},{r:6,c:10},{r:6,c:11},{r:6,c:12},{r:6,c:13},{r:6,c:14},
-        {r:7,c:14},
-        {r:8,c:14},{r:8,c:13},{r:8,c:12},{r:8,c:11},{r:8,c:10},{r:8,c:9},
-        {r:9,c:8},{r:10,c:8},{r:11,c:8},{r:12,c:8},{r:13,c:8},{r:14,c:8},
-        {r:14,c:7},
-        {r:14,c:6},{r:13,c:6},{r:12,c:6},{r:11,c:6},{r:10,c:6},{r:9,c:6},
-        {r:8,c:5},{r:8,c:4},{r:8,c:3},{r:8,c:2},{r:8,c:1},{r:8,c:0},
-        {r:7,c:0},
-        {r:6,c:0}
+  function getHomePathCoords(colorName, pos) {
+    const idx = pos - 53; // index 0 to 5
+    if (colorName === "Red") {
+      return { x: 432 - idx * 32, y: 240 };
+    } else if (colorName === "Green") {
+      return { x: 240, y: 432 - idx * 32 };
+    } else if (colorName === "Blue") {
+      return { x: 240, y: 48 + idx * 32 };
+    } else if (colorName === "Yellow") {
+      return { x: 48 + idx * 32, y: 240 };
+    }
+  }
+
+  function getHomeCoords(colorName, tokenIdx) {
+    const offsets = [
+      { dx: -6, dy: -6 }, { dx: 6, dy: -6 },
+      { dx: -6, dy: 6 },  { dx: 6, dy: 6 }
     ];
+    const base = {
+      "Red":    { x: 265, y: 240 },
+      "Green":  { x: 240, y: 265 },
+      "Blue":   { x: 240, y: 215 },
+      "Yellow": { x: 215, y: 240 }
+    }[colorName];
+    return { x: base.x + offsets[tokenIdx].dx, y: base.y + offsets[tokenIdx].dy };
+  }
 
-    // Home-base yard cells per color (4 slots each)
-    const baseCoords = {
-        "🔴 Red":    [{r:2,c:2},{r:2,c:3},{r:3,c:2},{r:3,c:3}],
-        "🟢 Green":  [{r:2,c:11},{r:2,c:12},{r:3,c:11},{r:3,c:12}],
-        "🔵 Blue":   [{r:11,c:11},{r:11,c:12},{r:12,c:11},{r:12,c:12}],
-        "🟡 Yellow": [{r:11,c:2},{r:11,c:3},{r:12,c:2},{r:12,c:3}]
-    };
+  function showToast(msg) {
+    const toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.style.opacity = "1";
+    setTimeout(() => { toast.style.opacity = "0"; }, 3000);
+  }
 
-    function getSpecialPos(color, pos) {
-        if (pos === 59) return {r:7, c:7};                         // center
-        if (color === "🔴 Red")    return {r:7, c: pos - 52};
-        if (color === "🟢 Green")  return {r: pos - 52, c:7};
-        if (color === "🔵 Blue")   return {r:7, c: 14 - (pos - 52)};
-        if (color === "🟡 Yellow") return {r: 14 - (pos - 52), c:7};
-        return {r:7, c:7};
+  // Safe checks to confirm token can move
+  function canMove(pos, dice) {
+    if (pos >= 59) return false;
+    if (pos === 0) return true; // Spawning out
+    let newPos = pos + dice;
+    if (pos >= 1 && pos <= 52 && newPos > 52) {
+      newPos = 52 + (newPos - 52);
+    }
+    return newPos <= 59;
+  }
+
+  // API Interfacing
+  async function fetchGameState() {
+    if (!chat_id) return;
+    try {
+      const response = await fetch(`${api_base}/game_state?chat_id=${chat_id}&user_id=${user_id}&token=${token}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          updateUIForNoActiveGame();
+        }
+        return;
+      }
+      const data = await response.json();
+      renderGame(data);
+    } catch (err) {
+      console.error("Failed fetching state:", err);
+    }
+  }
+
+  function updateUIForNoActiveGame() {
+    document.getElementById("status-title").textContent = "Waiting Room";
+    document.getElementById("status-message").textContent = "Lobby is open. Send a Telegram command to begin!";
+    document.getElementById("dice-container").style.display = "none";
+    document.getElementById("static-pawns").style.display = "block";
+    document.getElementById("live-pawns-layer").innerHTML = "";
+  }
+
+  async function executeMove(tokenIdx) {
+    try {
+      const response = await fetch(`${api_base}/move?chat_id=${chat_id}&user_id=${user_id}&token_idx=${tokenIdx}&token=${token}`, {
+        method: "POST"
+      });
+      const data = await response.json();
+      if (data.error) {
+        showToast("⚠️ " + data.error);
+      } else {
+        showToast(data.status === "won" ? "🏆 Congratulations, you won!" : "✅ Pawn successfully moved.");
+        fetchGameState();
+      }
+    } catch (err) {
+      showToast("❌ Connection error, please retry.");
+    }
+  }
+
+  // Real-Time Dynamically Drawing the Pawns
+  function renderGame(state) {
+    // Hide default static board pawns as live state exists
+    document.getElementById("static-pawns").style.display = "none";
+    
+    const layer = document.getElementById("live-pawns-layer");
+    layer.innerHTML = "";
+
+    // Determine Turn Status
+    const isOurTurn = state.players[state.turn_index] && state.players[state.turn_index].id === user_id;
+    const currentTurnUser = state.players[state.turn_index] ? state.players[state.turn_index].username : "Robot";
+    
+    document.getElementById("status-title").textContent = isOurTurn ? "🚨 IT'S YOUR TURN!" : "Waiting for Opponent";
+    document.getElementById("status-message").textContent = isOurTurn 
+      ? "Submit your move using any highlighted pawn below."
+      : `Watching ${currentTurnUser}'s movement...`;
+
+    // Handle Dice indicator
+    if (state.rolled && state.dice_value) {
+      document.getElementById("dice-container").style.display = "inline-block";
+      document.getElementById("dice-val").textContent = `🎲 Dice: ${state.dice_value}`;
+    } else {
+      document.getElementById("dice-container").style.display = "none";
     }
 
-    function resolvePosition(color, tokenIdx, pos) {
-        let cell;
+    // Positions stacking tracker (Grouping pawns on the same spot)
+    const positions = {};
+
+    state.players.forEach((player, pIdx) => {
+      const config = getVisualConfig(player.color);
+      player.tokens.forEach((pos, tIdx) => {
+        let coords;
         if (pos === 0) {
-            cell = baseCoords[color][tokenIdx];
+          coords = YARDS[config.name][tIdx];
+        } else if (pos >= 59) {
+          coords = getHomeCoords(config.name, tIdx);
         } else if (pos >= 53) {
-            cell = getSpecialPos(color, pos);
+          coords = getHomePathCoords(config.name, pos);
         } else {
-            cell = trackCoords[(pos - 1) % 52];
-        }
-        return getPercentPos(cell.r, cell.c);
-    }
-
-
-    // ============================================================
-    //  STEP-BY-STEP ANIMATION HELPERS  ← NEW
-    // ============================================================
-
-    /** Simple promise-based delay */
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    /**
-     * Returns an ordered array of positions the token must visit,
-     * e.g. fromPos=10, toPos=13  →  [11, 12, 13]
-     * Special case: coming out of home (fromPos=0)  →  [toPos] (slides directly)
-     */
-    function getAnimationSteps(fromPos, toPos) {
-        if (fromPos === 0) return [toPos];   // token comes out of yard in one slide
-        const steps = [];
-        for (let p = fromPos + 1; p <= toPos; p++) steps.push(p);
-        return steps;
-    }
-
-    /**
-     * Moves the DOM token element cell-by-cell.
-     * CSS transition (left/top 0.15 s) creates the smooth hop per step.
-     * Ends with a landing "bounce" scale pulse.
-     */
-    async function animateTokenMove(playerIdx, tokenIdx, fromPos, toPos) {
-        const player = gameState.players[playerIdx];
-        const steps  = getAnimationSteps(fromPos, toPos);
-        if (steps.length === 0) return;
-
-        const tokenEl = document.getElementById(`anim-token-${playerIdx}-${tokenIdx}`);
-        if (!tokenEl) return;
-
-        // Mark element as animating: floats above others, no pointer events
-        tokenEl.classList.add('animating');
-
-        // ── Walk through each cell ──
-        for (const step of steps) {
-            const coords = resolvePosition(player.color, tokenIdx, step);
-            tokenEl.style.left = `${coords.x}%`;
-            tokenEl.style.top  = `${coords.y}%`;
-            // Wait for CSS transition (150 ms) + tiny buffer (20 ms) = 170 ms per cell
-            await sleep(170);
+          coords = TRACK[pos];
         }
 
-        // ── Landing bounce pulse ──
-        tokenEl.style.transform = 'translate(-50%, -75%) scale(1.30)';
-        await sleep(180);   // wait for scale-up transition (180 ms)
-        tokenEl.style.transform = 'translate(-50%, -75%) scale(1.00)';
-        await sleep(200);   // wait for scale-down transition before board refresh
-    }
-
-
-    // ============================================================
-    //  STATIC BOARD CREATION
-    // ============================================================
-    function createBoard() {
-        const board = document.getElementById('ludo-board');
-        board.innerHTML = '';
-        for (let r = 0; r < 15; r++) {
-            for (let c = 0; c < 15; c++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-
-                if      (r < 6 && c < 6)  cell.classList.add('red-bg');
-                else if (r < 6 && c > 8)  cell.classList.add('green-bg');
-                else if (r > 8 && c < 6)  cell.classList.add('yellow-bg');
-                else if (r > 8 && c > 8)  cell.classList.add('blue-bg');
-                else if (r === 7 && c > 0 && c < 7)  cell.classList.add('red-bg');
-                else if (r === 7 && c > 7 && c < 14) cell.classList.add('blue-bg');
-                else if (c === 7 && r > 0 && r < 7)  cell.classList.add('green-bg');
-                else if (c === 7 && r > 7 && r < 14) cell.classList.add('yellow-bg');
-                else if (r === 6  && c === 1)  cell.classList.add('red-start');
-                else if (r === 1  && c === 8)  cell.classList.add('green-start');
-                else if (r === 8  && c === 13) cell.classList.add('blue-start');
-                else if (r === 13 && c === 6)  cell.classList.add('yellow-start');
-                else if (r >= 6 && r <= 8 && c >= 6 && c <= 8) {
-                    if      (r === 7 && c === 7) cell.classList.add('center-core');
-                    else if (r < 7)  cell.classList.add('green-home-stretch');
-                    else if (r > 7)  cell.classList.add('yellow-home-stretch');
-                    else if (c < 7)  cell.classList.add('red-home-stretch');
-                    else if (c > 7)  cell.classList.add('blue-home-stretch');
-                }
-
-                const safeSpots = [
-                    [6,1],[8,1],[8,13],[6,13],
-                    [1,6],[1,8],[13,6],[13,8],
-                    [8,2],[2,6],[6,12],[12,8]
-                ];
-                if (safeSpots.some(([sr,sc]) => sr === r && sc === c)) {
-                    cell.classList.add('safe-spot');
-                }
-
-                board.appendChild(cell);
-            }
+        if (coords) {
+          const key = `${coords.x},${coords.y}`;
+          if (!positions[key]) positions[key] = [];
+          positions[key].push({ pIdx, tIdx, player, config, pos });
         }
-    }
+      });
+    });
 
+    // Render grouped pawns with minor visual offset spreads
+    for (const key in positions) {
+      const gList = positions[key];
+      const baseCoords = key.split(",");
+      const bx = parseFloat(baseCoords[0]);
+      const by = parseFloat(baseCoords[1]);
 
-    // ============================================================
-    //  GAME UI RENDERING
-    // ============================================================
-    function updateUI() {
-        if (!gameState) return;
+      gList.forEach((item, index) => {
+        let dx = 0;
+        let dy = 0;
+        if (gList.length > 1) {
+          const angle = (index / gList.length) * 2 * Math.PI;
+          dx = Math.cos(angle) * 6;
+          dy = Math.sin(angle) * 6;
+        }
+        
+        const cx = bx + dx;
+        const cy = by + dy;
 
-        const currentPlayer  = gameState.players[gameState.turn_index];
-        const turnIndicator  = document.getElementById('turn-indicator');
-        const diceStatus     = document.getElementById('dice-status');
+        // Interactive validation
+        const isPlayable = isOurTurn && state.rolled && !state.waiting_for_word && canMove(item.pos, state.dice_value);
+        
+        const bodyD = `M ${cx - 12} ${cy} C ${cx - 12} ${cy - 9}, ${cx - 7} ${cy - 12}, ${cx - 4.5} ${cy - 16} C ${cx - 3} ${cy - 18}, ${cx - 3} ${cy - 20}, ${cx - 3} ${cy - 22} L ${cx + 3} ${cy - 22} C ${cx + 3} ${cy - 20}, ${cx + 3} ${cy - 18}, ${cx + 4.5} ${cy - 16} C ${cx + 7} ${cy - 12}, ${cx + 12} ${cy - 9}, ${cx + 12} ${cy}`;
 
-        if (gameState.winner !== -1) {
-            const winnerName = gameState.players[gameState.winner].username;
-            turnIndicator.innerHTML = `🏆 Winner: ${winnerName}!`;
-            diceStatus.innerHTML    = `The game has finished.`;
-            return;
+        const pawnGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        if (isPlayable) {
+          pawnGroup.setAttribute("class", "playable-pawn");
+          pawnGroup.onclick = () => executeMove(item.tIdx);
         }
 
-        turnIndicator.innerHTML = `👉 Turn: <span style="color:${getColorHex(currentPlayer.color)}">${currentPlayer.username}</span>`;
-        diceStatus.innerHTML = gameState.rolled
-            ? `🎲 Dice = <b>${gameState.dice_value}</b> | Tap a glowing token!`
-            : `⏳ Awaiting roll in Telegram chat.`;
-
-        // ── Rebuild token layer ──
-        const layer = document.getElementById('token-layer');
-        layer.innerHTML = '';
-
-        // Group tokens by visual position (to handle stacking / jitter)
-        const positionTracker = {};
-        gameState.players.forEach((player, pidx) => {
-            player.tokens.forEach((pos, tidx) => {
-                const absPos = resolvePosition(player.color, tidx, pos);
-                const key    = `${Math.round(absPos.x)}_${Math.round(absPos.y)}`;
-                if (!positionTracker[key]) positionTracker[key] = [];
-                positionTracker[key].push({ pidx, tidx, player, pos,
-                    colorCode: player.color.split(' ')[1].toLowerCase() });
-            });
-        });
-
-        Object.values(positionTracker).forEach(stacked => {
-            stacked.forEach((info, index) => {
-                const token = document.createElement('div');
-                token.className = `token token-${info.colorCode}`;
-
-                // ── NEW: stable ID used by animateTokenMove to find this element ──
-                token.id = `anim-token-${info.pidx}-${info.tidx}`;
-
-                // 3-D pawn sub-components
-                ['goti-head','goti-neck','goti-body','goti-base'].forEach(cls => {
-                    const part = document.createElement('div');
-                    part.className = cls;
-                    token.appendChild(part);
-                });
-
-                // Jitter offset so stacked tokens remain individually touchable
-                const ox = stacked.length > 1 ? (index * 2) - (stacked.length - 1) : 0;
-                const oy = stacked.length > 1 ? (index * -2) + (stacked.length - 1) : 0;
-
-                const coords = resolvePosition(info.player.color, info.tidx, info.pos);
-                token.style.left = `${coords.x + ox}%`;
-                token.style.top  = `${coords.y + oy}%`;
-
-                // Highlight movable tokens for the current player
-                const isMyTurn        = (gameState.turn_index === info.pidx) && (info.player.id === userId);
-                const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(info.pos, gameState.dice_value);
-
-                if (canMoveThisToken) {
-                    token.classList.add('movable');
-                    token.addEventListener('pointerdown', (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        performMove(info.tidx);
-                    });
-                }
-
-                layer.appendChild(token);
-            });
-        });
+        pawnGroup.innerHTML = `
+          <ellipse cx="${cx}" cy="${cy}" rx="13" ry="3.5" fill="rgba(0,0,0,0.18)"/>
+          <path d="${bodyD}" fill="${item.config.hex}" stroke="${item.config.stroke}" stroke-width="1"/>
+          <circle cx="${cx}" cy="${cy - 25}" r="7.5" fill="${item.config.hex}" stroke="${item.config.stroke}" stroke-width="1"/>
+          <ellipse cx="${cx - 2.3}" cy="${cy - 27.5}" rx="2.6" ry="1.8" fill="rgba(255,255,255,0.55)"/>
+          <ellipse cx="${cx - 3}" cy="${cy - 11}" rx="2.2" ry="6" fill="rgba(255,255,255,0.18)"/>
+        `;
+        layer.appendChild(pawnGroup);
+      });
     }
+  }
 
-    function getColorHex(colorStr) {
-        if (colorStr.includes("Red"))    return "#f56565";
-        if (colorStr.includes("Green"))  return "#48bb78";
-        if (colorStr.includes("Blue"))   return "#4299e1";
-        if (colorStr.includes("Yellow")) return "#ecc94b";
-        return "#ffffff";
-    }
-
-    function canMoveRule(pos, dice) {
-        if (pos >= 59) return false;
-        if (pos === 0)  return true;
-        let newPos = pos + dice;
-        if (1 <= pos && pos <= 52 && newPos > 52) newPos = 52 + (newPos - 52);
-        if (newPos > 58) newPos = 59;
-        return newPos !== pos;
-    }
-
-
-    // ============================================================
-    //  API INTERACTION
-    // ============================================================
-    async function fetchGameState() {
-        try {
-            const res = await fetch(`${apiBase}/game_state?chat_id=${chatId}&token=${apiToken}`);
-            if (res.ok) {
-                gameState = await res.json();
-                updateUI();
-            }
-        } catch (err) {
-            console.error("fetchGameState error:", err);
-        }
-    }
-
-    /**
-     * MODIFIED performMove:
-     *  1. Lock animation flag
-     *  2. Save fromPos before API call
-     *  3. Strip movable highlights immediately for UX
-     *  4. POST move → GET new state
-     *  5. Animate token step-by-step to toPos
-     *  6. Apply new game state & refresh board
-     */
-    async function performMove(tokenIdx) {
-        if (isAnimating) return;   // block double-tap during animation
-        isAnimating = true;
-
-        showToast("🎯 Moving...");
-
-        const movingPlayerIdx = gameState.turn_index;
-        const fromPos         = gameState.players[movingPlayerIdx].tokens[tokenIdx];
-
-        // Kill movable highlights straight away — better feel
-        document.querySelectorAll('.movable').forEach(el => {
-            el.classList.remove('movable');
-            el.style.pointerEvents = 'none';
-        });
-
-        try {
-            // ── Step 1: Send move ──
-            const moveRes  = await fetch(
-                `${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&token=${apiToken}`,
-                { method: 'POST' }
-            );
-            const moveData = await moveRes.json();
-
-            if (!moveRes.ok) {
-                showToast(`⚠️ ${moveData.error || "Move rejected"}`);
-                return;
-            }
-
-            // ── Step 2: Fetch updated state ──
-            const stateRes = await fetch(`${apiBase}/game_state?chat_id=${chatId}&token=${apiToken}`);
-            const newState = await stateRes.json();
-
-            const toPos = newState.players[movingPlayerIdx].tokens[tokenIdx];
-
-            // ── Step 3: Animate cell-by-cell ──
-            await animateTokenMove(movingPlayerIdx, tokenIdx, fromPos, toPos);
-
-            // ── Step 4: Commit new state ──
-            gameState = newState;
-            showToast("✅ Move done!");
-
-        } catch (err) {
-            showToast("⚠️ Network error during move.");
-            console.error("performMove error:", err);
-        } finally {
-            isAnimating = false;
-            updateUI();   // always refresh board after move attempt
-        }
-    }
-
-
-    // ============================================================
-    //  TOAST UTILITY
-    // ============================================================
-    function showToast(msg) {
-        const toast = document.getElementById('toast');
-        toast.textContent = msg;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 2500);
-    }
-
-
-    // ============================================================
-    //  BOOTSTRAP
-    // ============================================================
-    createBoard();
-    fetchGameState();
-
-    // Poll every 2 s — but SKIP during animation to avoid state conflicts
-    setInterval(() => {
-        if (!isAnimating) fetchGameState();
-    }, 2000);
+  // Periodic polling mechanism
+  setInterval(fetchGameState, 2000);
+  fetchGameState();
 </script>
 </body>
 </html>
