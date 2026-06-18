@@ -3,500 +3,497 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Premium Ludo Companion</title>
+    <title>Ludo Companion</title>
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            margin: 0;
-            padding: 0;
-        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #121824, #1a2333);
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1f2e;
+            color: #fff;
             min-height: 100vh;
-            overflow: hidden;
-            touch-action: manipulation;
-        }
-
-        #app-container {
-            width: 100%;
-            max-width: 450px;
-            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 15px;
+            justify-content: flex-start;
+            padding: 12px;
+            gap: 12px;
         }
 
-        /* ----- GAME HEADER & STATUS ----- */
-        #game-header {
+        /* ---- HEADER ---- */
+        #header {
             width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 12px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
+            max-width: 480px;
+            background: #252c3e;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        #turn-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         #turn-indicator {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 5px;
-            text-transform: uppercase;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        #dice-badge {
+            background: #1a1f2e;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 20px;
+            padding: 4px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
             letter-spacing: 0.5px;
         }
 
         #dice-status {
-            font-size: 0.9rem;
-            color: #a0aec0;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.45);
+            letter-spacing: 0.2px;
         }
 
-        /* ----- LUDO BOARD CONTAINER ----- */
+        /* ---- BOARD WRAPPER ---- */
         #board-wrapper {
-            position: relative;
             width: 100%;
-            aspect-ratio: 1; /* Board remains perfect square */
-            background: #ffffff;
-            border-radius: 16px;
+            max-width: 480px;
+            aspect-ratio: 1;
+            position: relative;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border: 4px solid #1a2333;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+            border: 3px solid #2d3548;
         }
 
+        /* ---- CSS GRID BOARD ---- */
         #ludo-board {
             display: grid;
             grid-template-columns: repeat(15, 1fr);
             grid-template-rows: repeat(15, 1fr);
             width: 100%;
             height: 100%;
+            background: #f8f5f0;
         }
 
-        /* ----- BOARD CELL STYLING ----- */
         .cell {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
+            border: 0.5px solid rgba(0,0,0,0.12);
             position: relative;
+            background: #f8f5f0;
         }
 
-        /* Ludo Colors */
-        .red-bg { background-color: #f56565 !important; }
-        .green-bg { background-color: #48bb78 !important; }
-        .yellow-bg { background-color: #ecc94b !important; }
-        .blue-bg { background-color: #4299e1 !important; }
+        /* Home quadrant fills */
+        .q-red    { background: #e84040 !important; border-color: rgba(0,0,0,0.15) !important; }
+        .q-green  { background: #2db85a !important; border-color: rgba(0,0,0,0.15) !important; }
+        .q-yellow { background: #f0c020 !important; border-color: rgba(0,0,0,0.15) !important; }
+        .q-blue   { background: #2888e0 !important; border-color: rgba(0,0,0,0.15) !important; }
 
-        /* Home Stretch & Starts */
-        .red-start { background-color: #fc8181 !important; border-radius: 5px; }
-        .green-start { background-color: #68d391 !important; border-radius: 5px; }
-        .blue-start { background-color: #63b3ed !important; border-radius: 5px; }
-        .yellow-start { background-color: #f6e05e !important; border-radius: 5px; }
+        /* Home quadrant inner white yard */
+        .yard-cell {
+            background: #ffffff !important;
+            border-radius: 6px;
+        }
 
-        /* Star Safe Spots */
-        .safe-spot::before {
+        /* Home stretch paths */
+        .hs-red    { background: #f5a5a5 !important; }
+        .hs-green  { background: #90dba8 !important; }
+        .hs-yellow { background: #f5de80 !important; }
+        .hs-blue   { background: #95c8f5 !important; }
+
+        /* Track start arrow cells */
+        .start-red    { background: #f5a5a5 !important; }
+        .start-green  { background: #90dba8 !important; }
+        .start-yellow { background: #f5de80 !important; }
+        .start-blue   { background: #95c8f5 !important; }
+
+        /* Center home triangles */
+        .tri-red    { background: #e84040 !important; }
+        .tri-green  { background: #2db85a !important; }
+        .tri-yellow { background: #f0c020 !important; }
+        .tri-blue   { background: #2888e0 !important; }
+        .center     { background: #2d3548 !important; }
+
+        /* Safe star spots */
+        .safe::after {
             content: "★";
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #718096;
-            font-size: 1.2rem;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(8px, 1.5vw, 13px);
+            color: rgba(80,80,80,0.6);
+            pointer-events: none;
         }
 
-        /* Center Triangle */
-        .center-core { background: #2d3748 !important; }
-        .red-home-stretch { background: #feb2b2 !important; }
-        .green-home-stretch { background: #9ae6b4 !important; }
-        .blue-home-stretch { background: #90cdf4 !important; }
-        .yellow-home-stretch { background: #faf089 !important; }
+        /* Start arrows */
+        .arrow-right::after  { content: "▶"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(7px, 1.2vw, 11px); color: rgba(0,0,0,0.35); pointer-events: none; }
+        .arrow-left::after   { content: "◀"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(7px, 1.2vw, 11px); color: rgba(0,0,0,0.35); pointer-events: none; }
+        .arrow-down::after   { content: "▼"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(7px, 1.2vw, 11px); color: rgba(0,0,0,0.35); pointer-events: none; }
+        .arrow-up::after     { content: "▲"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(7px, 1.2vw, 11px); color: rgba(0,0,0,0.35); pointer-events: none; }
 
-        /* ----- TOKENS / GOTIS (SMALLER DESIGN FOR BETTER FIT) ----- */
-        .token-layer {
+        /* ---- TOKEN LAYER ---- */
+        #token-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; /* Let clicks pass to tokens */
+            inset: 0;
+            pointer-events: none;
         }
 
+        /* ---- PAWN / GOTI TOKENS ---- */
         .token {
-            pointer-events: auto; /* Enable touch/click only on tokens */
-            width: 6.0%; /* Slightly smaller for cleaner look (Down from 7.5%) */
-            height: 9.0%; /* Slightly smaller for cleaner look (Down from 11%) */
+            pointer-events: auto;
             position: absolute;
-            transform: translate(-50%, -75%); /* Align goti base centered on cell */
+            width: 5.8%;
+            height: 9%;
+            transform: translate(-50%, -80%);
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: left 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3), top 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3);
+            z-index: 10;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-end;
-            cursor: pointer;
-            touch-action: manipulation;
-            transition: left 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3), top 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3); /* Custom jumping bounce */
-            z-index: 10;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
         }
 
-        /* INVISIBLE HITBOX (Fat-Finger Fix): Large touch target centered */
-        .token::after {
+        .token::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
+            width: 44px; height: 44px;
         }
 
-        /* Goti Palette Variables using CSS custom properties for 3D realism */
-        .token-red {
-            --goti-color-light: #ff8787;
-            --goti-color-main: #e53e3e;
-            --goti-color-dark: #9b2c2c;
-            --goti-shadow: rgba(155, 44, 44, 0.5);
-        }
-        .token-green {
-            --goti-color-light: #86efac;
-            --goti-color-main: #38a169;
-            --goti-color-dark: #14532d;
-            --goti-shadow: rgba(20, 83, 45, 0.5);
-        }
-        .token-yellow {
-            --goti-color-light: #fef08a;
-            --goti-color-main: #ecc94b;
-            --goti-color-dark: #a16207;
-            --goti-shadow: rgba(161, 98, 7, 0.5);
-        }
-        .token-blue {
-            --goti-color-light: #93c5fd;
-            --goti-color-main: #3182ce;
-            --goti-color-dark: #1e3a8a;
-            --goti-shadow: rgba(30, 58, 138, 0.5);
-        }
-
-        /* Goti Top Sphere Head */
+        /* Goti head (sphere) */
         .goti-head {
-            width: 52%;
-            height: 38%;
+            width: 54%;
+            height: 36%;
             border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, var(--goti-color-light), var(--goti-color-main) 65%, var(--goti-color-dark));
-            box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.5), 0 2px 3px rgba(0, 0, 0, 0.25);
+            position: relative;
             z-index: 3;
-            margin-bottom: -4%; /* Smooth connection with neck */
+            margin-bottom: -5%;
+            box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3), inset 2px 2px 4px rgba(255,255,255,0.45);
         }
 
-        /* Goti Neck Ring */
+        /* Goti neck */
         .goti-neck {
-            width: 28%;
-            height: 10%;
-            background: var(--goti-color-dark);
-            border-radius: 50%;
+            width: 26%;
+            height: 9%;
+            border-radius: 40%;
             z-index: 2;
-            margin-bottom: -4%; /* Smooth transition with body */
-            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            margin-bottom: -3%;
         }
 
-        /* Goti Body */
+        /* Goti body (pear) */
         .goti-body {
-            width: 82%;
-            height: 56%;
-            background: radial-gradient(circle at 40% 25%, var(--goti-color-light) 0%, var(--goti-color-main) 50%, var(--goti-color-dark) 100%);
-            border-radius: 50% 50% 42% 42% / 85% 85% 25% 25%; /* Generates pear shape taper */
-            box-shadow: inset 1px 2px 3px rgba(255,255,255,0.4), 0 3px 5px rgba(0,0,0,0.3);
+            width: 84%;
+            height: 58%;
+            border-radius: 50% 50% 40% 40% / 80% 80% 28% 28%;
             z-index: 1;
+            box-shadow: inset -2px -3px 5px rgba(0,0,0,0.25), inset 2px 2px 4px rgba(255,255,255,0.35);
         }
 
-        /* Pulse Highlight for movable gotis */
+        /* Color variants */
+        .token-red    .goti-head  { background: radial-gradient(circle at 35% 35%, #ff8c8c, #e84040 60%, #9b1c1c); }
+        .token-red    .goti-neck  { background: #9b1c1c; }
+        .token-red    .goti-body  { background: radial-gradient(circle at 38% 28%, #ff8c8c, #e84040 55%, #9b1c1c); }
+
+        .token-green  .goti-head  { background: radial-gradient(circle at 35% 35%, #86efac, #2db85a 60%, #14532d); }
+        .token-green  .goti-neck  { background: #14532d; }
+        .token-green  .goti-body  { background: radial-gradient(circle at 38% 28%, #86efac, #2db85a 55%, #14532d); }
+
+        .token-yellow .goti-head  { background: radial-gradient(circle at 35% 35%, #fef08a, #daa800 60%, #78450a); }
+        .token-yellow .goti-neck  { background: #78450a; }
+        .token-yellow .goti-body  { background: radial-gradient(circle at 38% 28%, #fef08a, #daa800 55%, #78450a); }
+
+        .token-blue   .goti-head  { background: radial-gradient(circle at 35% 35%, #93c5fd, #2888e0 60%, #1e3a8a); }
+        .token-blue   .goti-neck  { background: #1e3a8a; }
+        .token-blue   .goti-body  { background: radial-gradient(circle at 38% 28%, #93c5fd, #2888e0 55%, #1e3a8a); }
+
+        /* Movable pulse */
         .token.movable {
-            animation: pulseHighlightPawn 1.2s infinite;
+            animation: pulsePawn 1.1s infinite;
             z-index: 20;
-            transform: translate(-50%, -75%) scale(1.15); /* Keep base position intact while scaling */
+            filter: drop-shadow(0 0 6px rgba(255,255,255,0.9)) drop-shadow(0 2px 4px rgba(0,0,0,0.5));
         }
 
-        @keyframes pulseHighlightPawn {
-            0% {
-                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
-            }
-            50% {
-                filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
-            }
-            100% {
-                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
-            }
+        @keyframes pulsePawn {
+            0%, 100% { filter: drop-shadow(0 0 2px rgba(255,255,255,0.3)) drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+            50%       { filter: drop-shadow(0 0 9px rgba(255,255,255,1.0)) drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
         }
 
-        /* ----- NOTIFICATION TOASTS ----- */
+        /* ---- TOAST ---- */
         #toast {
             position: fixed;
-            bottom: 30px;
-            background: rgba(0, 0, 0, 0.85);
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(20,20,30,0.92);
             color: #fff;
-            padding: 12px 24px;
+            padding: 10px 22px;
             border-radius: 30px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 500;
             opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s ease;
+            transition: all 0.28s ease;
             pointer-events: none;
             z-index: 1000;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
         }
 
         #toast.show {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
         }
+
+        /* ---- PLAYER CHIPS ROW ---- */
+        #player-chips {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .player-chip {
+            flex: 1;
+            background: #252c3e;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            transition: border-color 0.2s;
+        }
+
+        .player-chip.active-turn {
+            border-color: rgba(255,255,255,0.35);
+            background: #2e3650;
+        }
+
+        .chip-name {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chip-dots {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+
+        .chip-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            opacity: 0.35;
+        }
+
+        .chip-dot.at-home { opacity: 1; }
     </style>
 </head>
 <body>
 
-    <div id="app-container">
-        <!-- Game Header -->
-        <div id="game-header">
-            <div id="turn-indicator">Loading game session...</div>
-            <div id="dice-status">Waiting for network sync</div>
+    <div id="header">
+        <div id="turn-row">
+            <div id="turn-indicator">Connecting…</div>
+            <div id="dice-badge">–</div>
         </div>
-
-        <!-- Ludo Board Wrapper -->
-        <div id="board-wrapper">
-            <div id="ludo-board"></div>
-            <!-- Dynamic Token Layer -->
-            <div id="token-layer" class="token-layer"></div>
-        </div>
+        <div id="dice-status">Waiting for game state</div>
     </div>
 
-    <!-- Toast Alerts -->
-    <div id="toast">Message</div>
+    <div id="board-wrapper">
+        <div id="ludo-board"></div>
+        <div id="token-layer"></div>
+    </div>
+
+    <div id="player-chips"></div>
+
+    <div id="toast"></div>
 
     <script>
-        // ----- PARSE URL PARAMS -----
+        // ---- URL PARAMS ----
         const urlParams = new URLSearchParams(window.location.search);
-        const chatId = parseInt(urlParams.get('chat_id')) || 0;
-        const userId = parseInt(urlParams.get('user_id')) || 0;
+        const chatId   = parseInt(urlParams.get('chat_id'))  || 0;
+        const userId   = parseInt(urlParams.get('user_id'))  || 0;
         const apiToken = urlParams.get('token') || "super_secret_ludo_token_123";
-        
-        // Automatically determine backend base address or fallback to current origin
-        const apiBase = urlParams.get('api') || window.location.origin;
+        const apiBase  = urlParams.get('api')   || window.location.origin;
 
         let gameState = null;
-        let lastUpdated = 0;
+        const visualPositions = {};
 
-        // ----- ANIMATION & VISUAL STATE TRACKING -----
-        // Tracks visual positions of tokens step-by-step to prevent instant teleportation
-        const visualPositions = {}; // Format: { "Color_TokenIndex": { pos: current_rendered_pos, target: current_server_pos, animating: bool } }
-
-        // ----- COORDINATES MAP (15x15 CSS Grid to visual absolute position %) -----
+        // ---- POSITION MATH ----
         function getPercentPos(r, c) {
-            return {
-                x: (c * 6.666) + 3.333,
-                y: (r * 6.666) + 3.333
-            };
+            return { x: c * 6.6667 + 3.3333, y: r * 6.6667 + 3.3333 };
         }
 
-        // Common 52 track spaces mapped to row (r) and col (c)
         const trackCoords = [
-            {r:6, c:1}, {r:6, c:2}, {r:6, c:3}, {r:6, c:4}, {r:6, c:5},
-            {r:5, c:6}, {r:4, c:6}, {r:3, c:6}, {r:2, c:6}, {r:1, c:6}, {r:0, c:6},
-            {r:0, c:7},
-            {r:0, c:8}, {r:1, c:8}, {r:2, c:8}, {r:3, c:8}, {r:4, c:8}, {r:5, c:8},
-            {r:6, c:9}, {r:6, c:10}, {r:6, c:11}, {r:6, c:12}, {r:6, c:13}, {r:6, c:14},
-            {r:7, c:14},
-            {r:8, c:14}, {r:8, c:13}, {r:8, c:12}, {r:8, c:11}, {r:8, c:10}, {r:8, c:9},
-            {r:9, c:8}, {r:10, c:8}, {r:11, c:8}, {r:12, c:8}, {r:13, c:8}, {r:14, c:8},
-            {r:14, c:7},
-            {r:14, c:6}, {r:13, c:6}, {r:12, c:6}, {r:11, c:6}, {r:10, c:6}, {r:9, c:6},
-            {r:8, c:5}, {r:8, c:4}, {r:8, c:3}, {r:8, c:2}, {r:8, c:1}, {r:8, c:0},
-            {r:7, c:0},
-            {r:6, c:0}
+            {r:6,c:1},{r:6,c:2},{r:6,c:3},{r:6,c:4},{r:6,c:5},
+            {r:5,c:6},{r:4,c:6},{r:3,c:6},{r:2,c:6},{r:1,c:6},{r:0,c:6},
+            {r:0,c:7},
+            {r:0,c:8},{r:1,c:8},{r:2,c:8},{r:3,c:8},{r:4,c:8},{r:5,c:8},
+            {r:6,c:9},{r:6,c:10},{r:6,c:11},{r:6,c:12},{r:6,c:13},{r:6,c:14},
+            {r:7,c:14},
+            {r:8,c:14},{r:8,c:13},{r:8,c:12},{r:8,c:11},{r:8,c:10},{r:8,c:9},
+            {r:9,c:8},{r:10,c:8},{r:11,c:8},{r:12,c:8},{r:13,c:8},{r:14,c:8},
+            {r:14,c:7},
+            {r:14,c:6},{r:13,c:6},{r:12,c:6},{r:11,c:6},{r:10,c:6},{r:9,c:6},
+            {r:8,c:5},{r:8,c:4},{r:8,c:3},{r:8,c:2},{r:8,c:1},{r:8,c:0},
+            {r:7,c:0},
+            {r:6,c:0}
         ];
 
-        // Yard / Home base position coordinates for each of the 4 colors (Red, Green, Yellow, Blue)
         const baseCoords = {
-            "🔴 Red":    [{r:2, c:2}, {r:2, c:3}, {r:3, c:2}, {r:3, c:3}],
-            "🟢 Green":  [{r:2, c:11}, {r:2, c:12}, {r:3, c:11}, {r:3, c:12}],
-            "🔵 Blue":   [{r:11, c:11}, {r:11, c:12}, {r:12, c:11}, {r:12, c:12}],
-            "🟡 Yellow": [{r:11, c:2}, {r:11, c:3}, {r:12, c:2}, {r:12, c:3}]
+            "🔴 Red":    [{r:2,c:2},{r:2,c:3},{r:3,c:2},{r:3,c:3}],
+            "🟢 Green":  [{r:2,c:11},{r:2,c:12},{r:3,c:11},{r:3,c:12}],
+            "🔵 Blue":   [{r:11,c:11},{r:11,c:12},{r:12,c:11},{r:12,c:12}],
+            "🟡 Yellow": [{r:11,c:2},{r:11,c:3},{r:12,c:2},{r:12,c:3}]
         };
 
-        // Home stretches (positions 53-58) and final home (59)
         function getSpecialPos(color, pos) {
-            if (pos === 59) return {r:7, c:7}; // Center
-            
-            if (color === "🔴 Red") {
-                return {r:7, c: pos - 52};
-            } else if (color === "🟢 Green") {
-                return {r: pos - 52, c:7};
-            } else if (color === "🔵 Blue") {
-                return {r:7, c: 14 - (pos - 52)};
-            } else if (color === "🟡 Yellow") {
-                return {r: 14 - (pos - 52), c:7};
-            }
-            return {r:7, c:7};
+            if (pos === 59) return {r:7,c:7};
+            if (color === "🔴 Red")    return {r:7, c:pos-52};
+            if (color === "🟢 Green")  return {r:pos-52, c:7};
+            if (color === "🔵 Blue")   return {r:7, c:14-(pos-52)};
+            if (color === "🟡 Yellow") return {r:14-(pos-52), c:7};
+            return {r:7,c:7};
         }
 
-        // Resolve absolute position on the board
         function resolvePosition(color, tokenIdx, pos) {
-            let cell = {r:0, c:0};
-            if (pos === 0) {
-                cell = baseCoords[color][tokenIdx];
-            } else if (pos >= 53) {
-                cell = getSpecialPos(color, pos);
-            } else {
-                // Adjust common track positions based on Ludo index offsets
-                let trackIdx = (pos - 1) % 52;
-                cell = trackCoords[trackIdx];
-            }
+            let cell;
+            if (pos === 0)       cell = baseCoords[color][tokenIdx];
+            else if (pos >= 53)  cell = getSpecialPos(color, pos);
+            else                 cell = trackCoords[(pos-1) % 52];
             return getPercentPos(cell.r, cell.c);
         }
 
-        // ----- RENDER STATIC CSS GRID BOARD -----
+        // ---- BUILD BOARD ----
         function createBoard() {
             const board = document.getElementById('ludo-board');
             board.innerHTML = '';
-            for (let r = 0; r < 15; r++) {
-                for (let c = 0; c < 15; c++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    
-                    // Colors rendering logic
-                    if (r < 6 && c < 6) cell.classList.add('red-bg');
-                    else if (r < 6 && c > 8) cell.classList.add('green-bg');
-                    else if (r > 8 && c < 6) cell.classList.add('yellow-bg');
-                    else if (r > 8 && c > 8) cell.classList.add('blue-bg');
-                    
-                    // Home paths
-                    else if (r === 7 && c > 0 && c < 7) cell.classList.add('red-bg');
-                    else if (r === 7 && c > 7 && c < 14) cell.classList.add('blue-bg');
-                    else if (c === 7 && r > 0 && r < 7) cell.classList.add('green-bg');
-                    else if (c === 7 && r > 7 && r < 14) cell.classList.add('yellow-bg');
-                    
-                    // Start arrows
-                    else if (r === 6 && c === 1) cell.classList.add('red-start');
-                    else if (r === 1 && c === 8) cell.classList.add('green-start');
-                    else if (r === 8 && c === 13) cell.classList.add('blue-start');
-                    else if (r === 13 && c === 6) cell.classList.add('yellow-start');
-                    
-                    // Center Home Triangle quarters
-                    else if (r >= 6 && r <= 8 && c >= 6 && c <= 8) {
-                        if (r === 7 && c === 7) cell.classList.add('center-core');
-                        else if (r < 7) cell.classList.add('green-home-stretch');
-                        else if (r > 7) cell.classList.add('yellow-home-stretch');
-                        else if (c < 7) cell.classList.add('red-home-stretch');
-                        else if (c > 7) cell.classList.add('blue-home-stretch');
-                    }
-                    
-                    // Safe zone stars
-                    if ((r === 6 && c === 1) || (r === 8 && c === 1) || (r === 8 && c === 13) || (r === 6 && c === 13) ||
-                        (r === 1 && c === 6) || (r === 1 && c === 8) || (r === 13 && c === 6) || (r === 13 && c === 8) ||
-                        (r === 8 && c === 2) || (r === 2 && c === 6) || (r === 6 && c === 12) || (r === 12 && c === 8)) {
-                        cell.classList.add('safe-spot');
-                    }
-                    
-                    board.appendChild(cell);
+
+            // Pre-classify every cell
+            const classes = Array.from({length:15}, ()=>Array(15).fill(''));
+
+            // Quadrant backgrounds
+            for (let r=0;r<6;r++) for (let c=0;c<6;c++)   classes[r][c] += ' q-red';
+            for (let r=0;r<6;r++) for (let c=9;c<15;c++)  classes[r][c] += ' q-green';
+            for (let r=9;r<15;r++) for (let c=0;c<6;c++)  classes[r][c] += ' q-yellow';
+            for (let r=9;r<15;r++) for (let c=9;c<15;c++) classes[r][c] += ' q-blue';
+
+            // Yard inner whites (rows/cols 1-4 within each quadrant)
+            [[1,4,1,4],[1,4,10,13],[10,13,1,4],[10,13,10,13]].forEach(([r0,r1,c0,c1])=>{
+                for (let r=r0;r<=r1;r++) for (let c=c0;c<=c1;c++) classes[r][c] += ' yard-cell';
+            });
+
+            // Home stretches
+            for (let c=1;c<7;c++)  classes[7][c] += ' hs-red';
+            for (let c=8;c<14;c++) classes[7][c] += ' hs-blue';
+            for (let r=1;r<7;r++)  classes[r][7] += ' hs-green';
+            for (let r=8;r<14;r++) classes[r][7] += ' hs-yellow';
+
+            // Center triangles
+            classes[6][7] += ' tri-green'; classes[7][6] += ' tri-red';
+            classes[7][8] += ' tri-blue';  classes[8][7] += ' tri-yellow';
+            classes[7][7] += ' center';
+
+            // Start colored cells
+            classes[6][1] += ' start-red';
+            classes[1][8] += ' start-green';
+            classes[8][13] += ' start-blue';
+            classes[13][6] += ' start-yellow';
+
+            // Safe spots (stars)
+            const safeList = [[6,1],[8,1],[8,13],[6,13],[1,6],[1,8],[13,6],[13,8],[8,2],[2,6],[6,12],[12,8]];
+            safeList.forEach(([r,c]) => classes[r][c] += ' safe');
+
+            // Arrows for track entry
+            classes[6][0] += ' arrow-right';
+            classes[0][8] += ' arrow-down';
+            classes[8][14] += ' arrow-left';
+            classes[14][6] += ' arrow-up';
+
+            for (let r=0;r<15;r++) {
+                for (let c=0;c<15;c++) {
+                    const div = document.createElement('div');
+                    div.className = 'cell' + (classes[r][c] ? ' '+classes[r][c].trim() : '');
+                    board.appendChild(div);
                 }
             }
         }
 
-        // ----- STEP-BY-STEP HOVER ANIMATION LOOP -----
-        // Moves token visually one square at a time towards target server position
+        // ---- STEP ANIMATION ----
         function stepAnimateToken(key) {
             const vis = visualPositions[key];
             if (!vis) return;
-
             if (vis.pos < vis.target) {
                 vis.pos++;
-                renderTokens(); // Redraw UI at intermediate position
-                
-                // Triggers next square jump after 240ms for rhythmic hopping look
-                setTimeout(() => {
-                    stepAnimateToken(key);
-                }, 240);
+                renderTokens();
+                setTimeout(() => stepAnimateToken(key), 230);
             } else {
                 vis.animating = false;
-                renderTokens(); // Clean up final position
+                renderTokens();
             }
         }
 
-        // ----- RENDER TOKENS (USING VISUAL INTERMEDIATE STATE) -----
+        // ---- RENDER TOKENS ----
         function renderTokens() {
             if (!gameState) return;
             const layer = document.getElementById('token-layer');
             layer.innerHTML = '';
-
-            // Map and identify overlapping tokens to apply jitter offset dynamically
-            const positionTracker = {};
+            const posMap = {};
 
             Object.keys(visualPositions).forEach(key => {
                 const vis = visualPositions[key];
                 const player = vis.player;
                 const pidx = gameState.players.findIndex(p => p.id === player.id);
                 if (pidx === -1) return;
-
-                const colorCode = player.color.split(' ')[1].toLowerCase(); // "red", "green" etc.
+                const colorCode = player.color.includes('Red') ? 'red' :
+                                  player.color.includes('Green') ? 'green' :
+                                  player.color.includes('Blue') ? 'blue' : 'yellow';
                 const absPos = resolvePosition(player.color, vis.tidx, vis.pos);
-                
-                // Track overlaps based on current active visual coordinates
-                const coordKey = `${Math.round(absPos.x)}_${Math.round(absPos.y)}`;
-                if (!positionTracker[coordKey]) {
-                    positionTracker[coordKey] = [];
-                }
-                positionTracker[coordKey].push({ key, vis, pidx, colorCode, player, absPos });
+                const coordKey = `${Math.round(absPos.x*10)}_${Math.round(absPos.y*10)}`;
+                if (!posMap[coordKey]) posMap[coordKey] = [];
+                posMap[coordKey].push({ key, vis, pidx, colorCode, player, absPos });
             });
 
-            // Draw stacked tokens with spatial adjustments
-            Object.keys(positionTracker).forEach(coordKey => {
-                const stacked = positionTracker[coordKey];
-                stacked.forEach((info, index) => {
+            Object.values(posMap).forEach(stacked => {
+                stacked.forEach((info, idx) => {
                     const token = document.createElement('div');
                     token.className = `token token-${info.colorCode}`;
-                    
-                    // Pawn parts
+
                     const head = document.createElement('div');
-                    head.className = 'goti-head';
-                    
-                    const neck = document.createElement('div');
-                    neck.className = 'goti-neck';
-
-                    const body = document.createElement('div');
-                    body.className = 'goti-body';
-
+                    head.className = 'pin-head';
+                    const dot = document.createElement('div');
+                    dot.className = 'pin-dot';
+                    head.appendChild(dot);
                     token.appendChild(head);
-                    token.appendChild(neck);
-                    token.appendChild(body);
 
-                    // Overlap Offset logic (Goti stacking adjusters)
-                    let offsetPercentX = 0;
-                    let offsetPercentY = 0;
-                    if (stacked.length > 1) {
-                        offsetPercentX = (index * 1.6) - (stacked.length - 1) * 0.8;
-                        offsetPercentY = (index * -1.6) + (stacked.length - 1) * 0.8;
-                    }
+                    const offsetX = stacked.length > 1 ? (idx * 1.8) - (stacked.length-1)*0.9 : 0;
+                    const offsetY = stacked.length > 1 ? (idx * -1.6) : 0;
+                    token.style.left = `${info.absPos.x + offsetX}%`;
+                    token.style.top  = `${info.absPos.y + offsetY}%`;
 
-                    token.style.left = `${info.absPos.x + offsetPercentX}%`;
-                    token.style.top = `${info.absPos.y + offsetPercentY}%`;
+                    const isMyTurn = gameState.turn_index === info.pidx && info.player.id === userId;
+                    const canMove  = isMyTurn && gameState.rolled && canMoveRule(info.vis.pos, gameState.dice_value) && !info.vis.animating;
 
-                    // Touch interactions checker
-                    const isMyTurn = (gameState.turn_index === info.pidx) && (info.player.id === userId);
-                    // Enable move click only if it's the player's turn, dice is rolled, path is valid, and the pawn is not already mid-animation
-                    const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(info.vis.pos, gameState.dice_value) && !info.vis.animating;
-
-                    if (canMoveThisToken) {
+                    if (canMove) {
                         token.classList.add('movable');
-                        
-                        // Pointer down event
-                        token.addEventListener('pointerdown', (e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
+                        token.addEventListener('pointerdown', e => {
+                            e.stopPropagation(); e.preventDefault();
                             performMove(info.vis.tidx);
                         });
                     }
@@ -506,145 +503,128 @@
             });
         }
 
-        // ----- UPDATE GAME ENGINE DISPLAY -----
+        // ---- PLAYER CHIPS ----
+        function updatePlayerChips() {
+            if (!gameState) return;
+            const container = document.getElementById('player-chips');
+            container.innerHTML = '';
+            gameState.players.forEach((p, pidx) => {
+                const chip = document.createElement('div');
+                chip.className = 'player-chip' + (gameState.turn_index === pidx ? ' active-turn' : '');
+
+                const colorHex = getColorHex(p.color);
+                const colorCode = p.color.includes('Red') ? 'red' :
+                                  p.color.includes('Green') ? 'green' :
+                                  p.color.includes('Blue') ? 'blue' : 'yellow';
+
+                const name = document.createElement('div');
+                name.className = 'chip-name';
+                name.style.color = colorHex;
+                name.textContent = p.username || p.color.split(' ')[1];
+
+                const dots = document.createElement('div');
+                dots.className = 'chip-dots';
+                (p.tokens || [0,0,0,0]).forEach(pos => {
+                    const d = document.createElement('div');
+                    d.className = 'chip-dot' + (pos === 59 ? ' at-home' : pos > 0 ? ' at-home' : '');
+                    d.style.background = colorHex;
+                    dots.appendChild(d);
+                });
+
+                chip.appendChild(name);
+                chip.appendChild(dots);
+                container.appendChild(chip);
+            });
+        }
+
+        // ---- UPDATE UI ----
         function updateUI() {
             if (!gameState) return;
-
-            // Turn info
-            const currentTurnIdx = gameState.turn_index;
-            const currentPlayer = gameState.players[currentTurnIdx];
-            const turnIndicator = document.getElementById('turn-indicator');
-            const diceStatus = document.getElementById('dice-status');
+            const cur = gameState.players[gameState.turn_index];
+            const indicator = document.getElementById('turn-indicator');
+            const badge     = document.getElementById('dice-badge');
+            const status    = document.getElementById('dice-status');
 
             if (gameState.winner !== -1) {
-                const winnerName = gameState.players[gameState.winner].username;
-                turnIndicator.innerHTML = `🏆 Winner: ${winnerName}!`;
-                diceStatus.innerHTML = `The game has finished.`;
-                return;
-            }
-
-            turnIndicator.innerHTML = `👉 Turn: <span style="color: ${getColorHex(currentPlayer.color)}">${currentPlayer.username}</span>`;
-            
-            if (gameState.rolled) {
-                diceStatus.innerHTML = `🎲 Dice Rolled = <b>${gameState.dice_value}</b> | Please tap a movable token!`;
+                const wName = gameState.players[gameState.winner].username;
+                indicator.innerHTML = `Winner: ${wName}!`;
+                badge.textContent = '🏆';
+                status.textContent = 'Game over';
             } else {
-                diceStatus.innerHTML = `⏳ Awaiting word submission/roll in Telegram chat.`;
+                indicator.innerHTML = `<span style="color:${getColorHex(cur.color)}">${cur.username || cur.color.split(' ')[1]}</span>'s turn`;
+                badge.textContent = gameState.rolled ? `🎲 ${gameState.dice_value}` : `–`;
+                status.textContent = gameState.rolled ? 'Tap a highlighted token to move' : 'Awaiting roll in Telegram chat';
             }
 
-            // Sync visual path targets with the network server positions
-            gameState.players.forEach((player) => {
+            updatePlayerChips();
+
+            gameState.players.forEach(player => {
                 player.tokens.forEach((serverPos, tidx) => {
                     const key = `${player.color}_${tidx}`;
-                    
                     if (visualPositions[key] === undefined) {
-                        // Init new token coordinate
-                        visualPositions[key] = {
-                            pos: serverPos,
-                            target: serverPos,
-                            animating: false,
-                            player: player,
-                            tidx: tidx
-                        };
+                        visualPositions[key] = { pos: serverPos, target: serverPos, animating: false, player, tidx };
                     } else {
-                        // Refresh data attributes
                         visualPositions[key].player = player;
                     }
-
                     const vis = visualPositions[key];
-
-                    // If token got captured or reset, snap instantly back to base
                     if (serverPos < vis.pos || serverPos === 0) {
-                        vis.pos = serverPos;
+                        vis.pos = serverPos; vis.target = serverPos; vis.animating = false;
+                    } else if (serverPos > vis.target) {
                         vis.target = serverPos;
-                        vis.animating = false;
-                    } 
-                    // Trigger dynamic box-by-box progression if target updated forward
-                    else if (serverPos > vis.target) {
-                        vis.target = serverPos;
-                        if (!vis.animating) {
-                            vis.animating = true;
-                            stepAnimateToken(key);
-                        }
+                        if (!vis.animating) { vis.animating = true; stepAnimateToken(key); }
                     }
                 });
             });
 
-            // Draw visual states
             renderTokens();
         }
 
-        // Safe helper for matching color strings to solid CSS hex codes
-        function getColorHex(colorStr) {
-            if (colorStr.includes("Red")) return "#f56565";
-            if (colorStr.includes("Green")) return "#48bb78";
-            if (colorStr.includes("Blue")) return "#4299e1";
-            if (colorStr.includes("Yellow")) return "#ecc94b";
-            return "#ffffff";
+        function getColorHex(c) {
+            if (c.includes('Red'))    return '#f56565';
+            if (c.includes('Green'))  return '#48bb78';
+            if (c.includes('Blue'))   return '#4299e1';
+            if (c.includes('Yellow')) return '#ecc94b';
+            return '#ffffff';
         }
 
-        // Local client check if token path move is valid
         function canMoveRule(pos, dice) {
             if (pos >= 59) return false;
             if (pos === 0) return true;
-            let newPos = pos + dice;
-            if (1 <= pos && pos <= 52 && newPos > 52) {
-                newPos = 52 + (newPos - 52);
-            }
-            if (newPos > 58) newPos = 59;
-            return newPos !== pos;
+            let np = pos + dice;
+            if (pos <= 52 && np > 52) np = 52 + (np - 52);
+            if (np > 58) np = 59; // clamp at finish
+            return np !== pos;
         }
 
-        // ----- API INTERACTION -----
+        // ---- API CALLS ----
         async function fetchGameState() {
             try {
-                const response = await fetch(`${apiBase}/game_state?chat_id=${chatId}&token=${apiToken}`);
-                if (response.ok) {
-                    gameState = await response.json();
-                    updateUI();
-                } else {
-                    const errData = await response.json();
-                    console.error("Error fetching state:", errData.error);
-                }
-            } catch (err) {
-                console.error("Network error during fetchGameState:", err);
-            }
+                const res = await fetch(`${apiBase}/game_state?chat_id=${chatId}&token=${apiToken}`);
+                if (res.ok) { gameState = await res.json(); updateUI(); }
+                else { const e = await res.json(); console.error(e.error); }
+            } catch (err) { console.error('fetchGameState:', err); }
         }
 
         async function performMove(tokenIdx) {
-            showToast("Processing token movement...");
+            showToast('Moving token…');
             try {
-                const response = await fetch(`${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&token=${apiToken}`, {
-                    method: 'POST'
-                });
-                const resData = await response.json();
-                
-                if (response.ok) {
-                    showToast("Move executed successfully!");
-                    fetchGameState(); // Refetch board values
-                } else {
-                    showToast(`⚠️ ${resData.error || "Movement rejected"}`);
-                }
-            } catch (err) {
-                showToast("⚠️ Network issue executing turn.");
-                console.error("Network error during performMove:", err);
-            }
+                const res = await fetch(`${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&token=${apiToken}`, { method: 'POST' });
+                const d = await res.json();
+                if (res.ok) { showToast('Move done!'); fetchGameState(); }
+                else showToast(`⚠️ ${d.error || 'Move rejected'}`);
+            } catch (err) { showToast('⚠️ Network error'); }
         }
 
-        // ----- UTILITY TOAST NOTIFICATIONS -----
         function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2400);
         }
 
-        // ----- INITIALIZE BOOTSTRAP -----
+        // ---- BOOT ----
         createBoard();
         fetchGameState();
-
-        // Safe polling every 2.0 seconds to keep board synchronized
         setInterval(fetchGameState, 2000);
     </script>
 </body>
