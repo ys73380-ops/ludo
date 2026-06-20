@@ -65,7 +65,7 @@
         #board-wrapper {
             position: relative;
             width: 100%;
-            aspect-ratio: 1; /* Board remains perfect square */
+            aspect-ratio: 1;
             background: #ffffff;
             border-radius: 16px;
             overflow: hidden;
@@ -88,19 +88,16 @@
             position: relative;
         }
 
-        /* Ludo Colors */
         .red-bg { background-color: #f56565 !important; }
         .green-bg { background-color: #48bb78 !important; }
         .yellow-bg { background-color: #ecc94b !important; }
         .blue-bg { background-color: #4299e1 !important; }
 
-        /* Home Stretch & Starts */
         .red-start { background-color: #fc8181 !important; border-radius: 5px; }
         .green-start { background-color: #68d391 !important; border-radius: 5px; }
         .blue-start { background-color: #63b3ed !important; border-radius: 5px; }
         .yellow-start { background-color: #f6e05e !important; border-radius: 5px; }
 
-        /* Star Safe Spots */
         .safe-spot::before {
             content: "★";
             position: absolute;
@@ -111,40 +108,38 @@
             font-size: 1.2rem;
         }
 
-        /* Center Triangle */
         .center-core { background: #2d3748 !important; }
         .red-home-stretch { background: #feb2b2 !important; }
         .green-home-stretch { background: #9ae6b4 !important; }
         .blue-home-stretch { background: #90cdf4 !important; }
         .yellow-home-stretch { background: #faf089 !important; }
 
-        /* ----- TOKENS / GOTIS (SMALLER DESIGN FOR BETTER FIT) ----- */
+        /* ----- TOKENS / GOTIS ----- */
         .token-layer {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; /* Let clicks pass to tokens */
+            pointer-events: none;
         }
 
         .token {
-            pointer-events: auto; /* Enable touch/click only on tokens */
-            width: 6.0%; /* Slightly smaller for cleaner look (Down from 7.5%) */
-            height: 9.0%; /* Slightly smaller for cleaner look (Down from 11%) */
+            pointer-events: auto;
+            width: 6.0%;
+            height: 9.0%;
             position: absolute;
-            transform: translate(-50%, -75%); /* Align goti base centered on cell */
+            transform: translate(-50%, -75%);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-end;
             cursor: pointer;
             touch-action: manipulation;
-            transition: left 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3), top 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3); /* Custom jumping bounce */
+            transition: left 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3), top 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3);
             z-index: 10;
         }
 
-        /* INVISIBLE HITBOX (Fat-Finger Fix): Large touch target centered */
         .token::after {
             content: '';
             position: absolute;
@@ -156,33 +151,27 @@
             border-radius: 50%;
         }
 
-        /* Goti Palette Variables using CSS custom properties for 3D realism */
         .token-red {
             --goti-color-light: #ff8787;
             --goti-color-main: #e53e3e;
             --goti-color-dark: #9b2c2c;
-            --goti-shadow: rgba(155, 44, 44, 0.5);
         }
         .token-green {
             --goti-color-light: #86efac;
             --goti-color-main: #38a169;
             --goti-color-dark: #14532d;
-            --goti-shadow: rgba(20, 83, 45, 0.5);
         }
         .token-yellow {
             --goti-color-light: #fef08a;
             --goti-color-main: #ecc94b;
             --goti-color-dark: #a16207;
-            --goti-shadow: rgba(161, 98, 7, 0.5);
         }
         .token-blue {
             --goti-color-light: #93c5fd;
             --goti-color-main: #3182ce;
             --goti-color-dark: #1e3a8a;
-            --goti-shadow: rgba(30, 58, 138, 0.5);
         }
 
-        /* Goti Top Sphere Head */
         .goti-head {
             width: 52%;
             height: 38%;
@@ -190,47 +179,38 @@
             background: radial-gradient(circle at 35% 35%, var(--goti-color-light), var(--goti-color-main) 65%, var(--goti-color-dark));
             box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.5), 0 2px 3px rgba(0, 0, 0, 0.25);
             z-index: 3;
-            margin-bottom: -4%; /* Smooth connection with neck */
+            margin-bottom: -4%;
         }
 
-        /* Goti Neck Ring */
         .goti-neck {
             width: 28%;
             height: 10%;
             background: var(--goti-color-dark);
             border-radius: 50%;
             z-index: 2;
-            margin-bottom: -4%; /* Smooth transition with body */
+            margin-bottom: -4%;
             box-shadow: 0 1px 2px rgba(0,0,0,0.15);
         }
 
-        /* Goti Body */
         .goti-body {
             width: 82%;
             height: 56%;
             background: radial-gradient(circle at 40% 25%, var(--goti-color-light) 0%, var(--goti-color-main) 50%, var(--goti-color-dark) 100%);
-            border-radius: 50% 50% 42% 42% / 85% 85% 25% 25%; /* Generates pear shape taper */
+            border-radius: 50% 50% 42% 42% / 85% 85% 25% 25%;
             box-shadow: inset 1px 2px 3px rgba(255,255,255,0.4), 0 3px 5px rgba(0,0,0,0.3);
             z-index: 1;
         }
 
-        /* Pulse Highlight for movable gotis */
         .token.movable {
             animation: pulseHighlightPawn 1.2s infinite;
             z-index: 20;
-            transform: translate(-50%, -75%) scale(1.15); /* Keep base position intact while scaling */
+            transform: translate(-50%, -75%) scale(1.15);
         }
 
         @keyframes pulseHighlightPawn {
-            0% {
-                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
-            }
-            50% {
-                filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
-            }
-            100% {
-                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4));
-            }
+            0% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
+            50% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
+            100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
         }
 
         /* ----- NOTIFICATION TOASTS ----- */
@@ -261,41 +241,46 @@
 <body>
 
     <div id="app-container">
-        <!-- Game Header -->
         <div id="game-header">
             <div id="turn-indicator">Loading game session...</div>
             <div id="dice-status">Waiting for network sync</div>
         </div>
 
-        <!-- Ludo Board Wrapper -->
         <div id="board-wrapper">
             <div id="ludo-board"></div>
-            <!-- Dynamic Token Layer -->
             <div id="token-layer" class="token-layer"></div>
         </div>
     </div>
 
-    <!-- Toast Alerts -->
     <div id="toast">Message</div>
 
     <script>
-        // ----- PARSE URL PARAMS -----
+        // ============================================================
+        // FIXED: Master API Token (Must match BotConfig.API_TOKEN)
+        // ============================================================
+        const MASTER_API_TOKEN = "super_secret_ludo_token_123";
+
+        // ============================================================
+        // PARSE URL PARAMS
+        // ============================================================
         const urlParams = new URLSearchParams(window.location.search);
         const chatId = parseInt(urlParams.get('chat_id')) || 0;
         const userId = parseInt(urlParams.get('user_id')) || 0;
-        const apiToken = urlParams.get('token') || "super_secret_ludo_token_123";
-        
-        // Automatically determine backend base address or fallback to current origin
+        const sessionToken = urlParams.get('token') || "";
         const apiBase = urlParams.get('api') || window.location.origin;
 
+        // Log for debugging
+        console.log("🔑 Master API Token:", MASTER_API_TOKEN);
+        console.log("🎮 Chat ID:", chatId, "User ID:", userId);
+        console.log("🔐 Session Token:", sessionToken);
+        console.log("🌐 API Base:", apiBase);
+
         let gameState = null;
-        let lastUpdated = 0;
 
         // ----- ANIMATION & VISUAL STATE TRACKING -----
-        // Tracks visual positions of tokens step-by-step to prevent instant teleportation
-        const visualPositions = {}; // Format: { "Color_TokenIndex": { pos: current_rendered_pos, target: current_server_pos, animating: bool } }
+        const visualPositions = {};
 
-        // ----- COORDINATES MAP (15x15 CSS Grid to visual absolute position %) -----
+        // ----- COORDINATES MAP -----
         function getPercentPos(r, c) {
             return {
                 x: (c * 6.666) + 3.333,
@@ -303,7 +288,6 @@
             };
         }
 
-        // Common 52 track spaces mapped to row (r) and col (c)
         const trackCoords = [
             {r:6, c:1}, {r:6, c:2}, {r:6, c:3}, {r:6, c:4}, {r:6, c:5},
             {r:5, c:6}, {r:4, c:6}, {r:3, c:6}, {r:2, c:6}, {r:1, c:6}, {r:0, c:6},
@@ -320,7 +304,6 @@
             {r:6, c:0}
         ];
 
-        // Yard / Home base position coordinates for each of the 4 colors (Red, Green, Yellow, Blue)
         const baseCoords = {
             "🔴 Red":    [{r:2, c:2}, {r:2, c:3}, {r:3, c:2}, {r:3, c:3}],
             "🟢 Green":  [{r:2, c:11}, {r:2, c:12}, {r:3, c:11}, {r:3, c:12}],
@@ -328,23 +311,15 @@
             "🟡 Yellow": [{r:11, c:2}, {r:11, c:3}, {r:12, c:2}, {r:12, c:3}]
         };
 
-        // Home stretches (positions 53-58) and final home (59)
         function getSpecialPos(color, pos) {
-            if (pos === 59) return {r:7, c:7}; // Center
-            
-            if (color === "🔴 Red") {
-                return {r:7, c: pos - 52};
-            } else if (color === "🟢 Green") {
-                return {r: pos - 52, c:7};
-            } else if (color === "🔵 Blue") {
-                return {r:7, c: 14 - (pos - 52)};
-            } else if (color === "🟡 Yellow") {
-                return {r: 14 - (pos - 52), c:7};
-            }
+            if (pos === 59) return {r:7, c:7};
+            if (color === "🔴 Red") return {r:7, c: pos - 52};
+            if (color === "🟢 Green") return {r: pos - 52, c:7};
+            if (color === "🔵 Blue") return {r:7, c: 14 - (pos - 52)};
+            if (color === "🟡 Yellow") return {r: 14 - (pos - 52), c:7};
             return {r:7, c:7};
         }
 
-        // Resolve absolute position on the board
         function resolvePosition(color, tokenIdx, pos) {
             let cell = {r:0, c:0};
             if (pos === 0) {
@@ -352,14 +327,13 @@
             } else if (pos >= 53) {
                 cell = getSpecialPos(color, pos);
             } else {
-                // Adjust common track positions based on Ludo index offsets
                 let trackIdx = (pos - 1) % 52;
                 cell = trackCoords[trackIdx];
             }
             return getPercentPos(cell.r, cell.c);
         }
 
-        // ----- RENDER STATIC CSS GRID BOARD -----
+        // ----- RENDER STATIC BOARD -----
         function createBoard() {
             const board = document.getElementById('ludo-board');
             board.innerHTML = '';
@@ -368,25 +342,18 @@
                     const cell = document.createElement('div');
                     cell.className = 'cell';
                     
-                    // Colors rendering logic
                     if (r < 6 && c < 6) cell.classList.add('red-bg');
                     else if (r < 6 && c > 8) cell.classList.add('green-bg');
                     else if (r > 8 && c < 6) cell.classList.add('yellow-bg');
                     else if (r > 8 && c > 8) cell.classList.add('blue-bg');
-                    
-                    // Home paths
                     else if (r === 7 && c > 0 && c < 7) cell.classList.add('red-bg');
                     else if (r === 7 && c > 7 && c < 14) cell.classList.add('blue-bg');
                     else if (c === 7 && r > 0 && r < 7) cell.classList.add('green-bg');
                     else if (c === 7 && r > 7 && r < 14) cell.classList.add('yellow-bg');
-                    
-                    // Start arrows
                     else if (r === 6 && c === 1) cell.classList.add('red-start');
                     else if (r === 1 && c === 8) cell.classList.add('green-start');
                     else if (r === 8 && c === 13) cell.classList.add('blue-start');
                     else if (r === 13 && c === 6) cell.classList.add('yellow-start');
-                    
-                    // Center Home Triangle quarters
                     else if (r >= 6 && r <= 8 && c >= 6 && c <= 8) {
                         if (r === 7 && c === 7) cell.classList.add('center-core');
                         else if (r < 7) cell.classList.add('green-home-stretch');
@@ -395,7 +362,6 @@
                         else if (c > 7) cell.classList.add('blue-home-stretch');
                     }
                     
-                    // Safe zone stars
                     if ((r === 6 && c === 1) || (r === 8 && c === 1) || (r === 8 && c === 13) || (r === 6 && c === 13) ||
                         (r === 1 && c === 6) || (r === 1 && c === 8) || (r === 13 && c === 6) || (r === 13 && c === 8) ||
                         (r === 8 && c === 2) || (r === 2 && c === 6) || (r === 6 && c === 12) || (r === 12 && c === 8)) {
@@ -407,33 +373,29 @@
             }
         }
 
-        // ----- STEP-BY-STEP HOVER ANIMATION LOOP -----
-        // Moves token visually one square at a time towards target server position
+        // ----- STEP ANIMATION -----
         function stepAnimateToken(key) {
             const vis = visualPositions[key];
             if (!vis) return;
 
             if (vis.pos < vis.target) {
                 vis.pos++;
-                renderTokens(); // Redraw UI at intermediate position
-                
-                // Triggers next square jump after 240ms for rhythmic hopping look
+                renderTokens();
                 setTimeout(() => {
                     stepAnimateToken(key);
                 }, 240);
             } else {
                 vis.animating = false;
-                renderTokens(); // Clean up final position
+                renderTokens();
             }
         }
 
-        // ----- RENDER TOKENS (USING VISUAL INTERMEDIATE STATE) -----
+        // ----- RENDER TOKENS -----
         function renderTokens() {
             if (!gameState) return;
             const layer = document.getElementById('token-layer');
             layer.innerHTML = '';
 
-            // Map and identify overlapping tokens to apply jitter offset dynamically
             const positionTracker = {};
 
             Object.keys(visualPositions).forEach(key => {
@@ -442,10 +404,9 @@
                 const pidx = gameState.players.findIndex(p => p.id === player.id);
                 if (pidx === -1) return;
 
-                const colorCode = player.color.split(' ')[1].toLowerCase(); // "red", "green" etc.
+                const colorCode = player.color.split(' ')[1].toLowerCase();
                 const absPos = resolvePosition(player.color, vis.tidx, vis.pos);
                 
-                // Track overlaps based on current active visual coordinates
                 const coordKey = `${Math.round(absPos.x)}_${Math.round(absPos.y)}`;
                 if (!positionTracker[coordKey]) {
                     positionTracker[coordKey] = [];
@@ -453,20 +414,16 @@
                 positionTracker[coordKey].push({ key, vis, pidx, colorCode, player, absPos });
             });
 
-            // Draw stacked tokens with spatial adjustments
             Object.keys(positionTracker).forEach(coordKey => {
                 const stacked = positionTracker[coordKey];
                 stacked.forEach((info, index) => {
                     const token = document.createElement('div');
                     token.className = `token token-${info.colorCode}`;
                     
-                    // Pawn parts
                     const head = document.createElement('div');
                     head.className = 'goti-head';
-                    
                     const neck = document.createElement('div');
                     neck.className = 'goti-neck';
-
                     const body = document.createElement('div');
                     body.className = 'goti-body';
 
@@ -474,7 +431,6 @@
                     token.appendChild(neck);
                     token.appendChild(body);
 
-                    // Overlap Offset logic (Goti stacking adjusters)
                     let offsetPercentX = 0;
                     let offsetPercentY = 0;
                     if (stacked.length > 1) {
@@ -485,15 +441,11 @@
                     token.style.left = `${info.absPos.x + offsetPercentX}%`;
                     token.style.top = `${info.absPos.y + offsetPercentY}%`;
 
-                    // Touch interactions checker
                     const isMyTurn = (gameState.turn_index === info.pidx) && (info.player.id === userId);
-                    // Enable move click only if it's the player's turn, dice is rolled, path is valid, and the pawn is not already mid-animation
                     const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(info.vis.pos, gameState.dice_value) && !info.vis.animating;
 
                     if (canMoveThisToken) {
                         token.classList.add('movable');
-                        
-                        // Pointer down event
                         token.addEventListener('pointerdown', (e) => {
                             e.stopPropagation();
                             e.preventDefault();
@@ -506,11 +458,10 @@
             });
         }
 
-        // ----- UPDATE GAME ENGINE DISPLAY -----
+        // ----- UPDATE UI -----
         function updateUI() {
             if (!gameState) return;
 
-            // Turn info
             const currentTurnIdx = gameState.turn_index;
             const currentPlayer = gameState.players[currentTurnIdx];
             const turnIndicator = document.getElementById('turn-indicator');
@@ -531,13 +482,11 @@
                 diceStatus.innerHTML = `⏳ Awaiting word submission/roll in Telegram chat.`;
             }
 
-            // Sync visual path targets with the network server positions
             gameState.players.forEach((player) => {
                 player.tokens.forEach((serverPos, tidx) => {
                     const key = `${player.color}_${tidx}`;
                     
                     if (visualPositions[key] === undefined) {
-                        // Init new token coordinate
                         visualPositions[key] = {
                             pos: serverPos,
                             target: serverPos,
@@ -546,20 +495,16 @@
                             tidx: tidx
                         };
                     } else {
-                        // Refresh data attributes
                         visualPositions[key].player = player;
                     }
 
                     const vis = visualPositions[key];
 
-                    // If token got captured or reset, snap instantly back to base
                     if (serverPos < vis.pos || serverPos === 0) {
                         vis.pos = serverPos;
                         vis.target = serverPos;
                         vis.animating = false;
-                    } 
-                    // Trigger dynamic box-by-box progression if target updated forward
-                    else if (serverPos > vis.target) {
+                    } else if (serverPos > vis.target) {
                         vis.target = serverPos;
                         if (!vis.animating) {
                             vis.animating = true;
@@ -569,11 +514,9 @@
                 });
             });
 
-            // Draw visual states
             renderTokens();
         }
 
-        // Safe helper for matching color strings to solid CSS hex codes
         function getColorHex(colorStr) {
             if (colorStr.includes("Red")) return "#f56565";
             if (colorStr.includes("Green")) return "#48bb78";
@@ -582,7 +525,6 @@
             return "#ffffff";
         }
 
-        // Local client check if token path move is valid
         function canMoveRule(pos, dice) {
             if (pos >= 59) return false;
             if (pos === 0) return true;
@@ -594,33 +536,44 @@
             return newPos !== pos;
         }
 
-        // ----- API INTERACTION -----
+        // ============================================================
+        // FIXED: API INTERACTION - Send BOTH master token AND session token
+        // ============================================================
         async function fetchGameState() {
             try {
-                const response = await fetch(`${apiBase}/game_state?chat_id=${chatId}&token=${apiToken}`);
+                // Send master API token for authentication + session token for user validation
+                const url = `${apiBase}/game_state?chat_id=${chatId}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
+                console.log("📡 Fetching game state:", url);
+                
+                const response = await fetch(url);
                 if (response.ok) {
                     gameState = await response.json();
                     updateUI();
                 } else {
                     const errData = await response.json();
-                    console.error("Error fetching state:", errData.error);
+                    console.error("Error fetching state:", errData);
+                    showToast(`⚠️ ${errData.error || "Failed to load game"}`);
                 }
             } catch (err) {
                 console.error("Network error during fetchGameState:", err);
+                showToast("⚠️ Network error connecting to server");
             }
         }
 
         async function performMove(tokenIdx) {
             showToast("Processing token movement...");
             try {
-                const response = await fetch(`${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&token=${apiToken}`, {
+                const url = `${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
+                console.log("📡 Executing move:", url);
+                
+                const response = await fetch(url, {
                     method: 'POST'
                 });
                 const resData = await response.json();
                 
                 if (response.ok) {
-                    showToast("Move executed successfully!");
-                    fetchGameState(); // Refetch board values
+                    showToast("✅ Move executed successfully!");
+                    fetchGameState();
                 } else {
                     showToast(`⚠️ ${resData.error || "Movement rejected"}`);
                 }
@@ -630,7 +583,7 @@
             }
         }
 
-        // ----- UTILITY TOAST NOTIFICATIONS -----
+        // ----- UTILITY TOAST -----
         function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
@@ -640,12 +593,23 @@
             }, 2500);
         }
 
-        // ----- INITIALIZE BOOTSTRAP -----
+        // ----- INITIALIZE -----
         createBoard();
-        fetchGameState();
-
-        // Safe polling every 2.0 seconds to keep board synchronized
-        setInterval(fetchGameState, 2000);
+        
+        // Check if we have valid params
+        if (!chatId) {
+            showToast("⚠️ Missing chat_id parameter!");
+            document.getElementById('turn-indicator').textContent = "❌ Invalid Game Link";
+            document.getElementById('dice-status').textContent = "Please use the link from the bot.";
+        } else if (!userId) {
+            showToast("⚠️ Missing user_id parameter!");
+            document.getElementById('turn-indicator').textContent = "❌ Invalid User";
+            document.getElementById('dice-status').textContent = "Please use the link from the bot.";
+        } else {
+            fetchGameState();
+            // Poll every 2 seconds
+            setInterval(fetchGameState, 2000);
+        }
     </script>
 </body>
 </html>
