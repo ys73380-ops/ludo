@@ -36,7 +36,6 @@
             gap: 15px;
         }
 
-        /* ----- GAME HEADER & STATUS ----- */
         #game-header {
             width: 100%;
             background: rgba(255, 255, 255, 0.05);
@@ -61,7 +60,6 @@
             color: #a0aec0;
         }
 
-        /* ----- LUDO BOARD CONTAINER ----- */
         #board-wrapper {
             position: relative;
             width: 100%;
@@ -81,7 +79,6 @@
             height: 100%;
         }
 
-        /* ----- BOARD CELL STYLING ----- */
         .cell {
             background: #f7fafc;
             border: 1px solid #e2e8f0;
@@ -114,7 +111,6 @@
         .blue-home-stretch { background: #90cdf4 !important; }
         .yellow-home-stretch { background: #faf089 !important; }
 
-        /* ----- TOKENS / GOTIS ----- */
         .token-layer {
             position: absolute;
             top: 0;
@@ -213,7 +209,6 @@
             100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
         }
 
-        /* ----- NOTIFICATION TOASTS ----- */
         #toast {
             position: fixed;
             bottom: 30px;
@@ -256,12 +251,7 @@
 
     <script>
         // ============================================================
-        // FIXED: Master API Token (Must match BotConfig.API_TOKEN)
-        // ============================================================
-        const MASTER_API_TOKEN = "super_secret_ludo_token_123";
-
-        // ============================================================
-        // PARSE URL PARAMS
+        // 1. PARSE URL PARAMETERS
         // ============================================================
         const urlParams = new URLSearchParams(window.location.search);
         const chatId = parseInt(urlParams.get('chat_id')) || 0;
@@ -269,18 +259,20 @@
         const sessionToken = urlParams.get('token') || "";
         const apiBase = urlParams.get('api') || window.location.origin;
 
-        // Log for debugging
+        // Master API Token: try from URL param, else use hardcoded fallback.
+        const MASTER_API_TOKEN = urlParams.get('api_token') || "super_secret_ludo_token_123";
+
         console.log("🔑 Master API Token:", MASTER_API_TOKEN);
         console.log("🎮 Chat ID:", chatId, "User ID:", userId);
         console.log("🔐 Session Token:", sessionToken);
         console.log("🌐 API Base:", apiBase);
 
         let gameState = null;
-
-        // ----- ANIMATION & VISUAL STATE TRACKING -----
         const visualPositions = {};
 
-        // ----- COORDINATES MAP -----
+        // ============================================================
+        // 2. BOARD COORDINATE HELPERS
+        // ============================================================
         function getPercentPos(r, c) {
             return {
                 x: (c * 6.666) + 3.333,
@@ -333,7 +325,9 @@
             return getPercentPos(cell.r, cell.c);
         }
 
-        // ----- RENDER STATIC BOARD -----
+        // ============================================================
+        // 3. BOARD RENDERING
+        // ============================================================
         function createBoard() {
             const board = document.getElementById('ludo-board');
             board.innerHTML = '';
@@ -373,7 +367,9 @@
             }
         }
 
-        // ----- STEP ANIMATION -----
+        // ============================================================
+        // 4. TOKEN ANIMATION & RENDERING
+        // ============================================================
         function stepAnimateToken(key) {
             const vis = visualPositions[key];
             if (!vis) return;
@@ -390,7 +386,6 @@
             }
         }
 
-        // ----- RENDER TOKENS -----
         function renderTokens() {
             if (!gameState) return;
             const layer = document.getElementById('token-layer');
@@ -458,7 +453,6 @@
             });
         }
 
-        // ----- UPDATE UI -----
         function updateUI() {
             if (!gameState) return;
 
@@ -537,11 +531,10 @@
         }
 
         // ============================================================
-        // FIXED: API INTERACTION - Send BOTH master token AND session token
+        // 5. API INTERACTION (FIXED)
         // ============================================================
         async function fetchGameState() {
             try {
-                // Send master API token for authentication + session token for user validation
                 const url = `${apiBase}/game_state?chat_id=${chatId}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
                 console.log("📡 Fetching game state:", url);
                 
@@ -583,7 +576,9 @@
             }
         }
 
-        // ----- UTILITY TOAST -----
+        // ============================================================
+        // 6. TOAST HELPER
+        // ============================================================
         function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
@@ -593,10 +588,11 @@
             }, 2500);
         }
 
-        // ----- INITIALIZE -----
+        // ============================================================
+        // 7. INIT
+        // ============================================================
         createBoard();
         
-        // Check if we have valid params
         if (!chatId) {
             showToast("⚠️ Missing chat_id parameter!");
             document.getElementById('turn-indicator').textContent = "❌ Invalid Game Link";
@@ -607,7 +603,6 @@
             document.getElementById('dice-status').textContent = "Please use the link from the bot.";
         } else {
             fetchGameState();
-            // Poll every 2 seconds
             setInterval(fetchGameState, 2000);
         }
     </script>
