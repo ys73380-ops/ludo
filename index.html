@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Premium Ludo Companion</title>
     <style>
         * {
@@ -132,8 +132,9 @@
             justify-content: flex-end;
             cursor: pointer;
             touch-action: manipulation;
-            transition: left 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3), top 0.22s cubic-bezier(0.25, 0.46, 0.45, 1.3);
+            transition: left 0.35s cubic-bezier(0.25, 0.46, 0.45, 1.3), top 0.35s cubic-bezier(0.25, 0.46, 0.45, 1.3);
             z-index: 10;
+            will-change: left, top;
         }
 
         .token::after {
@@ -201,6 +202,7 @@
             animation: pulseHighlightPawn 1.2s infinite;
             z-index: 20;
             transform: translate(-50%, -75%) scale(1.15);
+            cursor: pointer;
         }
 
         @keyframes pulseHighlightPawn {
@@ -231,6 +233,13 @@
             opacity: 1;
             transform: translateY(0);
         }
+
+        #loading {
+            font-size: 1rem;
+            color: #a0aec0;
+            padding: 20px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -238,7 +247,7 @@
     <div id="app-container">
         <div id="game-header">
             <div id="turn-indicator">Loading game session...</div>
-            <div id="dice-status">Waiting for network sync</div>
+            <div id="dice-status">Connecting to server...</div>
         </div>
 
         <div id="board-wrapper">
@@ -258,8 +267,6 @@
         const userId = parseInt(urlParams.get('user_id')) || 0;
         const sessionToken = urlParams.get('token') || "";
         const apiBase = urlParams.get('api') || window.location.origin;
-
-        // Master API Token: try from URL param, else use hardcoded fallback.
         const MASTER_API_TOKEN = urlParams.get('api_token') || "super_secret_ludo_token_123";
 
         console.log("🔑 Master API Token:", MASTER_API_TOKEN);
@@ -268,7 +275,7 @@
         console.log("🌐 API Base:", apiBase);
 
         let gameState = null;
-        const visualPositions = {};
+        let tokenElements = {}; // key: `${color}_${tidx}` => DOM element
 
         // ============================================================
         // 2. BOARD COORDINATE HELPERS
@@ -326,7 +333,7 @@
         }
 
         // ============================================================
-        // 3. BOARD RENDERING
+        // 3. BOARD RENDERING (static)
         // ============================================================
         function createBoard() {
             const board = document.getElementById('ludo-board');
@@ -368,52 +375,77 @@
         }
 
         // ============================================================
-        // 4. TOKEN ANIMATION & RENDERING
+        // 4. TOKEN RENDERING WITH SMOOTH CSS TRANSITIONS
         // ============================================================
-        function stepAnimateToken(key) {
-            const vis = visualPositions[key];
-            if (!vis) return;
-
-            if (vis.pos < vis.target) {
-                vis.pos++;
-                renderTokens();
-                setTimeout(() => {
-                    stepAnimateToken(key);
-                }, 240);
-            } else {
-                vis.animating = false;
-                renderTokens();
-            }
-        }
-
         function renderTokens() {
             if (!gameState) return;
             const layer = document.getElementById('token-layer');
-            layer.innerHTML = '';
 
-            const positionTracker = {};
-
-            Object.keys(visualPositions).forEach(key => {
-                const vis = visualPositions[key];
-                const player = vis.player;
-                const pidx = gameState.players.findIndex(p => p.id === player.id);
-                if (pidx === -1) return;
-
-                const colorCode = player.color.split(' ')[1].toLowerCase();
-                const absPos = resolvePosition(player.color, vis.tidx, vis.pos);
-                
-                const coordKey = `${Math.round(absPos.x)}_${Math.round(absPos.y)}`;
-                if (!positionTracker[coordKey]) {
-                    positionTracker[coordKey] = [];
-                }
-                positionTracker[coordKey].push({ key, vis, pidx, colorCode, player, absPos });
+            // Build a map of all possible tokens (color_tidx)
+            const allKeys = [];
+            gameState.players.forEach(player => {
+                player.tokens.forEach((_, tidx) => {
+                    allKeys.push(`${player.color}_${tidx}`);
+                });
             });
 
-            Object.keys(positionTracker).forEach(coordKey => {
-                const stacked = positionTracker[coordKey];
-                stacked.forEach((info, index) => {
-                    const token = document.createElement('div');
-                    token.className = `token token-${info.colorCode}`;
+            // Remove token elements that no longer exist
+            Object.keys(tokenElements).forEach(key => {
+                if (!allKeys.includes(key)) {
+                    const el = tokenElements[key];
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                    delete tokenElements[key];
+                }
+            });
+
+            // Compute positions for all tokens and group by coordinate for stacking
+            const positions = {};
+            gameState.players.forEach(player => {
+                player.tokens.forEach((pos, tidx) => {
+                    const key = `${player.color}_${tidx}`;
+                    const absPos = resolvePosition(player.color, tidx, pos);
+                    const coordKey = `${Math.round(absPos.x*10)}_${Math.round(absPos.y*10)}`; // round to 0.1%
+                    if (!positions[coordKey]) positions[coordKey] = [];
+                    positions[coordKey].push({ player, tidx, pos, absPos, key });
+                });
+            });
+
+            // For each coordinate group, assign offsets
+            const offsets = {};
+            Object.keys(positions).forEach(coordKey => {
+                const group = positions[coordKey];
+                group.forEach((item, index) => {
+                    const offsetX = (index * 1.6) - (group.length - 1) * 0.8;
+                    const offsetY = (index * -1.6) + (group.length - 1) * 0.8;
+                    offsets[item.key] = { offsetX, offsetY };
+                });
+            });
+
+            // Now create/update token elements
+            allKeys.forEach(key => {
+                // Find the token data
+                let tokenData = null;
+                for (let coordKey in positions) {
+                    const group = positions[coordKey];
+                    for (let item of group) {
+                        if (item.key === key) {
+                            tokenData = item;
+                            break;
+                        }
+                    }
+                    if (tokenData) break;
+                }
+                if (!tokenData) return;
+
+                const { player, tidx, pos, absPos } = tokenData;
+                const colorCode = player.color.split(' ')[1].toLowerCase();
+                const offset = offsets[key] || { offsetX: 0, offsetY: 0 };
+
+                // Get or create element
+                let el = tokenElements[key];
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = `token token-${colorCode}`;
                     
                     const head = document.createElement('div');
                     head.className = 'goti-head';
@@ -421,94 +453,55 @@
                     neck.className = 'goti-neck';
                     const body = document.createElement('div');
                     body.className = 'goti-body';
+                    el.appendChild(head);
+                    el.appendChild(neck);
+                    el.appendChild(body);
+                    
+                    layer.appendChild(el);
+                    tokenElements[key] = el;
+                }
 
-                    token.appendChild(head);
-                    token.appendChild(neck);
-                    token.appendChild(body);
+                // Update position with offset
+                const left = absPos.x + offset.offsetX;
+                const top = absPos.y + offset.offsetY;
+                el.style.left = `${left}%`;
+                el.style.top = `${top}%`;
 
-                    let offsetPercentX = 0;
-                    let offsetPercentY = 0;
-                    if (stacked.length > 1) {
-                        offsetPercentX = (index * 1.6) - (stacked.length - 1) * 0.8;
-                        offsetPercentY = (index * -1.6) + (stacked.length - 1) * 0.8;
-                    }
+                // Determine if movable
+                const playerIdx = gameState.players.findIndex(p => p.id === player.id);
+                const isMyTurn = (gameState.turn_index === playerIdx) && (player.id === userId);
+                const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(pos, gameState.dice_value);
 
-                    token.style.left = `${info.absPos.x + offsetPercentX}%`;
-                    token.style.top = `${info.absPos.y + offsetPercentY}%`;
-
-                    const isMyTurn = (gameState.turn_index === info.pidx) && (info.player.id === userId);
-                    const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(info.vis.pos, gameState.dice_value) && !info.vis.animating;
-
-                    if (canMoveThisToken) {
-                        token.classList.add('movable');
-                        token.addEventListener('pointerdown', (e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            performMove(info.vis.tidx);
-                        });
-                    }
-
-                    layer.appendChild(token);
-                });
+                // Toggle movable class and pointer events
+                if (canMoveThisToken) {
+                    el.classList.add('movable');
+                    el.style.pointerEvents = 'auto';
+                    // Attach click handler (avoid duplicate)
+                    el.onpointerdown = (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        performMove(tidx);
+                    };
+                } else {
+                    el.classList.remove('movable');
+                    el.style.pointerEvents = 'none';
+                    el.onpointerdown = null;
+                }
             });
         }
 
-        function updateUI() {
-            if (!gameState) return;
-
-            const currentTurnIdx = gameState.turn_index;
-            const currentPlayer = gameState.players[currentTurnIdx];
-            const turnIndicator = document.getElementById('turn-indicator');
-            const diceStatus = document.getElementById('dice-status');
-
-            if (gameState.winner !== -1) {
-                const winnerName = gameState.players[gameState.winner].username;
-                turnIndicator.innerHTML = `🏆 Winner: ${winnerName}!`;
-                diceStatus.innerHTML = `The game has finished.`;
-                return;
+        // ============================================================
+        // 5. GAME RULES HELPERS
+        // ============================================================
+        function canMoveRule(pos, dice) {
+            if (pos >= 59) return false;
+            if (pos === 0) return true; // always can come out (assuming no six required)
+            let newPos = pos + dice;
+            if (pos >= 1 && pos <= 52 && newPos > 52) {
+                newPos = 52 + (newPos - 52);
             }
-
-            turnIndicator.innerHTML = `👉 Turn: <span style="color: ${getColorHex(currentPlayer.color)}">${currentPlayer.username}</span>`;
-            
-            if (gameState.rolled) {
-                diceStatus.innerHTML = `🎲 Dice Rolled = <b>${gameState.dice_value}</b> | Please tap a movable token!`;
-            } else {
-                diceStatus.innerHTML = `⏳ Awaiting word submission/roll in Telegram chat.`;
-            }
-
-            gameState.players.forEach((player) => {
-                player.tokens.forEach((serverPos, tidx) => {
-                    const key = `${player.color}_${tidx}`;
-                    
-                    if (visualPositions[key] === undefined) {
-                        visualPositions[key] = {
-                            pos: serverPos,
-                            target: serverPos,
-                            animating: false,
-                            player: player,
-                            tidx: tidx
-                        };
-                    } else {
-                        visualPositions[key].player = player;
-                    }
-
-                    const vis = visualPositions[key];
-
-                    if (serverPos < vis.pos || serverPos === 0) {
-                        vis.pos = serverPos;
-                        vis.target = serverPos;
-                        vis.animating = false;
-                    } else if (serverPos > vis.target) {
-                        vis.target = serverPos;
-                        if (!vis.animating) {
-                            vis.animating = true;
-                            stepAnimateToken(key);
-                        }
-                    }
-                });
-            });
-
-            renderTokens();
+            if (newPos > 58) newPos = 59;
+            return newPos !== pos;
         }
 
         function getColorHex(colorStr) {
@@ -519,19 +512,42 @@
             return "#ffffff";
         }
 
-        function canMoveRule(pos, dice) {
-            if (pos >= 59) return false;
-            if (pos === 0) return true;
-            let newPos = pos + dice;
-            if (1 <= pos && pos <= 52 && newPos > 52) {
-                newPos = 52 + (newPos - 52);
+        // ============================================================
+        // 6. UI UPDATE
+        // ============================================================
+        function updateUI() {
+            if (!gameState) {
+                document.getElementById('turn-indicator').textContent = '⏳ Loading game...';
+                document.getElementById('dice-status').textContent = 'Connecting...';
+                return;
             }
-            if (newPos > 58) newPos = 59;
-            return newPos !== pos;
+
+            const currentTurnIdx = gameState.turn_index;
+            const currentPlayer = gameState.players[currentTurnIdx];
+            const turnIndicator = document.getElementById('turn-indicator');
+            const diceStatus = document.getElementById('dice-status');
+
+            if (gameState.winner !== -1) {
+                const winnerName = gameState.players[gameState.winner].username;
+                turnIndicator.innerHTML = `🏆 Winner: ${winnerName}!`;
+                diceStatus.innerHTML = 'Game finished.';
+                return;
+            }
+
+            turnIndicator.innerHTML = `👉 Turn: <span style="color: ${getColorHex(currentPlayer.color)}">${currentPlayer.username}</span>`;
+
+            if (gameState.rolled) {
+                diceStatus.innerHTML = `🎲 Dice Rolled = <b>${gameState.dice_value}</b> | Tap a movable token!`;
+            } else {
+                diceStatus.innerHTML = `⏳ Awaiting word submission in Telegram.`;
+            }
+
+            // Render tokens
+            renderTokens();
         }
 
         // ============================================================
-        // 5. API INTERACTION (FIXED)
+        // 7. API INTERACTION
         // ============================================================
         async function fetchGameState() {
             try {
@@ -540,8 +556,12 @@
                 
                 const response = await fetch(url);
                 if (response.ok) {
-                    gameState = await response.json();
-                    updateUI();
+                    const newState = await response.json();
+                    // Only update if changed to avoid flicker
+                    if (JSON.stringify(gameState) !== JSON.stringify(newState)) {
+                        gameState = newState;
+                        updateUI();
+                    }
                 } else {
                     const errData = await response.json();
                     console.error("Error fetching state:", errData);
@@ -554,7 +574,7 @@
         }
 
         async function performMove(tokenIdx) {
-            showToast("Processing token movement...");
+            showToast("⏳ Moving token...");
             try {
                 const url = `${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
                 console.log("📡 Executing move:", url);
@@ -566,7 +586,8 @@
                 
                 if (response.ok) {
                     showToast("✅ Move executed successfully!");
-                    fetchGameState();
+                    // Immediately refresh to see new state
+                    await fetchGameState();
                 } else {
                     showToast(`⚠️ ${resData.error || "Movement rejected"}`);
                 }
@@ -577,32 +598,31 @@
         }
 
         // ============================================================
-        // 6. TOAST HELPER
+        // 8. TOAST HELPER
         // ============================================================
         function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
             toast.classList.add('show');
-            setTimeout(() => {
+            clearTimeout(toast._hideTimer);
+            toast._hideTimer = setTimeout(() => {
                 toast.classList.remove('show');
             }, 2500);
         }
 
         // ============================================================
-        // 7. INIT
+        // 9. INIT
         // ============================================================
         createBoard();
         
-        if (!chatId) {
-            showToast("⚠️ Missing chat_id parameter!");
-            document.getElementById('turn-indicator').textContent = "❌ Invalid Game Link";
-            document.getElementById('dice-status').textContent = "Please use the link from the bot.";
-        } else if (!userId) {
-            showToast("⚠️ Missing user_id parameter!");
-            document.getElementById('turn-indicator').textContent = "❌ Invalid User";
-            document.getElementById('dice-status').textContent = "Please use the link from the bot.";
+        if (!chatId || !userId) {
+            showToast("⚠️ Invalid game link. Please use the link from the bot.");
+            document.getElementById('turn-indicator').textContent = "❌ Invalid Link";
+            document.getElementById('dice-status').textContent = "Please restart from the bot.";
         } else {
+            // Initial fetch
             fetchGameState();
+            // Poll every 2 seconds for real-time updates
             setInterval(fetchGameState, 2000);
         }
     </script>
