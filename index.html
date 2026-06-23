@@ -85,16 +85,37 @@
             position: relative;
         }
 
-        .red-bg { background-color: #f56565 !important; }
-        .green-bg { background-color: #48bb78 !important; }
-        .yellow-bg { background-color: #ecc94b !important; }
-        .blue-bg { background-color: #4299e1 !important; }
+        .red-bg {
+            background-color: #f56565 !important;
+        }
+        .green-bg {
+            background-color: #48bb78 !important;
+        }
+        .yellow-bg {
+            background-color: #ecc94b !important;
+        }
+        .blue-bg {
+            background-color: #4299e1 !important;
+        }
 
-        .red-start { background-color: #fc8181 !important; border-radius: 5px; }
-        .green-start { background-color: #68d391 !important; border-radius: 5px; }
-        .blue-start { background-color: #63b3ed !important; border-radius: 5px; }
-        .yellow-start { background-color: #f6e05e !important; border-radius: 5px; }
+        .red-start {
+            background-color: #fc8181 !important;
+            border-radius: 5px;
+        }
+        .green-start {
+            background-color: #68d391 !important;
+            border-radius: 5px;
+        }
+        .blue-start {
+            background-color: #63b3ed !important;
+            border-radius: 5px;
+        }
+        .yellow-start {
+            background-color: #f6e05e !important;
+            border-radius: 5px;
+        }
 
+        /* Safe spot stars – only on the selected cells, one per pair */
         .safe-spot::before {
             content: "★";
             position: absolute;
@@ -105,11 +126,35 @@
             font-size: 1.2rem;
         }
 
-        .center-core { background: #2d3748 !important; }
-        .red-home-stretch { background: #feb2b2 !important; }
-        .green-home-stretch { background: #9ae6b4 !important; }
-        .blue-home-stretch { background: #90cdf4 !important; }
-        .yellow-home-stretch { background: #faf089 !important; }
+        .center-core {
+            background: #2d3748 !important;
+        }
+        .red-home-stretch {
+            background: #feb2b2 !important;
+        }
+        .green-home-stretch {
+            background: #9ae6b4 !important;
+        }
+        .blue-home-stretch {
+            background: #90cdf4 !important;
+        }
+        .yellow-home-stretch {
+            background: #faf089 !important;
+        }
+
+        /* Black dot on pawn base cells */
+        .pawn-base::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: black;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
 
         .token-layer {
             position: absolute;
@@ -186,7 +231,7 @@
             border-radius: 50%;
             z-index: 2;
             margin-bottom: -4%;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
         }
 
         .goti-body {
@@ -194,7 +239,7 @@
             height: 56%;
             background: radial-gradient(circle at 40% 25%, var(--goti-color-light) 0%, var(--goti-color-main) 50%, var(--goti-color-dark) 100%);
             border-radius: 50% 50% 42% 42% / 85% 85% 25% 25%;
-            box-shadow: inset 1px 2px 3px rgba(255,255,255,0.4), 0 3px 5px rgba(0,0,0,0.3);
+            box-shadow: inset 1px 2px 3px rgba(255, 255, 255, 0.4), 0 3px 5px rgba(0, 0, 0, 0.3);
             z-index: 1;
         }
 
@@ -206,9 +251,15 @@
         }
 
         @keyframes pulseHighlightPawn {
-            0% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
-            50% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
-            100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0,0,0,0.4)); }
+            0% {
+                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0, 0, 0, 0.4));
+            }
+            50% {
+                filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 4px 5px rgba(0, 0, 0, 0.4));
+            }
+            100% {
+                filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)) drop-shadow(0 4px 5px rgba(0, 0, 0, 0.4));
+            }
         }
 
         #toast {
@@ -226,7 +277,7 @@
             pointer-events: none;
             z-index: 1000;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
         #toast.show {
@@ -275,7 +326,7 @@
         console.log("🌐 API Base:", apiBase);
 
         let gameState = null;
-        let tokenElements = {}; // key: `${color}_${tidx}` => DOM element
+        let tokenElements = {};
 
         // ============================================================
         // 2. BOARD COORDINATE HELPERS
@@ -288,39 +339,39 @@
         }
 
         const trackCoords = [
-            {r:6, c:1}, {r:6, c:2}, {r:6, c:3}, {r:6, c:4}, {r:6, c:5},
-            {r:5, c:6}, {r:4, c:6}, {r:3, c:6}, {r:2, c:6}, {r:1, c:6}, {r:0, c:6},
-            {r:0, c:7},
-            {r:0, c:8}, {r:1, c:8}, {r:2, c:8}, {r:3, c:8}, {r:4, c:8}, {r:5, c:8},
-            {r:6, c:9}, {r:6, c:10}, {r:6, c:11}, {r:6, c:12}, {r:6, c:13}, {r:6, c:14},
-            {r:7, c:14},
-            {r:8, c:14}, {r:8, c:13}, {r:8, c:12}, {r:8, c:11}, {r:8, c:10}, {r:8, c:9},
-            {r:9, c:8}, {r:10, c:8}, {r:11, c:8}, {r:12, c:8}, {r:13, c:8}, {r:14, c:8},
-            {r:14, c:7},
-            {r:14, c:6}, {r:13, c:6}, {r:12, c:6}, {r:11, c:6}, {r:10, c:6}, {r:9, c:6},
-            {r:8, c:5}, {r:8, c:4}, {r:8, c:3}, {r:8, c:2}, {r:8, c:1}, {r:8, c:0},
-            {r:7, c:0},
-            {r:6, c:0}
+            { r: 6, c: 1 }, { r: 6, c: 2 }, { r: 6, c: 3 }, { r: 6, c: 4 }, { r: 6, c: 5 },
+            { r: 5, c: 6 }, { r: 4, c: 6 }, { r: 3, c: 6 }, { r: 2, c: 6 }, { r: 1, c: 6 }, { r: 0, c: 6 },
+            { r: 0, c: 7 },
+            { r: 0, c: 8 }, { r: 1, c: 8 }, { r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 },
+            { r: 6, c: 9 }, { r: 6, c: 10 }, { r: 6, c: 11 }, { r: 6, c: 12 }, { r: 6, c: 13 }, { r: 6, c: 14 },
+            { r: 7, c: 14 },
+            { r: 8, c: 14 }, { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }, { r: 8, c: 9 },
+            { r: 9, c: 8 }, { r: 10, c: 8 }, { r: 11, c: 8 }, { r: 12, c: 8 }, { r: 13, c: 8 }, { r: 14, c: 8 },
+            { r: 14, c: 7 },
+            { r: 14, c: 6 }, { r: 13, c: 6 }, { r: 12, c: 6 }, { r: 11, c: 6 }, { r: 10, c: 6 }, { r: 9, c: 6 },
+            { r: 8, c: 5 }, { r: 8, c: 4 }, { r: 8, c: 3 }, { r: 8, c: 2 }, { r: 8, c: 1 }, { r: 8, c: 0 },
+            { r: 7, c: 0 },
+            { r: 6, c: 0 }
         ];
 
         const baseCoords = {
-            "🔴 Red":    [{r:2, c:2}, {r:2, c:3}, {r:3, c:2}, {r:3, c:3}],
-            "🟢 Green":  [{r:2, c:11}, {r:2, c:12}, {r:3, c:11}, {r:3, c:12}],
-            "🔵 Blue":   [{r:11, c:11}, {r:11, c:12}, {r:12, c:11}, {r:12, c:12}],
-            "🟡 Yellow": [{r:11, c:2}, {r:11, c:3}, {r:12, c:2}, {r:12, c:3}]
+            "🔴 Red": [{ r: 2, c: 2 }, { r: 2, c: 3 }, { r: 3, c: 2 }, { r: 3, c: 3 }],
+            "🟢 Green": [{ r: 2, c: 11 }, { r: 2, c: 12 }, { r: 3, c: 11 }, { r: 3, c: 12 }],
+            "🔵 Blue": [{ r: 11, c: 11 }, { r: 11, c: 12 }, { r: 12, c: 11 }, { r: 12, c: 12 }],
+            "🟡 Yellow": [{ r: 11, c: 2 }, { r: 11, c: 3 }, { r: 12, c: 2 }, { r: 12, c: 3 }]
         };
 
         function getSpecialPos(color, pos) {
-            if (pos === 59) return {r:7, c:7};
-            if (color === "🔴 Red") return {r:7, c: pos - 52};
-            if (color === "🟢 Green") return {r: pos - 52, c:7};
-            if (color === "🔵 Blue") return {r:7, c: 14 - (pos - 52)};
-            if (color === "🟡 Yellow") return {r: 14 - (pos - 52), c:7};
-            return {r:7, c:7};
+            if (pos === 59) return { r: 7, c: 7 };
+            if (color === "🔴 Red") return { r: 7, c: pos - 52 };
+            if (color === "🟢 Green") return { r: pos - 52, c: 7 };
+            if (color === "🔵 Blue") return { r: 7, c: 14 - (pos - 52) };
+            if (color === "🟡 Yellow") return { r: 14 - (pos - 52), c: 7 };
+            return { r: 7, c: 7 };
         }
 
         function resolvePosition(color, tokenIdx, pos) {
-            let cell = {r:0, c:0};
+            let cell = { r: 0, c: 0 };
             if (pos === 0) {
                 cell = baseCoords[color][tokenIdx];
             } else if (pos >= 53) {
@@ -338,11 +389,33 @@
         function createBoard() {
             const board = document.getElementById('ludo-board');
             board.innerHTML = '';
+
+            // Pawn base cells for black dots
+            const baseCellSet = new Set([
+                "2_2", "2_3", "3_2", "3_3",
+                "2_11", "2_12", "3_11", "3_12",
+                "11_11", "11_12", "12_11", "12_12",
+                "11_2", "11_3", "12_2", "12_3"
+            ]);
+
+            // Original safe spots, but one per adjacent pair removed
+            const safeSpotSet = new Set([
+                "6_1",   // Red start (safe)
+                "1_8",   // Green start (safe)
+                "8_13",  // Blue start (safe)
+                "13_6",  // Yellow start (safe)
+                "8_2",   // kept, pair (8,1)-(8,2) → keep later one (8,2)
+                "6_12",  // kept, pair (6,12)-(6,13) → keep later one (6,12)
+                "1_6",   // kept, pair (1,6)-(2,6) → keep earlier one (1,6) because (2,6) is ahead
+                "12_8"   // kept, pair (12,8)-(13,8) → keep earlier one (12,8)
+            ]);
+
             for (let r = 0; r < 15; r++) {
                 for (let c = 0; c < 15; c++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
-                    
+
+                    // Color quadrants
                     if (r < 6 && c < 6) cell.classList.add('red-bg');
                     else if (r < 6 && c > 8) cell.classList.add('green-bg');
                     else if (r > 8 && c < 6) cell.classList.add('yellow-bg');
@@ -351,10 +424,12 @@
                     else if (r === 7 && c > 7 && c < 14) cell.classList.add('blue-bg');
                     else if (c === 7 && r > 0 && r < 7) cell.classList.add('green-bg');
                     else if (c === 7 && r > 7 && r < 14) cell.classList.add('yellow-bg');
+                    // Start cells
                     else if (r === 6 && c === 1) cell.classList.add('red-start');
                     else if (r === 1 && c === 8) cell.classList.add('green-start');
                     else if (r === 8 && c === 13) cell.classList.add('blue-start');
                     else if (r === 13 && c === 6) cell.classList.add('yellow-start');
+                    // Home stretch
                     else if (r >= 6 && r <= 8 && c >= 6 && c <= 8) {
                         if (r === 7 && c === 7) cell.classList.add('center-core');
                         else if (r < 7) cell.classList.add('green-home-stretch');
@@ -362,13 +437,17 @@
                         else if (c < 7) cell.classList.add('red-home-stretch');
                         else if (c > 7) cell.classList.add('blue-home-stretch');
                     }
-                    
-                    if ((r === 6 && c === 1) || (r === 8 && c === 1) || (r === 8 && c === 13) || (r === 6 && c === 13) ||
-                        (r === 1 && c === 6) || (r === 1 && c === 8) || (r === 13 && c === 6) || (r === 13 && c === 8) ||
-                        (r === 8 && c === 2) || (r === 2 && c === 6) || (r === 6 && c === 12) || (r === 12 && c === 8)) {
+
+                    // Add safe spot star
+                    if (safeSpotSet.has(`${r}_${c}`)) {
                         cell.classList.add('safe-spot');
                     }
-                    
+
+                    // Add black dot for pawn base
+                    if (baseCellSet.has(`${r}_${c}`)) {
+                        cell.classList.add('pawn-base');
+                    }
+
                     board.appendChild(cell);
                 }
             }
@@ -381,7 +460,6 @@
             if (!gameState) return;
             const layer = document.getElementById('token-layer');
 
-            // Build a map of all possible tokens (color_tidx)
             const allKeys = [];
             gameState.players.forEach(player => {
                 player.tokens.forEach((_, tidx) => {
@@ -389,7 +467,7 @@
                 });
             });
 
-            // Remove token elements that no longer exist
+            // Remove obsolete token elements
             Object.keys(tokenElements).forEach(key => {
                 if (!allKeys.includes(key)) {
                     const el = tokenElements[key];
@@ -398,19 +476,19 @@
                 }
             });
 
-            // Compute positions for all tokens and group by coordinate for stacking
+            // Compute positions and group by coordinate for stacking
             const positions = {};
             gameState.players.forEach(player => {
                 player.tokens.forEach((pos, tidx) => {
                     const key = `${player.color}_${tidx}`;
                     const absPos = resolvePosition(player.color, tidx, pos);
-                    const coordKey = `${Math.round(absPos.x*10)}_${Math.round(absPos.y*10)}`; // round to 0.1%
+                    const coordKey = `${Math.round(absPos.x * 10)}_${Math.round(absPos.y * 10)}`;
                     if (!positions[coordKey]) positions[coordKey] = [];
                     positions[coordKey].push({ player, tidx, pos, absPos, key });
                 });
             });
 
-            // For each coordinate group, assign offsets
+            // Stacking offsets
             const offsets = {};
             Object.keys(positions).forEach(coordKey => {
                 const group = positions[coordKey];
@@ -421,9 +499,8 @@
                 });
             });
 
-            // Now create/update token elements
+            // Create/update token elements
             allKeys.forEach(key => {
-                // Find the token data
                 let tokenData = null;
                 for (let coordKey in positions) {
                     const group = positions[coordKey];
@@ -441,12 +518,11 @@
                 const colorCode = player.color.split(' ')[1].toLowerCase();
                 const offset = offsets[key] || { offsetX: 0, offsetY: 0 };
 
-                // Get or create element
                 let el = tokenElements[key];
                 if (!el) {
                     el = document.createElement('div');
                     el.className = `token token-${colorCode}`;
-                    
+
                     const head = document.createElement('div');
                     head.className = 'goti-head';
                     const neck = document.createElement('div');
@@ -456,12 +532,11 @@
                     el.appendChild(head);
                     el.appendChild(neck);
                     el.appendChild(body);
-                    
+
                     layer.appendChild(el);
                     tokenElements[key] = el;
                 }
 
-                // Update position with offset
                 const left = absPos.x + offset.offsetX;
                 const top = absPos.y + offset.offsetY;
                 el.style.left = `${left}%`;
@@ -472,11 +547,9 @@
                 const isMyTurn = (gameState.turn_index === playerIdx) && (player.id === userId);
                 const canMoveThisToken = isMyTurn && gameState.rolled && canMoveRule(pos, gameState.dice_value);
 
-                // Toggle movable class and pointer events
                 if (canMoveThisToken) {
                     el.classList.add('movable');
                     el.style.pointerEvents = 'auto';
-                    // Attach click handler (avoid duplicate)
                     el.onpointerdown = (e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -495,7 +568,7 @@
         // ============================================================
         function canMoveRule(pos, dice) {
             if (pos >= 59) return false;
-            if (pos === 0) return true; // always can come out (assuming no six required)
+            if (pos === 0) return true;
             let newPos = pos + dice;
             if (pos >= 1 && pos <= 52 && newPos > 52) {
                 newPos = 52 + (newPos - 52);
@@ -534,7 +607,8 @@
                 return;
             }
 
-            turnIndicator.innerHTML = `👉 Turn: <span style="color: ${getColorHex(currentPlayer.color)}">${currentPlayer.username}</span>`;
+            turnIndicator.innerHTML =
+                `👉 Turn: <span style="color: ${getColorHex(currentPlayer.color)}">${currentPlayer.username}</span>`;
 
             if (gameState.rolled) {
                 diceStatus.innerHTML = `🎲 Dice Rolled = <b>${gameState.dice_value}</b> | Tap a movable token!`;
@@ -542,7 +616,6 @@
                 diceStatus.innerHTML = `⏳ Awaiting word submission in Telegram.`;
             }
 
-            // Render tokens
             renderTokens();
         }
 
@@ -551,13 +624,13 @@
         // ============================================================
         async function fetchGameState() {
             try {
-                const url = `${apiBase}/game_state?chat_id=${chatId}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
+                const url =
+                    `${apiBase}/game_state?chat_id=${chatId}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
                 console.log("📡 Fetching game state:", url);
-                
+
                 const response = await fetch(url);
                 if (response.ok) {
                     const newState = await response.json();
-                    // Only update if changed to avoid flicker
                     if (JSON.stringify(gameState) !== JSON.stringify(newState)) {
                         gameState = newState;
                         updateUI();
@@ -576,17 +649,17 @@
         async function performMove(tokenIdx) {
             showToast("⏳ Moving token...");
             try {
-                const url = `${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
+                const url =
+                    `${apiBase}/move?chat_id=${chatId}&user_id=${userId}&token_idx=${tokenIdx}&api_token=${MASTER_API_TOKEN}&token=${sessionToken}`;
                 console.log("📡 Executing move:", url);
-                
+
                 const response = await fetch(url, {
                     method: 'POST'
                 });
                 const resData = await response.json();
-                
+
                 if (response.ok) {
                     showToast("✅ Move executed successfully!");
-                    // Immediately refresh to see new state
                     await fetchGameState();
                 } else {
                     showToast(`⚠️ ${resData.error || "Movement rejected"}`);
@@ -614,15 +687,13 @@
         // 9. INIT
         // ============================================================
         createBoard();
-        
+
         if (!chatId || !userId) {
             showToast("⚠️ Invalid game link. Please use the link from the bot.");
             document.getElementById('turn-indicator').textContent = "❌ Invalid Link";
             document.getElementById('dice-status').textContent = "Please restart from the bot.";
         } else {
-            // Initial fetch
             fetchGameState();
-            // Poll every 2 seconds for real-time updates
             setInterval(fetchGameState, 2000);
         }
     </script>
